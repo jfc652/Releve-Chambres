@@ -144,11 +144,15 @@ function generateCSV(){
   
   PHOTO_CATS.forEach(cat => newCols.push(`nb_${cat.id}`));
 
-  const allHeaders=[...headers,...newCols];const d=';';
+  // On force l'ajout d'une colonne "ID_Chambre" au tout début du fichier
+  const allHeaders=['ID_Chambre', ...headers, ...newCols];
+  const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   
   for(const c of chambres){
     const row=allHeaders.map(h=>{
+      if(h === 'ID_Chambre') return c.id;
+      
       if(headers.includes(h))return c.raw[h]??'';
       
       if(h === 'notes') return c.notes||'';
@@ -302,7 +306,6 @@ function openDetail(id){
   </button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
-  // Gestion des cases à cocher masques
   cont.querySelectorAll('[data-masque]').forEach(b=>{
     b.onclick=()=>{
       const m = b.dataset.masque;
@@ -311,7 +314,6 @@ function openDetail(id){
     };
   });
 
-  // Saisie des diamètres par masque
   cont.querySelectorAll('[data-diam-masque]').forEach(inp=>{
     inp.oninput = e => {
       const m = inp.dataset.diamMasque;
@@ -322,7 +324,6 @@ function openDetail(id){
 
   document.getElementById('notesInput').oninput=e=>{c.notes=e.target.value;dbPut(c);};
 
-  // Gestion des photos (globales et masques)
   cont.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
     inp.onchange=async()=>{
       const files=Array.from(inp.files||[]);if(!files.length)return;
@@ -347,7 +348,6 @@ function openDetail(id){
     };
   });
 
-  // Suppression photos d'une catégorie
   cont.querySelectorAll('[data-del-cat]').forEach(b=>{
     b.onclick=async(e)=>{
       e.stopPropagation();e.preventDefault();
@@ -391,7 +391,6 @@ async function importCSV(file){
     let oldChambre = existing.get(id);
     if(oldChambre){
       oldChambre.raw = raw;
-      // S'assurer que la structure des masques existe pour les anciennes données
       if(!oldChambre.masques) oldChambre.masques = {};
       ['A','B','C','D'].forEach(m => { 
         if(!oldChambre.masques[m]) oldChambre.masques[m] = { present: false, diametre: '', photos: [] }; 
@@ -419,17 +418,20 @@ async function exportAll(){
   showOverlay(true);
   try{
     const zip=new JSZip();
-    zip.file('releve_chambres.csv',generateCSV());
+    // Ajout du BOM UTF-8 (\uFEFF) pour que Excel lise correctement les accents (É, À)
+    zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
+    
     for(const c of chambres){
       const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
       
-      // Photos globales
-      for(const cat in c.photos){
-        (c.photos[cat]||[]).forEach((p,i)=>{
-          const n=String(i+1).padStart(2,'0');
-          zip.file(`photos/${safe}/${cat}_${n}.jpg`,p.blob);
+      // On exporte UNIQUEMENT les catégories officielles pour éviter les vieilles photos de test
+      PHOTO_CATS.forEach(catObj => {
+        const cat = catObj.id;
+        (c.photos[cat] || []).forEach((p, i) => {
+          const n = String(i + 1).padStart(2, '0');
+          zip.file(`photos/${safe}/${cat}_${n}.jpg`, p.blob);
         });
-      }
+      });
       
       // Photos des masques
       ['A','B','C','D'].forEach(m => {
