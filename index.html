@@ -1,4 +1,4 @@
-<!DOCTYPE html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <link rel="manifest" href="manifest.json">
@@ -78,9 +78,9 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <h2 style="margin-top:0;font-size:17px;">ℹ️ Mode d'emploi</h2>
     <ol class="small" style="padding-left:20px;line-height:1.6;">
       <li>Importer le CSV des chambres.</li>
-      <li>Cocher les masques présents (A, B, C, D).</li>
-      <li>Saisir le diamètre et les notes.</li>
-      <li>Prendre les photos requises (Mires, BPE, Câbles, etc.).</li>
+      <li>Cocher les masques présents (A, B, C, D). Un bloc apparaîtra pour chacun.</li>
+      <li>Saisir le diamètre spécifique et prendre la photo de chaque masque.</li>
+      <li>Prendre les autres photos (Mires, BPE, Câbles, etc.).</li>
       <li>Valider la chambre, passer à la suivante.</li>
       <li>Exporter le ZIP en fin de tournée.</li>
     </ol>
@@ -112,10 +112,6 @@ const PHOTO_CATS = [
   {id:'cable_1', label:'Câble 1', icon:'🔌'},
   {id:'cable_2', label:'Câble 2', icon:'🔌'},
   {id:'cable_3', label:'Câble 3', icon:'🔌'},
-  {id:'masque_A', label:'Masque A', icon:'🔘'},
-  {id:'masque_B', label:'Masque B', icon:'🔘'},
-  {id:'masque_C', label:'Masque C', icon:'🔘'},
-  {id:'masque_D', label:'Masque D', icon:'🔘'},
   {id:'autre', label:'Autre', icon:'📷'}
 ];
 
@@ -139,27 +135,41 @@ function parseCSV(text){
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
 function generateCSV(){
-  // On génère dynamiquement les colonnes de photos
-  const photoCols = PHOTO_CATS.map(c => `nb_${c.id}`);
-  const newCols=['masques','diametre','notes','statut', ...photoCols];
+  const newCols = ['notes', 'statut'];
+  const masquesList = ['A','B','C','D'];
+  
+  masquesList.forEach(m => {
+    newCols.push(`masque_${m}_present`, `masque_${m}_diametre`, `masque_${m}_photos`);
+  });
+  
+  PHOTO_CATS.forEach(cat => newCols.push(`nb_${cat.id}`));
+
   const allHeaders=[...headers,...newCols];const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   
   for(const c of chambres){
     const row=allHeaders.map(h=>{
       if(headers.includes(h))return c.raw[h]??'';
-      switch(h){
-        case 'masques':return (c.masques||[]).join(', ');
-        case 'diametre':return c.diametre||'';
-        case 'notes':return c.notes||'';
-        case 'statut':return c.done?'TERMINÉ':'À FAIRE';
-        default:
-          if(h.startsWith('nb_')){
-            const catId = h.replace('nb_', '');
-            return (c.photos[catId]||[]).length;
-          }
-          return '';
+      
+      if(h === 'notes') return c.notes||'';
+      if(h === 'statut') return c.done?'TERMINÉ':'À FAIRE';
+
+      const matchMasque = h.match(/^masque_([A-D])_(present|diametre|photos)$/);
+      if(matchMasque) {
+        const m = matchMasque[1];
+        const prop = matchMasque[2];
+        if(!c.masques[m] || !c.masques[m].present) return '';
+        if(prop === 'present') return 'OUI';
+        if(prop === 'diametre') return c.masques[m].diametre || '';
+        if(prop === 'photos') return (c.masques[m].photos||[]).length;
       }
+
+      if(h.startsWith('nb_')){
+        const catId = h.replace('nb_', '');
+        return (c.photos[catId]||[]).length;
+      }
+      
+      return '';
     });
     lines.push(row.map(v=>esc(v,d)).join(d));
   }
@@ -185,7 +195,11 @@ function showScreen(name){
 }
 function updateHomeStats(){
   const total=chambres.length,done=chambres.filter(c=>c.done).length;
-  let photos=0;for(const c of chambres)for(const k in c.photos)photos+=(c.photos[k]||[]).length;
+  let photos=0;
+  for(const c of chambres) {
+    for(const k in c.photos) photos+=(c.photos[k]||[]).length;
+    ['A','B','C','D'].forEach(m => { if(c.masques && c.masques[m]) photos+=(c.masques[m].photos||[]).length; });
+  }
   document.getElementById('statTotal').textContent=total;
   document.getElementById('statDone').textContent=done;
   document.getElementById('statPhotos').textContent=photos;
@@ -202,8 +216,9 @@ function renderList(){
     const div=document.createElement('div');
     div.className='list-item';
     const label=c.raw?(c.raw.id_chambre||c.raw.reference||c.raw.ref||''):'';
-    const masquesStr = (c.masques && c.masques.length) ? 'Masques: '+c.masques.join(', ') : '';
-    const sub=[c.raw&&c.raw.adresse, masquesStr, c.diametre?'Ø'+c.diametre:''].filter(Boolean).join(' • ');
+    const masquesPresents = ['A','B','C','D'].filter(m => c.masques && c.masques[m] && c.masques[m].present);
+    const masquesStr = masquesPresents.length ? 'Masques: '+masquesPresents.join(', ') : '';
+    const sub=[c.raw&&c.raw.adresse, masquesStr].filter(Boolean).join(' • ');
     div.innerHTML=`<div style="min-width:0;flex:1;">
       <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}${label&&label!==c.id?' — '+escapeHTML(label):''}</div>
       <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div>
@@ -213,25 +228,29 @@ function renderList(){
   }
 }
 
-function photoSlot(catObj, arr){
-  const cat = catObj.id;
+function photoSlot(catObj, arr, uniqueId){
   arr=arr||[];const count=arr.length;const last=arr[count-1];
   let inner=`<div class="icon">${catObj.icon}</div><div>${catObj.label}</div>`;
   if(last){const u=URL.createObjectURL(last.blob);inner=`<img src="${u}">`;}
+  const catId = uniqueId || catObj.id;
   return `<div class="photo-btn">
     ${count?`<span class="badge">${count}</span>`:''}
-    ${count?`<button type="button" class="photo-del" data-del-cat="${cat}" data-cat-label="${catObj.label}">×</button>`:''}
-    <label>${inner}<input type="file" accept="image/*" capture="environment" multiple data-cat="${cat}"></label>
+    ${count?`<button type="button" class="photo-del" data-del-cat="${catId}" data-cat-label="${catObj.label}">×</button>`:''}
+    <label>${inner}<input type="file" accept="image/*" capture="environment" multiple data-cat="${catId}"></label>
   </div>`;
 }
 
 function openDetail(id){
   currentId=id;const c=chambres.find(x=>x.id===id);if(!c)return;
   
-  // Initialisation de la structure si vide (rétrocompatibilité)
   if(!c.photos)c.photos={};
   PHOTO_CATS.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
-  if(!c.masques) c.masques = [];
+  
+  if(!c.masques) c.masques = {};
+  ['A','B','C','D'].forEach(m => {
+    if(!c.masques[m]) c.masques[m] = { present: false, diametre: '', photos: [] };
+    if(!c.masques[m].photos) c.masques[m].photos = [];
+  });
 
   const cont=document.getElementById('detailContainer');
   const info=Object.entries(c.raw||{}).filter(([k,v])=>v&&!/^(id|id_chambre|reference|ref|chambre)$/i.test(k))
@@ -242,26 +261,40 @@ function openDetail(id){
     <div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div>
     ${info?`<div class="small" style="line-height:1.5;">${info}</div>`:''}
   </div>
-  <div class="card">
-    <label>Masques présents (sélection multiple)</label>
-    <div class="row-4">
-      ${['A','B','C','D'].map(m=>`<button class="btn ${(c.masques||[]).includes(m)?'':'btn-secondary'}" data-masque="${m}" style="padding:14px 0;">${m}</button>`).join('')}
-    </div>
-    <div class="small" style="margin-top:6px;">Sélection : <b>${(c.masques||[]).join(', ')||'—'}</b></div>
-    
-    <label>Diamètre (mm)</label>
-    <input type="number" id="diametreInput" inputmode="numeric" placeholder="ex: 45" value="${escapeHTML(c.diametre||'')}">
-    
-    <label>Notes</label>
-    <textarea id="notesInput" rows="2" placeholder="Remarques terrain...">${escapeHTML(c.notes||'')}</textarea>
-  </div>
   
   <div class="card">
-    <label style="margin-top:0;">Photos du relevé</label>
-    <p class="small" style="margin:4px 0 8px;">Prenez les photos requises. Vous pouvez en ajouter plusieurs par case.</p>
-    <div class="photo-row">
-      ${PHOTO_CATS.map(cat => photoSlot(cat, c.photos[cat.id])).join('')}
+    <label style="margin-top:0;">Masques présents dans la chambre (sélectionner)</label>
+    <p class="small" style="margin:4px 0 8px;">Cliquez sur A, B, C ou D pour faire apparaître le bloc de saisie correspondant.</p>
+    <div class="row-4">
+      ${['A','B','C','D'].map(m=>`<button class="btn ${c.masques[m].present ? '' : 'btn-secondary'}" data-masque="${m}" style="padding:14px 0;">${m}</button>`).join('')}
     </div>
+  </div>
+
+  ${['A','B','C','D'].map(m => {
+    if(!c.masques[m].present) return '';
+    return `
+    <div class="card" style="border: 2px solid #0055A4; border-radius: 12px;">
+      <h3 style="margin-top:0; font-size:16px; color:#0055A4;">Masque ${m}</h3>
+      
+      <label>Diamètre alvéole ${m} (mm)</label>
+      <input type="number" data-diam-masque="${m}" inputmode="numeric" placeholder="ex: 45" value="${escapeHTML(c.masques[m].diametre||'')}">
+      
+      <label>Photo Masque ${m}</label>
+      <div class="photo-row">
+        ${photoSlot({id:'masque_'+m, label:'Photo '+m, icon:'🔘'}, c.masques[m].photos, 'masque_'+m)}
+      </div>
+    </div>
+    `;
+  }).join('')}
+
+  <div class="card">
+    <label style="margin-top:0;">Photos globales de la chambre</label>
+    <p class="small" style="margin:4px 0 8px;">Vue d'ensemble, boîte, mires, câbles...</p>
+    <div class="photo-row">
+      ${PHOTO_CATS.map(cat => photoSlot(cat, c.photos[cat.id], cat.id)).join('')}
+    </div>
+    <label>Notes</label>
+    <textarea id="notesInput" rows="2" placeholder="Remarques terrain...">${escapeHTML(c.notes||'')}</textarea>
   </div>
   
   <button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">
@@ -269,30 +302,44 @@ function openDetail(id){
   </button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
-  // Gestion des masques (Toggle)
+  // Gestion des cases à cocher masques
   cont.querySelectorAll('[data-masque]').forEach(b=>{
     b.onclick=()=>{
       const m = b.dataset.masque;
-      if(!c.masques) c.masques = [];
-      if(c.masques.includes(m)) c.masques = c.masques.filter(x => x !== m);
-      else c.masques.push(m);
+      c.masques[m].present = !c.masques[m].present;
       dbPut(c);openDetail(id);
     };
   });
-  
-  document.getElementById('diametreInput').oninput=e=>{c.diametre=e.target.value;dbPut(c);};
+
+  // Saisie des diamètres par masque
+  cont.querySelectorAll('[data-diam-masque]').forEach(inp=>{
+    inp.oninput = e => {
+      const m = inp.dataset.diamMasque;
+      c.masques[m].diametre = e.target.value;
+      dbPut(c);
+    };
+  });
+
   document.getElementById('notesInput').oninput=e=>{c.notes=e.target.value;dbPut(c);};
 
-  // Gestion des photos
+  // Gestion des photos (globales et masques)
   cont.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
     inp.onchange=async()=>{
       const files=Array.from(inp.files||[]);if(!files.length)return;
+      const cat = inp.dataset.cat;
       showOverlay(true);
       try{
         for(const f of files){
           const blob=await compress(f);
-          if(!c.photos[inp.dataset.cat])c.photos[inp.dataset.cat]=[];
-          c.photos[inp.dataset.cat].push({id:crypto.randomUUID(),blob,ts:Date.now()});
+          let targetArr;
+          if(cat.startsWith('masque_')) {
+            const m = cat.split('_')[1];
+            targetArr = c.masques[m].photos;
+          } else {
+            if(!c.photos[cat]) c.photos[cat] = [];
+            targetArr = c.photos[cat];
+          }
+          targetArr.push({id:crypto.randomUUID(),blob,ts:Date.now()});
         }
         await dbPut(c);openDetail(id);
       }catch(err){alert('Erreur photo : '+err.message);}
@@ -306,7 +353,14 @@ function openDetail(id){
       e.stopPropagation();e.preventDefault();
       const cat=b.dataset.delCat,label=b.dataset.catLabel;
       if(!confirm(`Supprimer toutes les photos « ${label} » ?`))return;
-      c.photos[cat]=[];await dbPut(c);openDetail(id);
+      
+      if(cat.startsWith('masque_')) {
+        const m = cat.split('_')[1];
+        c.masques[m].photos = [];
+      } else {
+        c.photos[cat]=[];
+      }
+      await dbPut(c);openDetail(id);
     };
   });
 
@@ -333,16 +387,25 @@ async function importCSV(file){
   for(const r of dataRows){
     const raw={};headers.forEach((h,i)=>raw[h]=(r[i]||'').trim());
     let id=raw[headers[idIdx]]||'CH-'+Math.random().toString(36).slice(2,8).toUpperCase();
-    if(existing.has(id)){
-      const old=existing.get(id);
-      old.raw=raw;
-      if(!old.masques) old.masques=[];
-      newC.push(old);
+    
+    let oldChambre = existing.get(id);
+    if(oldChambre){
+      oldChambre.raw = raw;
+      // S'assurer que la structure des masques existe pour les anciennes données
+      if(!oldChambre.masques) oldChambre.masques = {};
+      ['A','B','C','D'].forEach(m => { 
+        if(!oldChambre.masques[m]) oldChambre.masques[m] = { present: false, diametre: '', photos: [] }; 
+      });
+      newC.push(oldChambre);
     }
     else {
       const newPhotos = {};
       PHOTO_CATS.forEach(cat => newPhotos[cat.id] = []);
-      newC.push({id,raw,masques:[],diametre:'',notes:'',photos:newPhotos,done:false});
+      
+      const newMasques = {};
+      ['A','B','C','D'].forEach(m => { newMasques[m] = { present: false, diametre: '', photos: [] }; });
+
+      newC.push({id, raw, masques: newMasques, notes:'', photos:newPhotos, done:false});
     }
   }
   await dbClear();chambres=newC;
@@ -359,13 +422,24 @@ async function exportAll(){
     zip.file('releve_chambres.csv',generateCSV());
     for(const c of chambres){
       const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
+      
+      // Photos globales
       for(const cat in c.photos){
         (c.photos[cat]||[]).forEach((p,i)=>{
           const n=String(i+1).padStart(2,'0');
-          // On utilise le nom propre de la catégorie (ex: masque_A, mire_long)
           zip.file(`photos/${safe}/${cat}_${n}.jpg`,p.blob);
         });
       }
+      
+      // Photos des masques
+      ['A','B','C','D'].forEach(m => {
+        if(c.masques && c.masques[m] && c.masques[m].present) {
+          (c.masques[m].photos || []).forEach((p,i) => {
+            const n=String(i+1).padStart(2,'0');
+            zip.file(`photos/${safe}/masque_${m}_${n}.jpg`, p.blob);
+          });
+        }
+      });
     }
     const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const fname='releve_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.zip';
