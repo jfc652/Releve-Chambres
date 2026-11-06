@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0055A4">
+<title>Relevé Chambres</title>
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f5f5f5; color:#222; }
+header { background:#0055A4; color:#fff; padding:12px 16px; position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:12px; box-shadow:0 2px 6px rgba(0,0,0,.15); }
+header h1 { font-size:17px; margin:0; flex:1; }
+header button { background:transparent; border:0; color:#fff; font-size:22px; padding:4px 8px; cursor:pointer; }
+main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
+.card { background:#fff; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.btn { display:inline-block; background:#0055A4; color:#fff; border:0; padding:14px 20px; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer; width:100%; text-align:center; }
+.btn:active { opacity:.85; }
+.btn-secondary { background:#666; }
+.btn-success { background:#2e7d32; }
+.btn-danger { background:#c62828; }
+input, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
+label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font-size:14px; color:#444; }
+.photo-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
+.photo-btn { position:relative; aspect-ratio:1; background:#eef3f8; border:2px dashed #b0c4d8; border-radius:10px; overflow:hidden; }
+.photo-btn label { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:11px; color:#0055A4; text-align:center; padding:4px; margin:0; font-weight:600; }
+.photo-btn .icon { font-size:22px; margin-bottom:2px; }
+.photo-btn img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.photo-btn .badge { position:absolute; top:4px; left:4px; background:#0055A4; color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; z-index:2; }
+.photo-btn .photo-del { position:absolute; bottom:4px; right:4px; background:rgba(198,40,40,.95); color:#fff; border:0; width:26px; height:26px; border-radius:50%; font-size:16px; cursor:pointer; z-index:2; }
+.photo-btn input[type=file] { display:none; }
+.list-item { padding:14px 16px; background:#fff; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; box-shadow:0 1px 2px rgba(0,0,0,.06); gap:10px; }
+.list-item:active { background:#f0f0f0; }
+.status-badge { font-size:12px; padding:4px 10px; border-radius:12px; font-weight:600; white-space:nowrap; }
+.status-todo { background:#fff3e0; color:#e65100; }
+.status-done { background:#e8f5e9; color:#2e7d32; }
+.hidden { display:none !important; }
+.small { font-size:13px; color:#666; }
+.empty { text-align:center; padding:40px 20px; color:#888; }
+.row-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:100; }
+.spinner { width:40px; height:40px; border:4px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+.stat { background:#eef3f8; padding:12px; border-radius:8px; text-align:center; }
+.stat-num { font-size:24px; font-weight:bold; color:#0055A4; }
+.stat-label { font-size:12px; color:#666; margin-top:2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <button id="backBtn" class="hidden">←</button>
+  <h1 id="title">Relevé Chambres</h1>
+</header>
+
+<main>
+
+<section id="screen-home">
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">📂 Importer le CSV</h2>
+    <p class="small">Fichier des chambres à relever (séparateur ; ou ,).</p>
+    <label for="csvInput" class="btn">Choisir un fichier CSV</label>
+    <input type="file" id="csvInput" accept=".csv,text/csv" class="hidden">
+  </div>
+  <div class="card" id="homeStats" style="display:none;">
+    <h2 style="margin-top:0;font-size:17px;">📊 État du relevé</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Chambres</div></div>
+      <div class="stat"><div class="stat-num" id="statDone">0</div><div class="stat-label">Terminées</div></div>
+      <div class="stat"><div class="stat-num" id="statPhotos">0</div><div class="stat-label">Photos</div></div>
+      <div class="stat"><div class="stat-num" id="statTodo">0</div><div class="stat-label">À faire</div></div>
+    </div>
+    <button id="startBtn" class="btn" style="margin-top:16px;">Commencer le relevé →</button>
+    <button id="exportBtn" class="btn btn-success" style="margin-top:8px;">📦 Exporter (CSV + photos ZIP)</button>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">ℹ️ Mode d'emploi</h2>
+    <ol class="small" style="padding-left:20px;line-height:1.6;">
+      <li>Importer le CSV des chambres.</li>
+      <li>Sur place : saisir masque (A/B/C/D), diamètre, notes.</li>
+      <li>Poser la règle de 2 m sur les photos : vue globale, masque, boîte, étiquette, câbles.</li>
+      <li>Valider la chambre, passer à la suivante.</li>
+      <li>Exporter le ZIP en fin de tournée.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
+  </div>
+</section>
+
+<section id="screen-list" class="hidden"><div id="listContainer"></div></section>
+<section id="screen-detail" class="hidden"><div id="detailContainer"></div></section>
+
+</main>
+
+<div id="overlay" class="overlay hidden"><div class="spinner"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const DB_NAME='releve-chambres', STORE='chambres';
+let db=null, chambres=[], headers=[], currentId=null;
+
+// ---------- IndexedDB ----------
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e.target.error);});}
+function dbGetAll(){return new Promise((res,rej)=>{const r=db.transaction(STORE,'readonly').objectStore(STORE).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function dbPut(item){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put(item);t.oncomplete=res;t.onerror=()=>rej(t.error);});}
+function dbClear(){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).clear();t.oncomplete=res;t.onerror=()=>rej(t.error);});}
+
+// ---------- CSV ----------
+function parseCSV(text){
+  const first=text.split(/\r?\n/)[0]||'';
+  const delim=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?';':',';
+  const rows=[];let row=[],cur='',inQ=false;
+  for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];
+    if(inQ){if(c==='"'&&n==='"'){cur+='"';i++;}else if(c==='"')inQ=false;else cur+=c;}
+    else{if(c==='"')inQ=true;else if(c===delim){row.push(cur);cur='';}
+      else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';}
+      else if(c==='\r'){}else cur+=c;}}
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows.filter(r=>r.length>1||(r.length===1&&r[0].trim()!==''));
+}
+function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
+
+function generateCSV(){
+  const newCols=['masque','diametre','notes','statut','nb_photos_global','nb_photos_masque','nb_photos_boite','nb_photos_etiquette','nb_photos_cables'];
+  const allHeaders=[...headers,...newCols];const d=';';
+  const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
+  for(const c of chambres){
+    const row=allHeaders.map(h=>{
+      if(headers.includes(h))return c.raw[h]??'';
+      switch(h){
+        case 'masque':return c.masque||'';
+        case 'diametre':return c.diametre||'';
+        case 'notes':return c.notes||'';
+        case 'statut':return c.done?'TERMINÉ':'À FAIRE';
+        default:return (c.photos[h.replace('nb_photos_','')]||[]).length;
+      }
+    });
+    lines.push(row.map(v=>esc(v,d)).join(d));
+  }
+  return lines.join('\r\n');
+}
+
+// ---------- Photos ----------
+async function compress(file,maxDim=1920,q=0.85){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{let{width:w,height:h}=img;const s=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+      cv.toBlob(b=>{URL.revokeObjectURL(img.src);b?res(b):rej(new Error('compress'));},'image/jpeg',q);};
+    img.onerror=rej;img.src=URL.createObjectURL(file);
+  });
+}
+
+// ---------- UI ----------
+function showScreen(name){
+  document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
+  document.getElementById('screen-'+name).classList.remove('hidden');
+  document.getElementById('backBtn').classList.toggle('hidden',name==='home');
+  document.getElementById('title').textContent={home:'Relevé Chambres',list:'Chambres',detail:'Détail'}[name];
+  window.scrollTo(0,0);
+}
+function updateHomeStats(){
+  const total=chambres.length,done=chambres.filter(c=>c.done).length;
+  let photos=0;for(const c of chambres)for(const k in c.photos)photos+=(c.photos[k]||[]).length;
+  ['Total','Done','Photos','Todo'].forEach((k,i)=>{});
+  document.getElementById('statTotal').textContent=total;
+  document.getElementById('statDone').textContent=done;
+  document.getElementById('statPhotos').textContent=photos;
+  document.getElementById('statTodo').textContent=total-done;
+  document.getElementById('homeStats').style.display=total?'block':'none';
+}
+function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function renderList(){
+  const cont=document.getElementById('listContainer');
+  if(!chambres.length){cont.innerHTML='<div class="empty">Aucune chambre. Importez un CSV.</div>';return;}
+  cont.innerHTML='';
+  for(const c of chambres){
+    const div=document.createElement('div');
+    div.className='list-item';
+    const label=c.raw?(c.raw.id_chambre||c.raw.reference||c.raw.ref||''):'';
+    const sub=[c.raw&&c.raw.adresse,c.masque?'Masque '+c.masque:'',c.diametre?'Ø'+c.diametre:''].filter(Boolean).join(' • ');
+    div.innerHTML=`<div style="min-width:0;flex:1;">
+      <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}${label&&label!==c.id?' — '+escapeHTML(label):''}</div>
+      <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div>
+      <span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
+    div.onclick=()=>openDetail(c.id);
+    cont.appendChild(div);
+  }
+}
+
+function photoSlot(cat,label,icon,arr){
+  arr=arr||[];const count=arr.length;const last=arr[count-1];
+  let inner=`<div class="icon">${icon}</div><div>${label}</div>`;
+  if(last){const u=URL.createObjectURL(last.blob);inner=`<img src="${u}">`;}
+  return `<div class="photo-btn">
+    ${count?`<span class="badge">${count}</span>`:''}
+    ${count?`<button type="button" class="photo-del" data-del-cat="${cat}" data-cat-label="${label}">×</button>`:''}
+    <label>${inner}<input type="file" accept="image/*" capture="environment" multiple data-cat="${cat}"></label>
+  </div>`;
+}
+
+function openDetail(id){
+  currentId=id;const c=chambres.find(x=>x.id===id);if(!c)return;
+  if(!c.photos)c.photos={global:[],masque:[],boite:[],etiquette:[],cables:[],autre:[]};
+  const cont=document.getElementById('detailContainer');
+  const info=Object.entries(c.raw||{}).filter(([k,v])=>v&&!/^(id|id_chambre|reference|ref|chambre)$/i.test(k))
+    .map(([k,v])=>`<div><span class="small">${escapeHTML(k)}</span> : ${escapeHTML(v)}</div>`).join('');
+  cont.innerHTML=`
+  <div class="card">
+    <div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div>
+    ${info?`<div class="small" style="line-height:1.5;">${info}</div>`:''}
+  </div>
+  <div class="card">
+    <label>Masque</label>
+    <div class="row-4">
+      ${['A','B','C','D'].map(m=>`<button class="btn ${c.masque===m?'':'btn-secondary'}" data-masque="${m}" style="padding:14px 0;">${m}</button>`).join('')}
+    </div>
+    <div class="small" style="margin-top:6px;">Sélection : <b>${c.masque||'—'}</b></div>
+    <label>Diamètre (mm)</label>
+    <input type="number" id="diametreInput" inputmode="numeric" placeholder="ex: 45" value="${escapeHTML(c.diametre||'')}">
+    <label>Notes</label>
+    <textarea id="notesInput" rows="2" placeholder="Remarques terrain...">${escapeHTML(c.notes||'')}</textarea>
+  </div>
+  <div class="card">
+    <label style="margin-top:0;">Photos</label>
+    <p class="small" style="margin:4px 0 8px;">Posez la règle de 2 m bien visible sur chaque photo.</p>
+    <div class="photo-row">
+      ${photoSlot('global','Vue globale','🌐',c.photos.global)}
+      ${photoSlot('masque','Masque','🔘',c.photos.masque)}
+      ${photoSlot('boite','Boîte','📦',c.photos.boite)}
+      ${photoSlot('etiquette','Étiquette','🏷️',c.photos.etiquette)}
+      ${photoSlot('cables','Câbles','🔌',c.photos.cables)}
+      ${photoSlot('autre','Autre','📷',c.photos.autre)}
+    </div>
+  </div>
+  <button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">
+    ${c.done?'↺ Rouvrir la chambre':'✓ Valider la chambre'}
+  </button>
+  <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
+
+  cont.querySelectorAll('[data-masque]').forEach(b=>{
+    b.onclick=()=>{c.masque=c.masque===b.dataset.masque?'':b.dataset.masque;dbPut(c);openDetail(id);};
+  });
+  document.getElementById('diametreInput').oninput=e=>{c.diametre=e.target.value;dbPut(c);};
+  document.getElementById('notesInput').oninput=e=>{c.notes=e.target.value;dbPut(c);};
+
+  cont.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
+    inp.onchange=async()=>{
+      const files=Array.from(inp.files||[]);if(!files.length)return;
+      showOverlay(true);
+      try{
+        for(const f of files){
+          const blob=await compress(f);
+          if(!c.photos[inp.dataset.cat])c.photos[inp.dataset.cat]=[];
+          c.photos[inp.dataset.cat].push({id:crypto.randomUUID(),blob,ts:Date.now()});
+        }
+        await dbPut(c);openDetail(id);
+      }catch(err){alert('Erreur photo : '+err.message);}
+      finally{showOverlay(false);}
+    };
+  });
+
+  cont.querySelectorAll('[data-del-cat]').forEach(b=>{
+    b.onclick=async(e)=>{
+      e.stopPropagation();e.preventDefault();
+      const cat=b.dataset.delCat,label=b.dataset.catLabel;
+      if(!confirm(`Supprimer toutes les photos « ${label} » ?`))return;
+      c.photos[cat]=[];await dbPut(c);openDetail(id);
+    };
+  });
+
+  document.getElementById('validateBtn').onclick=async()=>{c.done=!c.done;await dbPut(c);openDetail(id);};
+  document.getElementById('nextBtn').onclick=()=>{
+    const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1];
+    if(next)openDetail(next.id);else{renderList();showScreen('list');}
+  };
+
+  showScreen('detail');
+}
+function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
+
+// ---------- Import ----------
+async function importCSV(file){
+  const text=await file.text();
+  const rows=parseCSV(text);
+  if(rows.length<2){alert('CSV invalide ou vide.');return;}
+  headers=rows[0].map(h=>h.trim());
+  const dataRows=rows.slice(1);
+  const idIdx=(()=>{const pats=[/^id/i,/^ref/i,/chambre/i,/^code/i];
+    for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}return 0;})();
+  const existing=new Map(chambres.map(c=>[c.id,c]));
+  const newC=[];
+  for(const r of dataRows){
+    const raw={};headers.forEach((h,i)=>raw[h]=(r[i]||'').trim());
+    let id=raw[headers[idIdx]]||'CH-'+Math.random().toString(36).slice(2,8).toUpperCase();
+    if(existing.has(id)){const old=existing.get(id);old.raw=raw;newC.push(old);}
+    else newC.push({id,raw,masque:'',diametre:'',notes:'',
+      photos:{global:[],masque:[],boite:[],etiquette:[],cables:[],autre:[]},done:false});
+  }
+  await dbClear();chambres=newC;
+  for(const c of chambres)await dbPut(c);
+  updateHomeStats();
+  alert(`${chambres.length} chambre(s) importée(s).`);
+}
+
+// ---------- Export ----------
+async function exportAll(){
+  if(!chambres.length){alert('Rien à exporter.');return;}
+  showOverlay(true);
+  try{
+    const zip=new JSZip();
+    zip.file('releve_chambres.csv',generateCSV());
+    for(const c of chambres){
+      const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
+      for(const cat in c.photos){
+        (c.photos[cat]||[]).forEach((p,i)=>{
+          const n=String(i+1).padStart(2,'0');
+          zip.file(`photos/${safe}/${cat}_${n}.jpg`,p.blob);
+        });
+      }
+    }
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const fname='releve_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.zip';
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=fname;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(e){alert('Erreur export : '+e.message);}
+  finally{showOverlay(false);}
+}
+
+// ---------- Wiring ----------
+document.getElementById('csvInput').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;showOverlay(true);
+  try{await importCSV(f);}catch(err){alert('Erreur import : '+err.message);}
+  finally{showOverlay(false);e.target.value='';}
+};
+document.getElementById('startBtn').onclick=()=>{renderList();showScreen('list');};
+document.getElementById('exportBtn').onclick=exportAll;
+document.getElementById('backBtn').onclick=()=>{
+  if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');}
+  else{renderList();showScreen('list');}
+};
+document.getElementById('resetBtn').onclick=async()=>{
+  if(!confirm('Effacer TOUTES les données (chambres + photos) ?'))return;
+  await dbClear();chambres=[];headers=[];updateHomeStats();alert('Données effacées.');
+};
+
+// ---------- Boot ----------
+(async()=>{
+  await openDB();chambres=await dbGetAll();updateHomeStats();
+  if(chambres.length){renderList();showScreen('list');}
+})();
+</script>
+</body>
+</html>
