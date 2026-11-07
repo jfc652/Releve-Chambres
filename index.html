@@ -19,7 +19,8 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-secondary { background:#ccc; color:#333; }
 .btn-success { background:#2e7d32; }
 .btn-danger { background:#c62828; }
-input, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
+.btn-whatsapp { background:#25D366; color:#fff; }
+input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
 label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font-size:14px; color:#444; }
 .photo-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
 .photo-btn { position:relative; aspect-ratio:1; background:#eef3f8; border:2px dashed #b0c4d8; border-radius:10px; overflow:hidden; }
@@ -37,7 +38,6 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .hidden { display:none !important; }
 .small { font-size:13px; color:#666; }
 .empty { text-align:center; padding:40px 20px; color:#888; }
-.row-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; z-index:100; }
 .spinner { width:40px; height:40px; border:4px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -45,6 +45,13 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .stat { background:#eef3f8; padding:12px; border-radius:8px; text-align:center; }
 .stat-num { font-size:24px; font-weight:bold; color:#0055A4; }
 .stat-label { font-size:12px; color:#666; margin-top:2px; }
+.passage-card { border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 12px; padding: 16px; background: #fafafa; position:relative; }
+.passage-card h4 { margin: 0 0 10px 0; font-size: 15px; color: #0055A4; }
+.row-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.row-inputs input { padding: 8px; font-size: 14px; }
+.delete-passage { position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; color:#c62828; cursor:pointer;}
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; margin-top:8px; }
+.info-item { background:#f0f4f8; padding:8px; border-radius:6px; }
 </style>
 </head>
 <body>
@@ -72,17 +79,15 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
       <div class="stat"><div class="stat-num" id="statTodo">0</div><div class="stat-label">À faire</div></div>
     </div>
     <button id="startBtn" class="btn" style="margin-top:16px;">Commencer le relevé →</button>
-    <button id="exportBtn" class="btn btn-success" style="margin-top:8px;">📦 Exporter (CSV + photos ZIP)</button>
+    <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (WhatsApp/Mail)</button>
   </div>
   <div class="card">
     <h2 style="margin-top:0;font-size:17px;">ℹ️ Mode d'emploi</h2>
     <ol class="small" style="padding-left:20px;line-height:1.6;">
-      <li>Importer le CSV des chambres.</li>
-      <li>Cocher les masques présents (A, B, C, D). Un bloc apparaîtra pour chacun.</li>
-      <li>Saisir le diamètre spécifique et prendre la photo de chaque masque.</li>
-      <li>Prendre les autres photos (Mires, BPE, Câbles, etc.).</li>
-      <li>Valider la chambre, passer à la suivante.</li>
-      <li>Exporter le ZIP en fin de tournée.</li>
+      <li>Importer le CSV.</li>
+      <li>Ajouter les passages (Câbles Aller/Retour) avec leurs masques et numéros d'alvéoles.</li>
+      <li>Prendre les photos par catégorie.</li>
+      <li>Exporter le ZIP (prêt pour votre script Python).</li>
     </ol>
   </div>
   <div class="card">
@@ -99,20 +104,21 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const DB_NAME='releve-chambres', STORE='chambres';
+const DB_NAME='releve-chambres-v2', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
 
+// Catégories exactes demandées pour l'arborescence
 const PHOTO_CATS = [
-  {id:'vue_ensemble', label:'Vue ensemble', icon:'🌐'},
-  {id:'bpe', label:'Boîte BPE', icon:'📦'},
-  {id:'etiquette', label:'Étiquette', icon:'🏷️'},
-  {id:'mire_long', label:'Mire Long.', icon:'📏'},
-  {id:'mire_larg', label:'Mire Larg.', icon:'📏'},
-  {id:'mire_prof', label:'Mire Prof.', icon:'📏'},
-  {id:'cable_1', label:'Câble 1', icon:'🔌'},
-  {id:'cable_2', label:'Câble 2', icon:'🔌'},
-  {id:'cable_3', label:'Câble 3', icon:'🔌'},
-  {id:'autre', label:'Autre', icon:'📷'}
+  {id:'MA', label:'Masque A', icon:'🔘'},
+  {id:'MB', label:'Masque B', icon:'🔘'},
+  {id:'MC', label:'Masque C', icon:'🔘'},
+  {id:'MD', label:'Masque D', icon:'🔘'},
+  {id:'ETIQ_BOITE', label:'Étiq Boîte', icon:'🏷️'},
+  {id:'ETIQ_CABLE', label:'Étiq Câble', icon:'🏷️'},
+  {id:'VUE_ENSEMBLE', label:'Vue ens.', icon:'🌐'},
+  {id:'BOITE', label:'Boîte', icon:'📦'},
+  {id:'CABLE', label:'Câble', icon:'🔌'},
+  {id:'VUE_DESSUS_CH', label:'Vue dessus', icon:'📐'}
 ];
 
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e.target.error);});}
@@ -134,48 +140,49 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
+// Génération du CSV pour le script Python
 function generateCSV(){
-  const newCols = ['notes', 'statut'];
-  const masquesList = ['A','B','C','D'];
+  // On définit les colonnes finales attendues
+  const finalCols = [
+    'CODE_CH1', 'COMMUNE', 'WAZE', 'Ref_chambr', 'ETIQUETTE_2', 'ORDRE', 
+    'Masque_IN', 'Alveole_IN', 'Diametre_IN', 
+    'Masque_OUT', 'Alveole_OUT', 'Diametre_OUT',
+    'Nb_MA', 'Nb_MB', 'Nb_MC', 'Nb_MD', 'Nb_ETIQ_BOITE', 'Nb_ETIQ_CABLE', 
+    'Nb_VUE_ENSEMBLE', 'Nb_BOITE', 'Nb_CABLE', 'Nb_VUE_DESSUS_CH'
+  ];
   
-  masquesList.forEach(m => {
-    newCols.push(`masque_${m}_present`, `masque_${m}_diametre`, `masque_${m}_photos`);
-  });
-  
-  PHOTO_CATS.forEach(cat => newCols.push(`nb_${cat.id}`));
-
-  // On force l'ajout d'une colonne "ID_Chambre" au tout début du fichier
-  const allHeaders=['ID_Chambre', ...headers, ...newCols];
   const d=';';
-  const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
+  const lines=[finalCols.map(h=>esc(h,d)).join(d)];
   
   for(const c of chambres){
-    const row=allHeaders.map(h=>{
-      if(h === 'ID_Chambre') return c.id;
-      
-      if(headers.includes(h))return c.raw[h]??'';
-      
-      if(h === 'notes') return c.notes||'';
-      if(h === 'statut') return c.done?'TERMINÉ':'À FAIRE';
-
-      const matchMasque = h.match(/^masque_([A-D])_(present|diametre|photos)$/);
-      if(matchMasque) {
-        const m = matchMasque[1];
-        const prop = matchMasque[2];
-        if(!c.masques[m] || !c.masques[m].present) return '';
-        if(prop === 'present') return 'OUI';
-        if(prop === 'diametre') return c.masques[m].diametre || '';
-        if(prop === 'photos') return (c.masques[m].photos||[]).length;
-      }
-
-      if(h.startsWith('nb_')){
-        const catId = h.replace('nb_', '');
-        return (c.photos[catId]||[]).length;
-      }
-      
-      return '';
-    });
-    lines.push(row.map(v=>esc(v,d)).join(d));
+    // Si la chambre a des passages, on crée une ligne par passage
+    const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
+    
+    for(const p of passages) {
+      const row = finalCols.map(h => {
+        if (h === 'CODE_CH1') return c.id;
+        if (h === 'COMMUNE') return c.raw['COMMUNE'] || c.raw['commune'] || '';
+        if (h === 'WAZE') return c.raw['WAZE'] || c.raw['waze'] || '';
+        if (h === 'Ref_chambr') return c.raw['Ref_chambr'] || c.raw['REF_CHAMBR'] || c.raw['ref_chambr'] || '';
+        if (h === 'ETIQUETTE_2') return c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
+        if (h === 'ORDRE') return c.raw['ORDRE'] || c.raw['ordre'] || '';
+        
+        if (h === 'Masque_IN') return p.masque_in || '';
+        if (h === 'Alveole_IN') return p.alveole_in || '';
+        if (h === 'Diametre_IN') return p.diam_in || '';
+        
+        if (h === 'Masque_OUT') return p.masque_out || '';
+        if (h === 'Alveole_OUT') return p.alveole_out || '';
+        if (h === 'Diametre_OUT') return p.diam_out || '';
+        
+        if (h.startsWith('Nb_')) {
+          const cat = h.replace('Nb_', '');
+          return (c.photos[cat] || []).length;
+        }
+        return '';
+      });
+      lines.push(row.map(v=>esc(v,d)).join(d));
+    }
   }
   return lines.join('\r\n');
 }
@@ -202,7 +209,6 @@ function updateHomeStats(){
   let photos=0;
   for(const c of chambres) {
     for(const k in c.photos) photos+=(c.photos[k]||[]).length;
-    ['A','B','C','D'].forEach(m => { if(c.masques && c.masques[m]) photos+=(c.masques[m].photos||[]).length; });
   }
   document.getElementById('statTotal').textContent=total;
   document.getElementById('statDone').textContent=done;
@@ -219,12 +225,12 @@ function renderList(){
   for(const c of chambres){
     const div=document.createElement('div');
     div.className='list-item';
-    const label=c.raw?(c.raw.id_chambre||c.raw.reference||c.raw.ref||''):'';
-    const masquesPresents = ['A','B','C','D'].filter(m => c.masques && c.masques[m] && c.masques[m].present);
-    const masquesStr = masquesPresents.length ? 'Masques: '+masquesPresents.join(', ') : '';
-    const sub=[c.raw&&c.raw.adresse, masquesStr].filter(Boolean).join(' • ');
+    const commune = c.raw['COMMUNE'] || c.raw['commune'] || '';
+    const ref = c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
+    const sub = [commune, ref].filter(Boolean).join(' • ');
+    
     div.innerHTML=`<div style="min-width:0;flex:1;">
-      <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}${label&&label!==c.id?' — '+escapeHTML(label):''}</div>
+      <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}</div>
       <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div>
       <span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
     div.onclick=()=>openDetail(c.id);
@@ -232,15 +238,15 @@ function renderList(){
   }
 }
 
-function photoSlot(catObj, arr, uniqueId){
+function photoSlot(catObj, arr){
+  const cat = catObj.id;
   arr=arr||[];const count=arr.length;const last=arr[count-1];
   let inner=`<div class="icon">${catObj.icon}</div><div>${catObj.label}</div>`;
   if(last){const u=URL.createObjectURL(last.blob);inner=`<img src="${u}">`;}
-  const catId = uniqueId || catObj.id;
   return `<div class="photo-btn">
     ${count?`<span class="badge">${count}</span>`:''}
-    ${count?`<button type="button" class="photo-del" data-del-cat="${catId}" data-cat-label="${catObj.label}">×</button>`:''}
-    <label>${inner}<input type="file" accept="image/*" capture="environment" multiple data-cat="${catId}"></label>
+    ${count?`<button type="button" class="photo-del" data-del-cat="${cat}" data-cat-label="${catObj.label}">×</button>`:''}
+    <label>${inner}<input type="file" accept="image/*" capture="environment" multiple data-cat="${cat}"></label>
   </div>`;
 }
 
@@ -250,55 +256,63 @@ function openDetail(id){
   if(!c.photos)c.photos={};
   PHOTO_CATS.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   
-  if(!c.masques) c.masques = {};
-  ['A','B','C','D'].forEach(m => {
-    if(!c.masques[m]) c.masques[m] = { present: false, diametre: '', photos: [] };
-    if(!c.masques[m].photos) c.masques[m].photos = [];
-  });
+  if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''}];
 
   const cont=document.getElementById('detailContainer');
-  const info=Object.entries(c.raw||{}).filter(([k,v])=>v&&!/^(id|id_chambre|reference|ref|chambre)$/i.test(k))
-    .map(([k,v])=>`<div><span class="small">${escapeHTML(k)}</span> : ${escapeHTML(v)}</div>`).join('');
-    
+  
+  // Récupération des champs d'infos importants
+  const commune = c.raw['COMMUNE'] || c.raw['commune'] || '';
+  const waze = c.raw['WAZE'] || c.raw['waze'] || '';
+  const ref = c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
+  const etiq2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
+  const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '';
+
   cont.innerHTML=`
   <div class="card">
     <div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div>
-    ${info?`<div class="small" style="line-height:1.5;">${info}</div>`:''}
-  </div>
-  
-  <div class="card">
-    <label style="margin-top:0;">Masques présents dans la chambre (sélectionner)</label>
-    <p class="small" style="margin:4px 0 8px;">Cliquez sur A, B, C ou D pour faire apparaître le bloc de saisie correspondant.</p>
-    <div class="row-4">
-      ${['A','B','C','D'].map(m=>`<button class="btn ${c.masques[m].present ? '' : 'btn-secondary'}" data-masque="${m}" style="padding:14px 0;">${m}</button>`).join('')}
+    <div class="info-grid">
+      <div class="info-item"><b>Commune:</b> ${escapeHTML(commune)}</div>
+      <div class="info-item"><b>Waze:</b> ${escapeHTML(waze)}</div>
+      <div class="info-item"><b>Ref:</b> ${escapeHTML(ref)}</div>
+      <div class="info-item"><b>Étiq 2:</b> ${escapeHTML(etiq2)}</div>
+      <div class="info-item" style="grid-column: span 2;"><b>Ordre:</b> ${escapeHTML(ordre)}</div>
     </div>
   </div>
 
-  ${['A','B','C','D'].map(m => {
-    if(!c.masques[m].present) return '';
-    return `
-    <div class="card" style="border: 2px solid #0055A4; border-radius: 12px;">
-      <h3 style="margin-top:0; font-size:16px; color:#0055A4;">Masque ${m}</h3>
-      
-      <label>Diamètre alvéole ${m} (mm)</label>
-      <input type="number" data-diam-masque="${m}" inputmode="numeric" placeholder="ex: 45" value="${escapeHTML(c.masques[m].diametre||'')}">
-      
-      <label>Photo Masque ${m}</label>
-      <div class="photo-row">
-        ${photoSlot({id:'masque_'+m, label:'Photo '+m, icon:'🔘'}, c.masques[m].photos, 'masque_'+m)}
-      </div>
+  <div class="card">
+    <label style="margin-top:0; font-size:16px;">🔌 Passages (Câbles)</label>
+    <p class="small" style="margin-bottom:12px;">Gérez les doublons de câbles (Aller/Retour) et leurs alvéoles.</p>
+    
+    <div id="passages-container">
+      ${c.passages.map((p, index) => `
+        <div class="passage-card" data-passage-id="${p.id}">
+          ${c.passages.length > 1 ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
+          <h4>Liaison ${index + 1}</h4>
+          
+          <label style="margin-top:4px;">Masque Entrée (ex: A ou C)</label>
+          <div class="row-inputs">
+            <input type="text" placeholder="Masque (ex: A)" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
+            <input type="text" placeholder="N° Alvéole (ex: 4)" value="${escapeHTML(p.alveole_in)}" data-pass="${p.id}" data-field="alveole_in">
+            <input type="number" placeholder="Diam (ex: 45)" value="${escapeHTML(p.diam_in)}" data-pass="${p.id}" data-field="diam_in">
+          </div>
+
+          <label style="margin-top:8px;">Masque Sortie (ex: B ou D)</label>
+          <div class="row-inputs">
+            <input type="text" placeholder="Masque (ex: B)" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
+            <input type="text" placeholder="N° Alvéole (ex: 2)" value="${escapeHTML(p.alveole_out)}" data-pass="${p.id}" data-field="alveole_out">
+            <input type="number" placeholder="Diam (ex: 60)" value="${escapeHTML(p.diam_out)}" data-pass="${p.id}" data-field="diam_out">
+          </div>
+        </div>
+      `).join('')}
     </div>
-    `;
-  }).join('')}
+    <button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter un autre passage (câble)</button>
+  </div>
 
   <div class="card">
-    <label style="margin-top:0;">Photos globales de la chambre</label>
-    <p class="small" style="margin:4px 0 8px;">Vue d'ensemble, boîte, mires, câbles...</p>
+    <label style="margin-top:0; font-size:16px;">📷 Photos (Arborescence respectée)</label>
     <div class="photo-row">
-      ${PHOTO_CATS.map(cat => photoSlot(cat, c.photos[cat.id], cat.id)).join('')}
+      ${PHOTO_CATS.map(cat => photoSlot(cat, c.photos[cat.id])).join('')}
     </div>
-    <label>Notes</label>
-    <textarea id="notesInput" rows="2" placeholder="Remarques terrain...">${escapeHTML(c.notes||'')}</textarea>
   </div>
   
   <button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">
@@ -306,24 +320,39 @@ function openDetail(id){
   </button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
-  cont.querySelectorAll('[data-masque]').forEach(b=>{
-    b.onclick=()=>{
-      const m = b.dataset.masque;
-      c.masques[m].present = !c.masques[m].present;
-      dbPut(c);openDetail(id);
+  // Gestion des champs de passages (Entrée/Sortie)
+  cont.querySelectorAll('input[data-pass]').forEach(inp=>{
+    inp.onchange = (e) => {
+      const passId = inp.dataset.pass;
+      const field = inp.dataset.field;
+      const passage = c.passages.find(x => x.id === passId);
+      if(passage) {
+        passage[field] = e.target.value;
+        dbPut(c);
+      }
     };
   });
 
-  cont.querySelectorAll('[data-diam-masque]').forEach(inp=>{
-    inp.oninput = e => {
-      const m = inp.dataset.diamMasque;
-      c.masques[m].diametre = e.target.value;
-      dbPut(c);
+  // Ajouter un passage
+  document.getElementById('addPassageBtn').onclick = () => {
+    c.passages.push({id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''});
+    dbPut(c);
+    openDetail(id);
+  };
+
+  // Supprimer un passage
+  cont.querySelectorAll('[data-del-passage]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.preventDefault();
+      if(confirm('Supprimer ce passage ?')) {
+        c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage);
+        dbPut(c);
+        openDetail(id);
+      }
     };
   });
 
-  document.getElementById('notesInput').oninput=e=>{c.notes=e.target.value;dbPut(c);};
-
+  // Photos
   cont.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
     inp.onchange=async()=>{
       const files=Array.from(inp.files||[]);if(!files.length)return;
@@ -332,15 +361,8 @@ function openDetail(id){
       try{
         for(const f of files){
           const blob=await compress(f);
-          let targetArr;
-          if(cat.startsWith('masque_')) {
-            const m = cat.split('_')[1];
-            targetArr = c.masques[m].photos;
-          } else {
-            if(!c.photos[cat]) c.photos[cat] = [];
-            targetArr = c.photos[cat];
-          }
-          targetArr.push({id:crypto.randomUUID(),blob,ts:Date.now()});
+          if(!c.photos[cat]) c.photos[cat] = [];
+          c.photos[cat].push({id:crypto.randomUUID(),blob,ts:Date.now()});
         }
         await dbPut(c);openDetail(id);
       }catch(err){alert('Erreur photo : '+err.message);}
@@ -353,13 +375,7 @@ function openDetail(id){
       e.stopPropagation();e.preventDefault();
       const cat=b.dataset.delCat,label=b.dataset.catLabel;
       if(!confirm(`Supprimer toutes les photos « ${label} » ?`))return;
-      
-      if(cat.startsWith('masque_')) {
-        const m = cat.split('_')[1];
-        c.masques[m].photos = [];
-      } else {
-        c.photos[cat]=[];
-      }
+      c.photos[cat]=[];
       await dbPut(c);openDetail(id);
     };
   });
@@ -380,33 +396,48 @@ async function importCSV(file){
   if(rows.length<2){alert('CSV invalide ou vide.');return;}
   headers=rows[0].map(h=>h.trim());
   const dataRows=rows.slice(1);
-  const idIdx=(()=>{const pats=[/^id/i,/^ref/i,/chambre/i,/^code/i];
-    for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}return 0;})();
-  const existing=new Map(chambres.map(c=>[c.id,c]));
-  const newC=[];
+  
+  // Détection de la colonne ID (CODE_CH1 en priorité)
+  const idIdx=(()=>{
+    const pats=[/^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
+    for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}
+    return 0;
+  })();
+
+  // On utilise une Map pour regrouper les doublons de CODE_CH1
+  const mapChambres = new Map();
+  
   for(const r of dataRows){
     const raw={};headers.forEach((h,i)=>raw[h]=(r[i]||'').trim());
     let id=raw[headers[idIdx]]||'CH-'+Math.random().toString(36).slice(2,8).toUpperCase();
     
-    let oldChambre = existing.get(id);
-    if(oldChambre){
-      oldChambre.raw = raw;
-      if(!oldChambre.masques) oldChambre.masques = {};
-      ['A','B','C','D'].forEach(m => { 
-        if(!oldChambre.masques[m]) oldChambre.masques[m] = { present: false, diametre: '', photos: [] }; 
+    if(!mapChambres.has(id)) {
+      mapChambres.set(id, {
+        id, 
+        raw, 
+        done: false,
+        photos: PHOTO_CATS.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}),
+        passages: [{id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''}]
       });
-      newC.push(oldChambre);
-    }
-    else {
-      const newPhotos = {};
-      PHOTO_CATS.forEach(cat => newPhotos[cat.id] = []);
-      
-      const newMasques = {};
-      ['A','B','C','D'].forEach(m => { newMasques[m] = { present: false, diametre: '', photos: [] }; });
-
-      newC.push({id, raw, masques: newMasques, notes:'', photos:newPhotos, done:false});
+    } else {
+      // Si la chambre existe déjà (doublon), on ajoute un passage vide
+      // pour que l'utilisateur comprenne qu'il y a plusieurs câbles
+      const existing = mapChambres.get(id);
+      existing.passages.push({id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''});
     }
   }
+  
+  // Fusionner avec les données existantes (si on réimporte le CSV)
+  const existingDb = new Map(chambres.map(c=>[c.id,c]));
+  const newC = Array.from(mapChambres.values()).map(newCh => {
+    if(existingDb.has(newCh.id)) {
+      const oldCh = existingDb.get(newCh.id);
+      oldCh.raw = newCh.raw; // On met à jour les infos du CSV
+      return oldCh; // On garde les photos et passages déjà saisis
+    }
+    return newCh;
+  });
+
   await dbClear();chambres=newC;
   for(const c of chambres)await dbPut(c);
   updateHomeStats();
@@ -418,37 +449,44 @@ async function exportAll(){
   showOverlay(true);
   try{
     const zip=new JSZip();
-    // Ajout du BOM UTF-8 (\uFEFF) pour que Excel lise correctement les accents (É, À)
+    // Ajout du BOM UTF-8 pour Excel
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     
     for(const c of chambres){
       const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
       
-      // On exporte UNIQUEMENT les catégories officielles pour éviter les vieilles photos de test
+      // Création des sous-dossiers exacts
       PHOTO_CATS.forEach(catObj => {
-        const cat = catObj.id;
-        (c.photos[cat] || []).forEach((p, i) => {
+        const catFolder = catObj.id; // ex: MA, MB, ETIQ_BOITE...
+        const photos = c.photos[catFolder] || [];
+        
+        photos.forEach((p, i) => {
           const n = String(i + 1).padStart(2, '0');
-          zip.file(`photos/${safe}/${cat}_${n}.jpg`, p.blob);
+          // Arborescence : photos/CODE_CH1/MA/MA_01.jpg
+          zip.file(`photos/${safe}/${catFolder}/${catFolder}_${n}.jpg`, p.blob);
         });
       });
-      
-      // Photos des masques
-      ['A','B','C','D'].forEach(m => {
-        if(c.masques && c.masques[m] && c.masques[m].present) {
-          (c.masques[m].photos || []).forEach((p,i) => {
-            const n=String(i+1).padStart(2,'0');
-            zip.file(`photos/${safe}/masque_${m}_${n}.jpg`, p.blob);
-          });
-        }
-      });
     }
-    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    const fname='releve_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.zip';
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=fname;
-    document.body.appendChild(a);a.click();document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    
+    const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const fname = 'releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
+    const file = new File([blob], fname, { type: 'application/zip' });
+
+    // Tentative de partage natif (WhatsApp, Mail, etc.)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Relevé Chambres',
+        text: 'Voici le ZIP contenant le CSV et les photos du relevé.'
+      });
+    } else {
+      // Fallback si le partage natif n'est pas supporté
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download=fname;
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+      alert("Partage direct non supporté par ce navigateur. Le fichier a été téléchargé dans vos téléchargements.");
+    }
   }catch(e){alert('Erreur export : '+e.message);}
   finally{showOverlay(false);}
 }
