@@ -152,7 +152,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 7.1
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 7.4
   </div>
 </section>
 
@@ -215,6 +215,8 @@ function generateCSV(){
   
   const extraCols = [
     'BPE_Origine', 
+    'Observation_BPE',
+    'Commentaire_Terrain',
     ...currentCats.map(c => `Nb_${c.id}`)
   ];
   
@@ -240,7 +242,7 @@ function generateCSV(){
   
   const bpeRecues = {};
   for (const c of chambres) {
-    if (!c.hasBoite && c.bpeDestination) {
+    if (!c.hasBoite && c.bpeDestination && !c.boiteNonPosee) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
       if (bpeName) {
         if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = [];
@@ -254,12 +256,19 @@ function generateCSV(){
     
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
+    let obsBpe = '';
 
     if (!c.hasBoite) {
       bpeFinal = '';
+      if (c.boiteNonPosee) {
+        obsBpe = 'BOITE NON POSEE : Manque de place / Saturation / Autre';
+      } else if (c.bpeDestination) {
+        obsBpe = `TRANSFEREE VERS : ${c.bpeDestination}`;
+      }
     } else {
       if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) {
         bpeFinal = bpeRecues[c.id].join(' + ');
+        obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
       }
     }
 
@@ -277,6 +286,8 @@ function generateCSV(){
         }
 
         if (h === 'BPE_Origine') return bpeOrigine;
+        if (h === 'Observation_BPE') return obsBpe;
+        if (h === 'Commentaire_Terrain') return c.notes || '';
         if (h === 'CABLE') return p.cable_name || '';
         if (h === 'BPE') return bpeFinal;
         
@@ -327,16 +338,23 @@ function updateHomeStats(){
   document.getElementById('statTodo').textContent=total-done;
   document.getElementById('homeStats').style.display=total?'block':'none';
 
-  const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination);
+  const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination && !c.boiteNonPosee);
+  const nonPosees = chambres.filter(c => !c.hasBoite && c.boiteNonPosee);
+  
   const trDiv = document.getElementById('transfertsResume');
   const trList = document.getElementById('transfertsList');
   
-  if (transferts.length > 0) {
+  if (transferts.length > 0 || nonPosees.length > 0) {
     trDiv.style.display = 'block';
-    trList.innerHTML = transferts.map(c => {
+    let html = '';
+    transferts.forEach(c => {
       const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
-      return `<li>La BPE de <b>${c.id}</b> (${bpe}) est transférée vers <b>${c.bpeDestination}</b></li>`;
-    }).join('');
+      html += `<li>La BPE de <b>${c.id}</b> (${bpe}) est transférée vers <b>${c.bpeDestination}</b></li>`;
+    });
+    nonPosees.forEach(c => {
+      html += `<li>La BPE de <b>${c.id}</b> n'a pas pu être posée (Manque de place).</li>`;
+    });
+    trList.innerHTML = html;
   } else {
     trDiv.style.display = 'none';
   }
@@ -387,21 +405,20 @@ function openDetail(id){
   if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}];
   if(c.hasBoite === undefined) c.hasBoite = true;
   if(!c.bpeDestination) c.bpeDestination = '';
+  if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
+  if(!c.notes) c.notes = '';
 
   const cont=document.getElementById('detailContainer');
   
-  // On prépare les infos, en supprimant le wkt_geom et en forçant Adresse et FCI
   const infoEntries = Object.entries(c.raw || {}).filter(([k,v]) => v && k !== 'wkt_geom' && k !== 'WKT_GEOM');
   const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || 'Non renseignée';
   const fci = c.raw['FCI'] || c.raw['fci'] || 'Non renseigné';
   
-  // On affiche les 4 premières infos, puis Adresse et FCI
   const infoHtml = infoEntries.slice(0, 4).filter(([k]) => k !== 'adresse' && k !== 'NUM_VOIE' && k !== 'FCI')
     .map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
     
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   
-  // --- CORRECTION WAZE / GOOGLE MAPS ---
   const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
   let navBtns = '';
   
@@ -427,14 +444,12 @@ function openDetail(id){
   } else {
     navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de lien Waze dans le CSV</div>`;
   }
-  // -------------------------------------
 
   const optionsDestination = chambres
     .filter(other => other.id !== c.id)
     .map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`)
     .join('');
 
-  // --- CORRECTION CÂBLE ---
   let csvCableVal = '';
   for(const key in c.raw) {
     if(/^C[ÂA]BLE$/i.test(key)) {
@@ -446,7 +461,6 @@ function openDetail(id){
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
     
-    // On force la valeur du câble du CSV sur le premier passage s'il est vide
     if (index === 0 && csvCableVal && !p.cable_name) {
       p.cable_name = csvCableVal;
     }
@@ -460,14 +474,14 @@ function openDetail(id){
         <label>Nom du Câble (Info terrain)</label>
         <span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span>
       </div>
-      <div id="help-cable-${p.id}" class="help-text">Sert à identifier le câble sur le terrain (ex: Câble 1, Câble 2...). S'affichera dans le fichier Excel.</div>
+      <div id="help-cable-${p.id}" class="help-text">Indiquez l'identifiant unique du câble (ex: CBM_PLA91_005_03_02V). Cette information servira plus tard pour le tirage et le raccordement (FOA).</div>
       <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name || csvCableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
       
       <div class="label-row">
         <label>Masque Entrée (ex: A4)</label>
         <span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span>
       </div>
-      <div id="help-masq-${p.id}" class="help-text">Saisissez la lettre du masque et le numéro d'alvéole (ex: A4 pour Masque A, alvéole 4).</div>
+      <div id="help-masq-${p.id}" class="help-text">Saisissez la lettre du masque et le numéro d'alvéole exacts où le Fillin (l'aiguille de tirage) va entrer. Exemple : A4 signifie que le câble passera par le masque A, alvéole numéro 4.</div>
       <div class="row-inputs">
         <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
         <select data-pass="${p.id}" data-field="diam_in">
@@ -480,7 +494,7 @@ function openDetail(id){
         <label>Masque Sortie (ex: B2)</label>
         <span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span>
       </div>
-      <div id="help-masqout-${p.id}" class="help-text">Masque où le câble ressort de la chambre.</div>
+      <div id="help-masqout-${p.id}" class="help-text">Masque et alvéole où le câble ressort de la chambre.</div>
       <div class="row-inputs">
         <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
         <select data-pass="${p.id}" data-field="diam_out">
@@ -523,19 +537,33 @@ function openDetail(id){
       <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label>
       <span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span>
     </div>
-    <div id="help-boite" class="help-text">Si la boîte n'est pas posée ou si son emplacement change, décochez cette case et sélectionnez la nouvelle chambre.</div>
+    <div id="help-boite" class="help-text">En mode Aiguillage, décochez cette case si la boîte prévue n'est pas physiquement là ou si son emplacement change. L'application transférera automatiquement la BPE vers la nouvelle chambre choisie.</div>
     <div class="toggle-container">
       <input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}>
       <label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée dans cette chambre' : 'Boîte posée / Validée dans cette chambre'}</label>
     </div>
     
     <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
-      <label style="color:#d84315; margin-top:0;">Boîte à poser dans une autre chambre suite à l'étude terrain :</label>
+      <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label>
       <select id="bpeDestinationSelect" style="margin-top:5px;">
         <option value="">-- Choisir la chambre de destination --</option>
         ${optionsDestination}
       </select>
+      
+      <div class="toggle-container" style="background:#ffccbc; margin-top:10px;">
+        <input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}>
+        <label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser (manque de place, saturation, etc.)</label>
+      </div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="label-row">
+      <label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label>
+      <span class="help-icon" onclick="document.getElementById('help-notes').classList.toggle('show')">?</span>
+    </div>
+    <div id="help-notes" class="help-text">Saisissez ici toute anomalie : chambre détruite, tampon cassé, fourreau bouché, pas de lien amont/aval, etc.</div>
+    <textarea id="notesInput" rows="3" placeholder="Ex: Tampon cassé, chambre inaccessible...">${escapeHTML(c.notes)}</textarea>
   </div>
 
   <div class="card">
@@ -663,6 +691,16 @@ function openDetail(id){
     dbPut(c);
   };
 
+  document.getElementById('nonPoseeToggle').onchange = (e) => {
+    c.boiteNonPosee = e.target.checked;
+    dbPut(c);
+  };
+
+  document.getElementById('notesInput').oninput = (e) => {
+    c.notes = e.target.value;
+    dbPut(c);
+  };
+
   document.getElementById('validateBtn').onclick=async()=>{c.done=!c.done;await dbPut(c);openDetail(id);};
   document.getElementById('nextBtn').onclick=()=>{
     const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1];
@@ -700,6 +738,8 @@ async function importCSV(file){
         done: false,
         hasBoite: true,
         bpeDestination: '',
+        boiteNonPosee: false,
+        notes: '',
         photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
         passages: [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}]
       });
