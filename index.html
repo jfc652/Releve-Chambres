@@ -19,7 +19,8 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-secondary { background:#ccc; color:#333; }
 .btn-success { background:#2e7d32; }
 .btn-danger { background:#c62828; }
-.btn-waze { background:#33ccff; color:#fff; padding:10px 16px; font-size:15px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%;}
+.btn-waze { background:#33ccff; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-bottom:8px;}
+.btn-maps { background:#4285F4; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%;}
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
 label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font-size:14px; color:#444; }
 .photo-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
@@ -139,7 +140,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.5
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.7
   </div>
 </section>
 
@@ -209,7 +210,7 @@ function generateCSV(){
   const hasDiam = headers.some(h => /^DIAMETRE$/i.test(h));
   const hasMasqueB = headers.some(h => /^MASQUE_B$/i.test(h));
   const hasDiamB = headers.some(h => /^DIAMETRE_B$/i.test(h));
-  const hasCable = headers.some(h => /^CABLE$/i.test(h));
+  const hasCable = headers.some(h => /^C[ÂA]BLE$/i.test(h));
   const hasBpe = headers.some(h => /^BPE$/i.test(h));
 
   let allHeaders = [...headers];
@@ -258,7 +259,7 @@ function generateCSV(){
           if (h.toUpperCase() === 'DIAMETRE') return p.diam_in || '';
           if (h.toUpperCase() === 'MASQUE_B') return p.masque_out || '';
           if (h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
-          if (h.toUpperCase() === 'CABLE') return p.cable_name || '';
+          if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
           
           return c.raw[h] || '';
         }
@@ -382,7 +383,7 @@ function openDetail(id){
   
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   
-  // Analyse du lien Waze (Recherche via adresse ou extraction WKT)
+  // Analyse du lien Waze / Maps (Recherche via adresse ou extraction WKT)
   let wazeQ = '';
   const wazeVal = c.raw['WAZE'] || c.raw['waze'] || '';
   const adresse = c.raw['adresse'] || '';
@@ -399,7 +400,13 @@ function openDetail(id){
     wazeQ = wazeVal || adresse;
   }
 
-  let wazeBtn = wazeQ ? `<a href="https://waze.com/ul?ll=${encodeURIComponent(wazeQ)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>` : '';
+  let navBtns = '';
+  if (wazeQ) {
+    navBtns = `
+      <a href="https://waze.com/ul?ll=${encodeURIComponent(wazeQ)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wazeQ)}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>
+    `;
+  }
 
   const optionsDestination = chambres
     .filter(other => other.id !== c.id)
@@ -409,10 +416,10 @@ function openDetail(id){
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
     
-    // On récupère le nom du câble depuis le CSV d'origine
+    // Recherche du nom du câble dans le CSV (avec ou sans accent)
     let csvCable = '';
     for(const key in c.raw) {
-      if(/^CABLE/i.test(key)) {
+      if(/^C[ÂA]BLE$/i.test(key)) {
         csvCable = c.raw[key];
         break;
       }
@@ -474,7 +481,7 @@ function openDetail(id){
       <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue (Étude):</b> ${escapeHTML(bpeOrigine)}</div>
     </div>
     <div style="margin-top:12px; text-align:center;">
-      ${wazeBtn}
+      ${navBtns}
     </div>
   </div>
 
