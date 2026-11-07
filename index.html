@@ -486,4 +486,147 @@ function openDetail(id){
   cont.querySelectorAll('[data-del-cat]').forEach(b=>{
     b.onclick=async(e)=>{
       e.stopPropagation();e.preventDefault();
-      const
+      const cat=b.dataset.delCat,label=b.dataset.catLabel;
+      if(!confirm(`Supprimer toutes les photos « ${label} » ?`))return;
+      c.photos[cat]=[];
+      await dbPut(c);openDetail(id);
+    };
+  });
+
+  document.getElementById('validateBtn').onclick=async()=>{c.done=!c.done;await dbPut(c);openDetail(id);};
+  document.getElementById('nextBtn').onclick=()=>{
+    const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1];
+    if(next)openDetail(next.id);else{renderList();showScreen('list');}
+  };
+
+  updateVisibility();
+  showScreen('detail');
+}
+function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
+
+async function importCSV(file){
+  const text=await file.text();
+  const rows=parseCSV(text);
+  if(rows.length<2){alert('CSV invalide ou vide.');return;}
+  headers=rows[0].map(h=>h.trim());
+  const dataRows=rows.slice(1);
+  
+  const idIdx=(()=>{
+    const pats=[/^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
+    for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}
+    return 0;
+  })();
+
+  const mapChambres = new Map();
+  
+  for(const r of dataRows){
+    const raw={};headers.forEach((h,i)=>raw[h]=(r[i]||'').trim());
+    let id=raw[headers[idIdx]]||'CH-'+Math.random().toString(36).slice(2,8).toUpperCase();
+    
+    if(!mapChambres.has(id)) {
+      mapChambres.set(id, {
+        id, 
+        raw, 
+        done: false,
+        hasBoite: true,
+        bpeDestination: '',
+        photos: PHOTO_CATS.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}),
+        passages: [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}]
+      });
+    } else {
+      const existing = mapChambres.get(id);
+      existing.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''});
+    }
+  }
+  
+  const existingDb = new Map(chambres.map(c=>[c.id,c]));
+  const newC = Array.from(mapChambres.values()).map(newCh => {
+    if(existingDb.has(newCh.id)) {
+      const oldCh = existingDb.get(newCh.id);
+      oldCh.raw = newCh.raw;
+      return oldCh;
+    }
+    return newCh;
+  });
+
+  await dbClear();chambres=newC;
+  for(const c of chambres)await dbPut(c);
+  updateHomeStats();
+  alert(`${chambres.length} chambre(s) importée(s).`);
+}
+
+async function exportAll(){
+  if(!chambres.length){alert('Rien à exporter.');return;}
+  showOverlay(true);
+  try{
+    const zip=new JSZip();
+    zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
+    
+    for(const c of chambres){
+      const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
+      
+      PHOTO_CATS.forEach(catObj => {
+        const catFolder = catObj.id;
+        const photos = c.photos[catFolder] || [];
+        
+        photos.forEach((p, i) => {
+          const n = String(i + 1).padStart(2, '0');
+          zip.file(`photos/${safe}/${catFolder}/${catFolder}_${n}.jpg`, p.blob);
+        });
+      });
+    }
+    
+    const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const fname = 'releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
+    
+    const file = new File([blob], fname, { type: 'application/zip' });
+
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Relevé Chambres',
+          text: 'Relevé terrain'
+        });
+      } else {
+        throw new Error("Partage non supporté");
+      }
+    } catch (err) {
+      console.warn("Partage natif échoué, téléchargement direct...", err);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      alert("Le partage direct a été bloqué par le téléphone. Le fichier ZIP a été téléchargé dans vos dossiers, vous pouvez maintenant l'envoyer manuellement sur WhatsApp.");
+    }
+  }catch(e){alert('Erreur export : '+e.message);}
+  finally{showOverlay(false);}
+}
+
+document.getElementById('csvInput').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;showOverlay(true);
+  try{await importCSV(f);}catch(err){alert('Erreur import : '+err.message);}
+  finally{showOverlay(false);e.target.value='';}
+};
+document.getElementById('startBtn').onclick=()=>{renderList();showScreen('list');};
+document.getElementById('exportBtn').onclick=exportAll;
+document.getElementById('backBtn').onclick=()=>{
+  if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');}
+  else{renderList();showScreen('list');}
+};
+document.getElementById('resetBtn').onclick=async()=>{
+  if(!confirm('Effacer TOUTES les données (chambres + photos) ?'))return;
+  await dbClear();chambres=[];headers=[];updateHomeStats();alert('Données effacées.');
+};
+
+(async()=>{
+  await openDB();chambres=await dbGetAll();updateHomeStats();
+  if(chambres.length){renderList();showScreen('list');}
+})();
+</script>
+</body>
+</html>
