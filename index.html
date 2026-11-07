@@ -140,7 +140,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.8
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.9
   </div>
 </section>
 
@@ -384,13 +384,21 @@ function openDetail(id){
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   
   // --- CORRECTION WAZE / GOOGLE MAPS ---
-  // On lit directement la colonne WAZE du CSV, on ne touche plus au WKT.
   const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
   let navBtns = '';
   
   if (wazeUrlCsv && wazeUrlCsv.includes('waze.com')) {
-    // Si le CSV contient déjà le lien complet de Waze
-    const mapsUrl = wazeUrlCsv.replace('https://www.waze.com/ul', 'https://www.google.com/maps/search/?api=1&query').replace('&navigate=yes', '');
+    // On extrait les coordonnées lat,lon de l'URL Waze du CSV
+    const match = wazeUrlCsv.match(/ll=([\d.-]+),([\d.-]+)/);
+    let mapsUrl = '';
+    
+    if (match) {
+      mapsUrl = `https://www.google.com/maps/search/?api=1&query=${match[1]},${match[2]}`;
+    } else {
+      // Fallback si le format de l'URL change
+      mapsUrl = wazeUrlCsv.replace('https://www.waze.com/ul?ll=', 'https://www.google.com/maps/search/?api=1&query=').replace('&navigate=yes', '');
+    }
+
     navBtns = `
       <a href="${wazeUrlCsv}" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>
       <a href="${mapsUrl}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>
@@ -412,7 +420,7 @@ function openDetail(id){
     .join('');
 
   // --- CORRECTION CÂBLE ---
-  // On cherche dans le CSV la colonne CABLE ou CÂBLE pour pré-remplir
+  // On cherche dans le CSV la colonne CABLE ou CÂBLE
   let csvCableVal = '';
   for(const key in c.raw) {
     if(/^C[ÂA]BLE$/i.test(key)) {
@@ -424,8 +432,8 @@ function openDetail(id){
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
     
-    // Si c'est le premier passage et que le champ est vide, on le remplit avec la valeur du CSV
-    if (index === 0 && !p.cable_name && csvCableVal) {
+    // On force la valeur du câble du CSV sur le premier passage s'il est vide
+    if (index === 0 && csvCableVal && !p.cable_name) {
       p.cable_name = csvCableVal;
     }
 
@@ -440,7 +448,7 @@ function openDetail(id){
         <span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span>
       </div>
       <div id="help-cable-${p.id}" class="help-text">Sert à identifier le câble sur le terrain (ex: Câble 1, Câble 2...). S'affichera dans le fichier Excel.</div>
-      <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
+      <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name || csvCableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
       ` : ''}
       
       <div class="label-row">
