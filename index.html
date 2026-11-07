@@ -139,7 +139,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.3
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.4
   </div>
 </section>
 
@@ -382,21 +382,24 @@ function openDetail(id){
   
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   
-  // Waze - URL universelle de recherche / navigation
+  // Analyse du lien Waze (Recherche via adresse ou extraction WKT)
+  let wazeQ = '';
   const wazeVal = c.raw['WAZE'] || c.raw['waze'] || '';
-  const lat = c.raw['LATITUDE'] || c.raw['latitude'] || '';
-  const lon = c.raw['LONGITUDE'] || c.raw['longitude'] || '';
   const adresse = c.raw['adresse'] || '';
+  const wkt = c.raw['wkt_geom'] || c.raw['WKT_GEOM'] || '';
   
-  let wazeBtn = '';
-  if (lat && lon) {
-    // Waze GPS direct
-    wazeBtn = `<a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (GPS)</a>`;
+  // Extraction des coordonnées depuis WKT si possible (ex: MultiPoint Z ((649640.63 6845202.54 0)))
+  const wktMatch = wkt.match(/\(\(([\d.]+)\s+([\d.]+)/);
+  
+  if (wktMatch) {
+    const lon = wktMatch[1];
+    const lat = wktMatch[2];
+    wazeQ = `${lat},${lon}`;
   } else if (wazeVal || adresse) {
-    // Waze recherche texte
-    const q = wazeVal || adresse;
-    wazeBtn = `<a href="https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (Adresse)</a>`;
+    wazeQ = wazeVal || adresse;
   }
+
+  let wazeBtn = wazeQ ? `<a href="https://waze.com/ul?ll=${encodeURIComponent(wazeQ)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>` : '';
 
   const optionsDestination = chambres
     .filter(other => other.id !== c.id)
@@ -473,10 +476,10 @@ function openDetail(id){
       <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label>
       <span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span>
     </div>
-    <div id="help-boite" class="help-text">Si la boîte n'est pas posée, décochez cette case. Vous pourrez alors choisir vers quelle chambre elle a été déplacée.</div>
+    <div id="help-boite" class="help-text">Si la boîte n'est pas posée ou si son emplacement change, décochez cette case et sélectionnez la nouvelle chambre.</div>
     <div class="toggle-container">
       <input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}>
-      <label for="boiteToggle">Boîte posée / Validée dans cette chambre</label>
+      <label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée dans cette chambre' : 'Boîte posée / Validée dans cette chambre'}</label>
     </div>
     
     <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
