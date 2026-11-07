@@ -19,7 +19,7 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-secondary { background:#ccc; color:#333; }
 .btn-success { background:#2e7d32; }
 .btn-danger { background:#c62828; }
-.btn-waze { background:#33ccff; color:#fff; padding:8px 16px; font-size:14px; border-radius:8px; display:inline-flex; align-items:center; gap:5px; font-weight:bold;}
+.btn-waze { background:#33ccff; color:#fff; padding:10px 16px; font-size:15px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%;}
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
 label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font-size:14px; color:#444; }
 .photo-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
@@ -64,9 +64,11 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .mode-btn h3 { margin:0 0 4px 0; font-size:16px; }
 .mode-btn p { margin:0; font-size:12px; opacity:0.8; }
 
-/* Aides contextuelles */
-.help-icon { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; background:#0055A4; color:#fff; border-radius:50%; font-size:12px; font-weight:bold; margin-left:6px; cursor:help; }
-.help-text { display:none; background:#fff9c4; border-left:4px solid #fbc02d; padding:10px; margin-top:8px; font-size:12px; border-radius:4px; color:#333; }
+/* Aides contextuelles corrigées */
+.label-row { display:flex; align-items:center; justify-content:space-between; margin-top:12px; margin-bottom:6px;}
+.label-row label { margin:0; }
+.help-icon { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; background:#0055A4; color:#fff; border-radius:50%; font-size:13px; font-weight:bold; cursor:pointer; }
+.help-text { display:none; background:#fff9c4; border-left:4px solid #fbc02d; padding:10px; margin-bottom:8px; font-size:12px; border-radius:4px; color:#333; width:100%;}
 .help-text.show { display:block; }
 details.help-panel { background:#e3f2fd; border-radius:8px; padding:12px; margin-top:12px; }
 details.help-panel summary { font-weight:bold; color:#0055A4; cursor:pointer; }
@@ -137,7 +139,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 5.4
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 5.6
   </div>
 </section>
 
@@ -386,10 +388,10 @@ function openDetail(id){
   
   let wazeBtn = '';
   if (lat && lon) {
-    wazeBtn = `<a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (GPS)</a>`;
+    wazeBtn = `<a href="waze://?ll=${lat},${lon}&navigate=yes" class="btn btn-waze">🚗 Lancer Waze (GPS)</a>`;
   } else if (wazeVal || adresse) {
     const q = wazeVal || adresse;
-    wazeBtn = `<a href="https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (Adresse)</a>`;
+    wazeBtn = `<a href="waze://?q=${encodeURIComponent(q)}&navigate=yes" class="btn btn-waze">🚗 Lancer Waze (Adresse)</a>`;
   }
 
   const optionsDestination = chambres
@@ -404,12 +406,18 @@ function openDetail(id){
       ${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
       <h4>Liaison ${index + 1}</h4>
 
-      <label style="margin-top:4px;">Nom du Câble (Info terrain) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
-      <div class="help-text">Sert à identifier le câble sur le terrain (ex: Câble 1, Câble 2...). S'affichera dans le fichier Excel.</div>
+      <div class="label-row">
+        <label>Nom du Câble (Info terrain)</label>
+        <span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span>
+      </div>
+      <div id="help-cable-${p.id}" class="help-text">Sert à identifier le câble sur le terrain (ex: Câble 1, Câble 2...). S'affichera dans le fichier Excel.</div>
       <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
       
-      <label style="margin-top:4px;">Masque Entrée (ex: A4) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
-      <div class="help-text">Saisissez la lettre du masque et le numéro d'alvéole (ex: A4 pour Masque A, alvéole 4).</div>
+      <div class="label-row">
+        <label>Masque Entrée (ex: A4)</label>
+        <span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span>
+      </div>
+      <div id="help-masq-${p.id}" class="help-text">Saisissez la lettre du masque et le numéro d'alvéole (ex: A4 pour Masque A, alvéole 4).</div>
       <div class="row-inputs">
         <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
         <select data-pass="${p.id}" data-field="diam_in">
@@ -418,8 +426,11 @@ function openDetail(id){
         </select>
       </div>
 
-      <label style="margin-top:8px;">Masque Sortie (ex: B2) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
-      <div class="help-text">Masque où le câble ressort de la chambre.</div>
+      <div class="label-row">
+        <label>Masque Sortie (ex: B2)</label>
+        <span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span>
+      </div>
+      <div id="help-masqout-${p.id}" class="help-text">Masque où le câble ressort de la chambre.</div>
       <div class="row-inputs">
         <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
         <select data-pass="${p.id}" data-field="diam_out">
@@ -452,8 +463,11 @@ function openDetail(id){
   </div>
 
   <div class="card">
-    <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
-    <div class="help-text">Si la boîte n'est pas posée, décochez cette case. Vous pourrez alors choisir vers quelle chambre elle a été déplacée.</div>
+    <div class="label-row">
+      <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label>
+      <span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span>
+    </div>
+    <div id="help-boite" class="help-text">Si la boîte n'est pas posée, décochez cette case. Vous pourrez alors choisir vers quelle chambre elle a été déplacée.</div>
     <div class="toggle-container">
       <input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}>
       <label for="boiteToggle">Boîte posée / Validée dans cette chambre</label>
@@ -469,8 +483,11 @@ function openDetail(id){
   </div>
 
   <div class="card">
-    <label style="margin-top:0; font-size:16px;">📷 Photos requises <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
-    <div class="help-text">Seules les photos des masques saisis apparaissent. Cliquez sur une case pour prendre une photo.</div>
+    <div class="label-row">
+      <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
+      <span class="help-icon" onclick="document.getElementById('help-photo').classList.toggle('show')">?</span>
+    </div>
+    <div id="help-photo" class="help-text">Seules les photos des masques saisis apparaissent. Cliquez sur une case pour prendre une photo.</div>
     <div class="photo-row" id="photoGrid">
       ${currentCats.map(cat => `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`).join('')}
     </div>
