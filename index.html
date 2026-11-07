@@ -90,7 +90,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <div class="mode-selector">
       <button class="mode-btn active" id="modeAiguillage" data-mode="aiguillage">
         <h3>🔧 Aiguillage (Étude)</h3>
-        <p>Masques, alvéoles, diamètres. Pas de mires ni de boîtes.</p>
+        <p>Masques, alvéoles, vue d'ensemble. Pas de câbles ni de boîtes.</p>
       </button>
       <button class="mode-btn" id="modeFoa" data-mode="foa">
         <h3>📋 FOA (Occupation Alvéoles)</h3>
@@ -139,7 +139,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 5.7
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.2
   </div>
 </section>
 
@@ -160,7 +160,8 @@ const PHOTO_CATS_AIGUILLAGE = [
   {id:'MA', label:'Masque A', icon:'🔘'},
   {id:'MB', label:'Masque B', icon:'🔘'},
   {id:'MC', label:'Masque C', icon:'🔘'},
-  {id:'MD', label:'Masque D', icon:'🔘'}
+  {id:'MD', label:'Masque D', icon:'🔘'},
+  {id:'VUE_ENSEMBLE', label:'Vue ensemble', icon:'🌐'}
 ];
 
 const PHOTO_CATS_FOA = [
@@ -367,7 +368,6 @@ function openDetail(id){
   currentId=id;const c=chambres.find(x=>x.id===id);if(!c)return;
   
   if(!c.photos)c.photos={};
-  // On s'assure que TOUTES les catégories existent pour ne pas planter
   PHOTO_CATS_AIGUILLAGE.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   PHOTO_CATS_FOA.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   
@@ -382,6 +382,7 @@ function openDetail(id){
   
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   
+  // Waze - Méthode universelle HTTPS
   const wazeVal = c.raw['WAZE'] || c.raw['waze'] || '';
   const lat = c.raw['LATITUDE'] || c.raw['latitude'] || '';
   const lon = c.raw['LONGITUDE'] || c.raw['longitude'] || '';
@@ -389,10 +390,10 @@ function openDetail(id){
   
   let wazeBtn = '';
   if (lat && lon) {
-    wazeBtn = `<a href="waze://?ll=${lat},${lon}&navigate=yes" class="btn btn-waze">🚗 Lancer Waze (GPS)</a>`;
+    wazeBtn = `<a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (GPS)</a>`;
   } else if (wazeVal || adresse) {
     const q = wazeVal || adresse;
-    wazeBtn = `<a href="waze://?q=${encodeURIComponent(q)}&navigate=yes" class="btn btn-waze">🚗 Lancer Waze (Adresse)</a>`;
+    wazeBtn = `<a href="https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (Adresse)</a>`;
   }
 
   const optionsDestination = chambres
@@ -407,12 +408,14 @@ function openDetail(id){
       ${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
       <h4>Liaison ${index + 1}</h4>
 
+      ${isFoa ? `
       <div class="label-row">
         <label>Nom du Câble (Info terrain)</label>
         <span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span>
       </div>
       <div id="help-cable-${p.id}" class="help-text">Sert à identifier le câble sur le terrain (ex: Câble 1, Câble 2...). S'affichera dans le fichier Excel.</div>
       <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
+      ` : ''}
       
       <div class="label-row">
         <label>Masque Entrée (ex: A4)</label>
@@ -488,7 +491,7 @@ function openDetail(id){
       <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
       <span class="help-icon" onclick="document.getElementById('help-photo').classList.toggle('show')">?</span>
     </div>
-    <div id="help-photo" class="help-text">Seules les photos des masques saisis apparaissent (en Aiguillage). En FOA, toutes les photos terrain sont affichées.</div>
+    <div id="help-photo" class="help-text">Seules les photos nécessaires s'affichent. En FOA sans boîte, seuls les câbles sont demandés.</div>
     <div class="photo-row" id="photoGrid"></div>
   </div>
   
@@ -499,12 +502,9 @@ function openDetail(id){
 
   const photoGrid = document.getElementById('photoGrid');
   
-  // Fonction pour générer le HTML d'une case photo
   const renderPhotoGrid = () => {
     const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
     
-    // En mode FOA, on affiche TOUT par défaut.
-    // En mode Aiguillage, on filtre selon les masques saisis.
     let activeMasks = new Set();
     if(modeTravail === 'aiguillage') {
       cont.querySelectorAll('input[data-field="masque_in"], input[data-field="masque_out"]').forEach(inp => {
@@ -524,14 +524,14 @@ function openDetail(id){
       if(modeTravail === 'aiguillage') {
         if(['MA','MB','MC','MD'].includes(cat.id)) {
           const letter = cat.id.charAt(1);
-          // Si aucun masque n'est saisi, on affiche tout (ou on pourrait tout cacher)
-          // Ici, si on a saisi des masques, on n'affiche que ceux-là
           if (activeMasks.size > 0) visible = activeMasks.has(letter);
         }
       } else {
-        // Mode FOA : on gère la boîte
-        if(['BOITE', 'ETIQ_BOITE'].includes(cat.id)) {
-          visible = hasBoite;
+        // Mode FOA : Si pas de boîte, on ne montre QUE les câbles et vue ensemble
+        if(!hasBoite) {
+          if(['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(cat.id)) {
+            visible = false;
+          }
         }
       }
 
@@ -540,7 +540,7 @@ function openDetail(id){
       return `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`;
     }).join('');
 
-    // On rattache les événements aux nouveaux boutons photos
+    // Événements sur les boutons photos nouvellement créés
     photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
       inp.onchange=async()=>{
         const files=Array.from(inp.files||[]);if(!files.length)return;
@@ -569,7 +569,6 @@ function openDetail(id){
     });
   };
 
-  // Événements sur les champs de saisie
   cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{
     inp.oninput = (e) => {
       const passId = inp.dataset.pass;
@@ -578,7 +577,7 @@ function openDetail(id){
       if(passage) {
         passage[field] = e.target.value;
         dbPut(c);
-        if(modeTravail === 'aiguillage') renderPhotoGrid(); // On rafraîchit juste la grille
+        if(modeTravail === 'aiguillage') renderPhotoGrid();
       }
     };
   });
@@ -618,7 +617,6 @@ function openDetail(id){
     if(next)openDetail(next.id);else{renderList();showScreen('list');}
   };
 
-  // Premier affichage de la grille
   renderPhotoGrid();
   showScreen('detail');
 }
