@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0055A4">
-<title>Relevé Chambres</title>
+<title>Relevé Chambres - JFC</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f5f5f5; color:#222; }
@@ -47,7 +47,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .stat-label { font-size:12px; color:#666; margin-top:2px; }
 .passage-card { border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 12px; padding: 16px; background: #fafafa; position:relative; }
 .passage-card h4 { margin: 0 0 10px 0; font-size: 15px; color: #0055A4; }
-.row-inputs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .row-inputs input { padding: 8px; font-size: 14px; }
 .delete-passage { position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; color:#c62828; cursor:pointer;}
 .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; margin-top:8px; }
@@ -55,6 +55,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .toggle-container { display:flex; align-items:center; gap:10px; margin-top:10px; background:#eef3f8; padding:10px; border-radius:8px;}
 .toggle-container input[type=checkbox] { width:20px; height:20px; margin:0; }
 .toggle-container label { margin:0; font-size:14px; font-weight:normal;}
+.footer-credits { text-align: center; font-size: 11px; color: #999; margin-top: 20px; margin-bottom: 20px; }
 </style>
 </head>
 <body>
@@ -81,6 +82,12 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
       <div class="stat"><div class="stat-num" id="statPhotos">0</div><div class="stat-label">Photos</div></div>
       <div class="stat"><div class="stat-num" id="statTodo">0</div><div class="stat-label">À faire</div></div>
     </div>
+    
+    <div id="transfertsResume" style="margin-top:16px; padding:10px; background:#fff3e0; border-radius:8px; font-size:14px; display:none;">
+      <b>⚠️ Transferts de BPE en cours :</b>
+      <ul id="transfertsList" style="margin:5px 0 0 20px; padding:0;"></ul>
+    </div>
+
     <button id="startBtn" class="btn" style="margin-top:16px;">Commencer le relevé →</button>
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (WhatsApp/Mail)</button>
   </div>
@@ -88,13 +95,17 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <h2 style="margin-top:0;font-size:17px;">ℹ️ Mode d'emploi</h2>
     <ol class="small" style="padding-left:20px;line-height:1.6;">
       <li>Importer le CSV.</li>
-      <li>Remplir les passages (Masques et Alvéoles). Les photos des masques concernés apparaîtront.</li>
-      <li>Valider la présence de la boîte pour prendre les photos associées.</li>
+      <li>Remplir les liaisons (Masque+Alvéole, Diamètre, Câble).</li>
+      <li>Si la boîte BPE manque, sélectionnez la chambre de destination.</li>
+      <li>Prendre les photos requises.</li>
       <li>Exporter le ZIP.</li>
     </ol>
   </div>
   <div class="card">
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
+  </div>
+  <div class="footer-credits">
+    Développé par JFC<br>Version 4.2
   </div>
 </section>
 
@@ -107,7 +118,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const DB_NAME='releve-chambres-v3', STORE='chambres';
+const DB_NAME='releve-chambres-v4', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
 
 const PHOTO_CATS = [
@@ -142,12 +153,14 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
+// Génère le CSV final avec la logique de transfert de BPE
 function generateCSV(){
   const finalCols = [
-    'CODE_CH1', 'COMMUNE', 'WAZE', 'Ref_chambr', 'ETIQUETTE_2', 'ORDRE', 'BPE',
-    'Masque_IN', 'Alveole_IN', 'Diametre_IN', 
-    'Masque_OUT', 'Alveole_OUT', 'Diametre_OUT',
-    'Boite_Validee',
+    'CODE_CH1', 'COMMUNE', 'WAZE', 'Ref_chambr', 'ETIQUETTE_2', 'ORDRE', 
+    'BPE', 'BPE_Origine',
+    'MASQUE', 'DIAMETRE', 
+    'MASQUE_B', 'DIAMETRE_B',
+    'CABLE',
     'Nb_MA', 'Nb_MB', 'Nb_MC', 'Nb_MD', 'Nb_ETIQ_BOITE', 'Nb_ETIQ_CABLE', 
     'Nb_VUE_ENSEMBLE', 'Nb_BOITE', 'Nb_CABLE', 'Nb_VUE_DESSUS_CH'
   ];
@@ -155,9 +168,36 @@ function generateCSV(){
   const d=';';
   const lines=[finalCols.map(h=>esc(h,d)).join(d)];
   
+  // 1. Pré-calcul des BPE à recevoir
+  const bpeRecues = {};
+  for (const c of chambres) {
+    if (!c.hasBoite && c.bpeDestination) {
+      // Si cette chambre donne sa boîte à une autre, on ajoute la boîte d'origine à la liste des dons
+      const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
+      if (bpeName) {
+        if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = [];
+        bpeRecues[c.bpeDestination].push(bpeName);
+      }
+    }
+  }
+
   for(const c of chambres){
     const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
     
+    // Calcul de la BPE finale pour cette chambre
+    let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
+    let bpeOrigine = bpeFinal;
+
+    // Si la chambre n'a pas de boîte (don), elle est vidée
+    if (!c.hasBoite) {
+      bpeFinal = '';
+    } else {
+      // Si la chambre est désignée comme destination d'une autre chambre, elle récupère les boîtes
+      if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) {
+        bpeFinal = bpeRecues[c.id].join(' + ');
+      }
+    }
+
     for(const p of passages) {
       const row = finalCols.map(h => {
         if (h === 'CODE_CH1') return c.id;
@@ -166,17 +206,15 @@ function generateCSV(){
         if (h === 'Ref_chambr') return c.raw['Ref_chambr'] || c.raw['REF_CHAMBR'] || c.raw['ref_chambr'] || '';
         if (h === 'ETIQUETTE_2') return c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
         if (h === 'ORDRE') return c.raw['ORDRE'] || c.raw['ordre'] || '';
-        if (h === 'BPE') return c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
         
-        if (h === 'Masque_IN') return p.masque_in || '';
-        if (h === 'Alveole_IN') return p.alveole_in || '';
-        if (h === 'Diametre_IN') return p.diam_in || '';
+        if (h === 'BPE') return bpeFinal;
+        if (h === 'BPE_Origine') return bpeOrigine;
         
-        if (h === 'Masque_OUT') return p.masque_out || '';
-        if (h === 'Alveole_OUT') return p.alveole_out || '';
-        if (h === 'Diametre_OUT') return p.diam_out || '';
-        
-        if (h === 'Boite_Validee') return c.hasBoite ? 'OUI' : 'NON';
+        if (h === 'MASQUE') return p.masque_in || '';
+        if (h === 'DIAMETRE') return p.diam_in || '';
+        if (h === 'MASQUE_B') return p.masque_out || '';
+        if (h === 'DIAMETRE_B') return p.diam_out || '';
+        if (h === 'CABLE') return p.cable_name || '';
         
         if (h.startsWith('Nb_')) {
           const cat = h.replace('Nb_', '');
@@ -207,6 +245,7 @@ function showScreen(name){
   document.getElementById('title').textContent={home:'Relevé Chambres',list:'Chambres',detail:'Détail'}[name];
   window.scrollTo(0,0);
 }
+
 function updateHomeStats(){
   const total=chambres.length,done=chambres.filter(c=>c.done).length;
   let photos=0;
@@ -218,7 +257,23 @@ function updateHomeStats(){
   document.getElementById('statPhotos').textContent=photos;
   document.getElementById('statTodo').textContent=total-done;
   document.getElementById('homeStats').style.display=total?'block':'none';
+
+  // Mise à jour du résumé des transferts
+  const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination);
+  const trDiv = document.getElementById('transfertsResume');
+  const trList = document.getElementById('transfertsList');
+  
+  if (transferts.length > 0) {
+    trDiv.style.display = 'block';
+    trList.innerHTML = transferts.map(c => {
+      const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
+      return `<li>La BPE de <b>${c.id}</b> (${bpe}) est transférée vers <b>${c.bpeDestination}</b></li>`;
+    }).join('');
+  } else {
+    trDiv.style.display = 'none';
+  }
 }
+
 function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 function renderList(){
@@ -259,8 +314,9 @@ function openDetail(id){
   if(!c.photos)c.photos={};
   PHOTO_CATS.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   
-  if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''}];
+  if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}];
   if(c.hasBoite === undefined) c.hasBoite = true;
+  if(!c.bpeDestination) c.bpeDestination = '';
 
   const cont=document.getElementById('detailContainer');
   
@@ -269,7 +325,13 @@ function openDetail(id){
   const ref = c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
   const etiq2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
   const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '';
-  const bpe = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
+  const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
+
+  // Options pour le sélecteur de destination
+  const optionsDestination = chambres
+    .filter(other => other.id !== c.id)
+    .map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`)
+    .join('');
 
   cont.innerHTML=`
   <div class="card">
@@ -280,31 +342,31 @@ function openDetail(id){
       <div class="info-item"><b>Ref:</b> ${escapeHTML(ref)}</div>
       <div class="info-item"><b>Étiq 2:</b> ${escapeHTML(etiq2)}</div>
       <div class="info-item" style="grid-column: span 2;"><b>Ordre:</b> ${escapeHTML(ordre)}</div>
-      <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE (CSV):</b> ${escapeHTML(bpe)}</div>
+      <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue (Étude):</b> ${escapeHTML(bpeOrigine)}</div>
     </div>
   </div>
 
   <div class="card">
-    <label style="margin-top:0; font-size:16px;">🔌 Passages (Câbles)</label>
-    <p class="small" style="margin-bottom:12px;">Saisissez les masques (A, B, C ou D) pour faire apparaître les photos correspondantes.</p>
+    <label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label>
     
     <div id="passages-container">
       ${c.passages.map((p, index) => `
         <div class="passage-card" data-passage-id="${p.id}">
           ${c.passages.length > 1 ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
           <h4>Liaison ${index + 1}</h4>
+
+          <label style="margin-top:4px;">Nom du Câble (Info terrain)</label>
+          <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
           
-          <label style="margin-top:4px;">Masque Entrée (A/B/C/D)</label>
+          <label style="margin-top:4px;">Masque Entrée (ex: A4)</label>
           <div class="row-inputs">
-            <input type="text" placeholder="Masque" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
-            <input type="text" placeholder="N° Alvéole" value="${escapeHTML(p.alveole_in)}" data-pass="${p.id}" data-field="alveole_in">
+            <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
             <input type="number" placeholder="Diam (mm)" value="${escapeHTML(p.diam_in)}" data-pass="${p.id}" data-field="diam_in">
           </div>
 
-          <label style="margin-top:8px;">Masque Sortie (A/B/C/D)</label>
+          <label style="margin-top:8px;">Masque Sortie (ex: B2)</label>
           <div class="row-inputs">
-            <input type="text" placeholder="Masque" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
-            <input type="text" placeholder="N° Alvéole" value="${escapeHTML(p.alveole_out)}" data-pass="${p.id}" data-field="alveole_out">
+            <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
             <input type="number" placeholder="Diam (mm)" value="${escapeHTML(p.diam_out)}" data-pass="${p.id}" data-field="diam_out">
           </div>
         </div>
@@ -317,14 +379,20 @@ function openDetail(id){
     <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label>
     <div class="toggle-container">
       <input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}>
-      <label for="boiteToggle">Boîte posée / Validée en chambre</label>
+      <label for="boiteToggle">Boîte posée / Validée dans cette chambre</label>
     </div>
-    <p class="small" style="margin-top:8px;">Si décoché, les photos Boîte et Étiquette Boîte sont masquées.</p>
+    
+    <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
+      <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label>
+      <select id="bpeDestinationSelect" style="margin-top:5px;">
+        <option value="">-- Choisir la chambre de destination --</option>
+        ${optionsDestination}
+      </select>
+    </div>
   </div>
 
   <div class="card">
     <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
-    <p class="small" style="margin-bottom:8px;">Seules les photos des masques utilisés ci-dessus apparaissent.</p>
     <div class="photo-row" id="photoGrid">
       ${PHOTO_CATS.map(cat => `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`).join('')}
     </div>
@@ -335,12 +403,14 @@ function openDetail(id){
   </button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
-  // Fonction pour masquer/afficher les photos sans recharger la page
   const updateVisibility = () => {
     const activeMasks = new Set();
     cont.querySelectorAll('input[data-field="masque_in"], input[data-field="masque_out"]').forEach(inp => {
       const val = inp.value.trim().toUpperCase();
-      if(val) activeMasks.add(val);
+      if(val) {
+        const letter = val.charAt(0);
+        if(['A','B','C','D'].includes(letter)) activeMasks.add(letter);
+      }
     });
 
     const hasBoite = document.getElementById('boiteToggle').checked;
@@ -350,12 +420,8 @@ function openDetail(id){
       let visible = true;
 
       if(['MA','MB','MC','MD'].includes(catId)) {
-        const letter = catId.charAt(1); // A, B, C, D
-        // Si aucun masque n'est saisi, on affiche tout par défaut. 
-        // Sinon, on n'affiche que ceux saisis.
-        if (activeMasks.size > 0) {
-          visible = activeMasks.has(letter);
-        }
+        const letter = catId.charAt(1);
+        if (activeMasks.size > 0) visible = activeMasks.has(letter);
       }
 
       if(['BOITE', 'ETIQ_BOITE'].includes(catId)) {
@@ -366,13 +432,9 @@ function openDetail(id){
     });
   };
 
-  // Écouteurs en temps réel sur les champs de saisie (sans perdre le focus)
   cont.querySelectorAll('input[data-pass]').forEach(inp=>{
     inp.oninput = (e) => {
-      // 1. Mise à jour immédiate de l'affichage
       updateVisibility();
-      
-      // 2. Sauvegarde dans la base de données
       const passId = inp.dataset.pass;
       const field = inp.dataset.field;
       const passage = c.passages.find(x => x.id === passId);
@@ -384,9 +446,9 @@ function openDetail(id){
   });
 
   document.getElementById('addPassageBtn').onclick = () => {
-    c.passages.push({id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''});
+    c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''});
     dbPut(c);
-    openDetail(id); // Ici on recharge car on ajoute un nouveau bloc
+    openDetail(id);
   };
 
   cont.querySelectorAll('[data-del-passage]').forEach(btn => {
@@ -395,19 +457,23 @@ function openDetail(id){
       if(confirm('Supprimer cette liaison ?')) {
         c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage);
         dbPut(c);
-        openDetail(id); // Ici on recharge car on supprime un bloc
+        openDetail(id);
       }
     };
   });
 
-  // Toggle Boîte (sans recharger la page)
   document.getElementById('boiteToggle').onchange = (e) => {
     c.hasBoite = e.target.checked;
+    document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block';
     dbPut(c);
-    updateVisibility(); // Juste mise à jour de l'affichage
+    updateVisibility();
   };
 
-  // Photos
+  document.getElementById('bpeDestinationSelect').onchange = (e) => {
+    c.bpeDestination = e.target.value;
+    dbPut(c);
+  };
+
   cont.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
     inp.onchange=async()=>{
       const files=Array.from(inp.files||[]);if(!files.length)return;
@@ -436,139 +502,4 @@ function openDetail(id){
   });
 
   document.getElementById('validateBtn').onclick=async()=>{c.done=!c.done;await dbPut(c);openDetail(id);};
-  document.getElementById('nextBtn').onclick=()=>{
-    const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1];
-    if(next)openDetail(next.id);else{renderList();showScreen('list');}
-  };
-
-  // Lancer la vérification une première fois à l'ouverture
-  updateVisibility();
-  showScreen('detail');
-}
-function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
-
-async function importCSV(file){
-  const text=await file.text();
-  const rows=parseCSV(text);
-  if(rows.length<2){alert('CSV invalide ou vide.');return;}
-  headers=rows[0].map(h=>h.trim());
-  const dataRows=rows.slice(1);
-  
-  const idIdx=(()=>{
-    const pats=[/^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
-    for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}
-    return 0;
-  })();
-
-  const mapChambres = new Map();
-  
-  for(const r of dataRows){
-    const raw={};headers.forEach((h,i)=>raw[h]=(r[i]||'').trim());
-    let id=raw[headers[idIdx]]||'CH-'+Math.random().toString(36).slice(2,8).toUpperCase();
-    
-    if(!mapChambres.has(id)) {
-      mapChambres.set(id, {
-        id, 
-        raw, 
-        done: false,
-        hasBoite: true,
-        photos: PHOTO_CATS.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}),
-        passages: [{id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''}]
-      });
-    } else {
-      const existing = mapChambres.get(id);
-      existing.passages.push({id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''});
-    }
-  }
-  
-  const existingDb = new Map(chambres.map(c=>[c.id,c]));
-  const newC = Array.from(mapChambres.values()).map(newCh => {
-    if(existingDb.has(newCh.id)) {
-      const oldCh = existingDb.get(newCh.id);
-      oldCh.raw = newCh.raw;
-      return oldCh;
-    }
-    return newCh;
-  });
-
-  await dbClear();chambres=newC;
-  for(const c of chambres)await dbPut(c);
-  updateHomeStats();
-  alert(`${chambres.length} chambre(s) importée(s).`);
-}
-
-async function exportAll(){
-  if(!chambres.length){alert('Rien à exporter.');return;}
-  showOverlay(true);
-  try{
-    const zip=new JSZip();
-    zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
-    
-    for(const c of chambres){
-      const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
-      
-      PHOTO_CATS.forEach(catObj => {
-        const catFolder = catObj.id;
-        const photos = c.photos[catFolder] || [];
-        
-        photos.forEach((p, i) => {
-          const n = String(i + 1).padStart(2, '0');
-          zip.file(`photos/${safe}/${catFolder}/${catFolder}_${n}.jpg`, p.blob);
-        });
-      });
-    }
-    
-    const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    const fname = 'releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
-    
-    const file = new File([blob], fname, { type: 'application/zip' });
-
-    try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Relevé Chambres',
-          text: 'Relevé terrain'
-        });
-      } else {
-        throw new Error("Partage non supporté");
-      }
-    } catch (err) {
-      console.warn("Partage natif échoué, téléchargement direct...", err);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fname;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      alert("Le partage direct a été bloqué par le téléphone. Le fichier ZIP a été téléchargé dans vos dossiers, vous pouvez maintenant l'envoyer manuellement sur WhatsApp.");
-    }
-  }catch(e){alert('Erreur export : '+e.message);}
-  finally{showOverlay(false);}
-}
-
-document.getElementById('csvInput').onchange=async e=>{
-  const f=e.target.files[0];if(!f)return;showOverlay(true);
-  try{await importCSV(f);}catch(err){alert('Erreur import : '+err.message);}
-  finally{showOverlay(false);e.target.value='';}
-};
-document.getElementById('startBtn').onclick=()=>{renderList();showScreen('list');};
-document.getElementById('exportBtn').onclick=exportAll;
-document.getElementById('backBtn').onclick=()=>{
-  if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');}
-  else{renderList();showScreen('list');}
-};
-document.getElementById('resetBtn').onclick=async()=>{
-  if(!confirm('Effacer TOUTES les données (chambres + photos) ?'))return;
-  await dbClear();chambres=[];headers=[];updateHomeStats();alert('Données effacées.');
-};
-
-(async()=>{
-  await openDB();chambres=await dbGetAll();updateHomeStats();
-  if(chambres.length){renderList();showScreen('list');}
-})();
-</script>
-</body>
-</html>
+  document.getElementById
