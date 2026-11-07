@@ -105,7 +105,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    Développé par TOP SAT SERVICES<br>Version 4.5
+    Développé par TOP SAT SERVICES<br>Version 4.6
   </div>
 </section>
 
@@ -159,6 +159,7 @@ function parseCSV(text){
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
 function generateCSV(){
+  // Les colonnes du terrain à ajouter à la fin
   const newCols = [
     'BPE', 'BPE_Origine', 
     'MASQUE', 'DIAMETRE', 
@@ -167,11 +168,13 @@ function generateCSV(){
   ];
   PHOTO_CATS.forEach(cat => newCols.push(`Nb_${cat.id}`));
 
+  // On prend TOUTES les colonnes d'origine (headers) + les nouvelles
   const allHeaders = [...headers, ...newCols];
   
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   
+  // Pré-calcul des BPE transférées
   const bpeRecues = {};
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
@@ -199,8 +202,10 @@ function generateCSV(){
 
     for(const p of passages) {
       const row = allHeaders.map(h => {
+        // 1. On remplit les colonnes d'origine
         if(headers.includes(h)) return c.raw[h] || '';
 
+        // 2. On remplit les colonnes de terrain
         if (h === 'BPE') return bpeFinal;
         if (h === 'BPE_Origine') return bpeOrigine;
         
@@ -581,7 +586,6 @@ async function exportAll(){
     
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     
-    // MODIFICATION ICI : Le nom du fichier ZIP
     const fname = 'TOP_SAT_SERVICES_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
     
     const file = new File([blob], fname, { type: 'application/zip' });
