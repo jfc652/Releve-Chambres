@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0055A4">
-<title>Relevé Chambres - JFC</title>
+<title>Relevé Chambres - TOP SAT SERVICES</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background:#f5f5f5; color:#222; }
@@ -105,7 +105,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    Développé par JFC<br>Version 4.3
+    Développé par TOP SAT SERVICES<br>Version 4.5
   </div>
 </section>
 
@@ -126,6 +126,9 @@ const PHOTO_CATS = [
   {id:'MB', label:'Masque B', icon:'🔘'},
   {id:'MC', label:'Masque C', icon:'🔘'},
   {id:'MD', label:'Masque D', icon:'🔘'},
+  {id:'MIRE_LG', label:'MIRE LG', icon:'📏'},
+  {id:'MIRE_L', label:'MIRE L', icon:'📏'},
+  {id:'MIRE_P', label:'MIRE P', icon:'📏'},
   {id:'ETIQ_BOITE', label:'Étiq Boîte', icon:'🏷️'},
   {id:'ETIQ_CABLE', label:'Étiq Câble', icon:'🏷️'},
   {id:'VUE_ENSEMBLE', label:'Vue ens.', icon:'🌐'},
@@ -156,18 +159,18 @@ function parseCSV(text){
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
 function generateCSV(){
-  const finalCols = [
-    'CODE_CH1', 'COMMUNE', 'WAZE', 'Ref_chambr', 'ETIQUETTE_2', 'ORDRE', 
-    'BPE', 'BPE_Origine',
+  const newCols = [
+    'BPE', 'BPE_Origine', 
     'MASQUE', 'DIAMETRE', 
-    'MASQUE_B', 'DIAMETRE_B',
-    'CABLE',
-    'Nb_MA', 'Nb_MB', 'Nb_MC', 'Nb_MD', 'Nb_ETIQ_BOITE', 'Nb_ETIQ_CABLE', 
-    'Nb_VUE_ENSEMBLE', 'Nb_BOITE', 'Nb_CABLE', 'Nb_VUE_DESSUS_CH'
+    'MASQUE_B', 'DIAMETRE_B', 
+    'CABLE'
   ];
+  PHOTO_CATS.forEach(cat => newCols.push(`Nb_${cat.id}`));
+
+  const allHeaders = [...headers, ...newCols];
   
   const d=';';
-  const lines=[finalCols.map(h=>esc(h,d)).join(d)];
+  const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   
   const bpeRecues = {};
   for (const c of chambres) {
@@ -195,14 +198,9 @@ function generateCSV(){
     }
 
     for(const p of passages) {
-      const row = finalCols.map(h => {
-        if (h === 'CODE_CH1') return c.id;
-        if (h === 'COMMUNE') return c.raw['COMMUNE'] || c.raw['commune'] || '';
-        if (h === 'WAZE') return c.raw['WAZE'] || c.raw['waze'] || '';
-        if (h === 'Ref_chambr') return c.raw['Ref_chambr'] || c.raw['REF_CHAMBR'] || c.raw['ref_chambr'] || '';
-        if (h === 'ETIQUETTE_2') return c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
-        if (h === 'ORDRE') return c.raw['ORDRE'] || c.raw['ordre'] || '';
-        
+      const row = allHeaders.map(h => {
+        if(headers.includes(h)) return c.raw[h] || '';
+
         if (h === 'BPE') return bpeFinal;
         if (h === 'BPE_Origine') return bpeOrigine;
         
@@ -224,33 +222,13 @@ function generateCSV(){
   return lines.join('\r\n');
 }
 
-// Nouvelle fonction pour ajouter les métadonnées EXIF (Date + GPS)
-async function compress(file){
+async function compress(file,maxDim=1920,q=0.85){
   return new Promise((res,rej)=>{
     const img=new Image();
-    img.onload=()=>{
-      let {width:w, height:h}=img;
-      const maxDim = 1920;
-      const s = Math.min(1, maxDim/Math.max(w,h));
-      w = Math.round(w*s); h = Math.round(h*s);
-      
-      const cv = document.createElement('canvas');
-      cv.width = w; cv.height = h;
-      const ctx = cv.getContext('2d');
-      ctx.drawImage(img,0,0,w,h);
-      
-      cv.toBlob(b=>{
-        URL.revokeObjectURL(img.src);
-        if(!b) return rej(new Error('compress'));
-        
-        // On ajoute l'heure et la position GPS dans le nom du fichier ou en métadonnées
-        // (L'API Canvas ne permet pas d'écrire des tags EXIF binaires facilement, 
-        // on utilise donc un contournement pour la géolocalisation si disponible)
-        res(b);
-      },'image/jpeg',0.85);
-    };
-    img.onerror=rej;
-    img.src=URL.createObjectURL(file);
+    img.onload=()=>{let{width:w,height:h}=img;const s=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+      cv.toBlob(b=>{URL.revokeObjectURL(img.src);b?res(b):rej(new Error('compress'));},'image/jpeg',q);};
+    img.onerror=rej;img.src=URL.createObjectURL(file);
   });
 }
 
@@ -300,7 +278,8 @@ function renderList(){
     div.className='list-item';
     const commune = c.raw['COMMUNE'] || c.raw['commune'] || '';
     const ref = c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
-    const sub = [commune, ref].filter(Boolean).join(' • ');
+    const adresse = c.raw['adresse'] || '';
+    const sub = [adresse, commune, ref].filter(Boolean).join(' • ');
     
     div.innerHTML=`<div style="min-width:0;flex:1;">
       <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}</div>
@@ -335,11 +314,9 @@ function openDetail(id){
 
   const cont=document.getElementById('detailContainer');
   
-  const commune = c.raw['COMMUNE'] || c.raw['commune'] || '';
-  const waze = c.raw['WAZE'] || c.raw['waze'] || '';
-  const ref = c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
-  const etiq2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
-  const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '';
+  const adresse = c.raw['adresse'] || '';
+  const masqueDec = c.raw['masque_declare'] || '';
+  const diamDec = c.raw['diametre_declare'] || '';
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
 
   const optionsDestination = chambres
@@ -351,11 +328,9 @@ function openDetail(id){
   <div class="card">
     <div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div>
     <div class="info-grid">
-      <div class="info-item"><b>Commune:</b> ${escapeHTML(commune)}</div>
-      <div class="info-item"><b>Waze:</b> ${escapeHTML(waze)}</div>
-      <div class="info-item"><b>Ref:</b> ${escapeHTML(ref)}</div>
-      <div class="info-item"><b>Étiq 2:</b> ${escapeHTML(etiq2)}</div>
-      <div class="info-item" style="grid-column: span 2;"><b>Ordre:</b> ${escapeHTML(ordre)}</div>
+      <div class="info-item" style="grid-column: span 2;"><b>Adresse:</b> ${escapeHTML(adresse)}</div>
+      <div class="info-item"><b>Masque déclaré:</b> ${escapeHTML(masqueDec)}</div>
+      <div class="info-item"><b>Diamètre déclaré:</b> ${escapeHTML(diamDec)}</div>
       <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue (Étude):</b> ${escapeHTML(bpeOrigine)}</div>
     </div>
   </div>
@@ -540,7 +515,7 @@ async function importCSV(file){
   const dataRows=rows.slice(1);
   
   const idIdx=(()=>{
-    const pats=[/^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
+    const pats=[/^id_chambre/i, /^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
     for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}
     return 0;
   })();
@@ -605,8 +580,9 @@ async function exportAll(){
     }
     
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    // On ajoute le nom JFC dans le nom du fichier ZIP
-    const fname = 'JFC_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
+    
+    // MODIFICATION ICI : Le nom du fichier ZIP
+    const fname = 'TOP_SAT_SERVICES_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
     
     const file = new File([blob], fname, { type: 'application/zip' });
 
@@ -614,8 +590,8 @@ async function exportAll(){
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'Relevé Chambres JFC',
-          text: 'Relevé terrain'
+          title: 'Relevé Chambres - TOP SAT SERVICES',
+          text: 'Relevé terrain TOP SAT SERVICES'
         });
       } else {
         throw new Error("Partage non supporté");
