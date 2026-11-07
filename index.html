@@ -139,7 +139,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.2
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.3
   </div>
 </section>
 
@@ -382,7 +382,7 @@ function openDetail(id){
   
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   
-  // Waze - Méthode universelle HTTPS
+  // Waze - URL universelle de recherche / navigation
   const wazeVal = c.raw['WAZE'] || c.raw['waze'] || '';
   const lat = c.raw['LATITUDE'] || c.raw['latitude'] || '';
   const lon = c.raw['LONGITUDE'] || c.raw['longitude'] || '';
@@ -390,8 +390,10 @@ function openDetail(id){
   
   let wazeBtn = '';
   if (lat && lon) {
+    // Waze GPS direct
     wazeBtn = `<a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (GPS)</a>`;
   } else if (wazeVal || adresse) {
+    // Waze recherche texte
     const q = wazeVal || adresse;
     wazeBtn = `<a href="https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (Adresse)</a>`;
   }
@@ -478,7 +480,7 @@ function openDetail(id){
     </div>
     
     <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
-      <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label>
+      <label style="color:#d84315; margin-top:0;">Boîte à poser dans une autre chambre suite à l'étude terrain :</label>
       <select id="bpeDestinationSelect" style="margin-top:5px;">
         <option value="">-- Choisir la chambre de destination --</option>
         ${optionsDestination}
@@ -491,7 +493,7 @@ function openDetail(id){
       <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
       <span class="help-icon" onclick="document.getElementById('help-photo').classList.toggle('show')">?</span>
     </div>
-    <div id="help-photo" class="help-text">Seules les photos nécessaires s'affichent. En FOA sans boîte, seuls les câbles sont demandés.</div>
+    <div id="help-photo" class="help-text">Seules les photos nécessaires s'affichent. En FOA sans boîte, seuls les câbles et la vue d'ensemble sont demandés.</div>
     <div class="photo-row" id="photoGrid"></div>
   </div>
   
