@@ -63,6 +63,14 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .mode-btn.active { background:#0055A4; color:#fff; }
 .mode-btn h3 { margin:0 0 4px 0; font-size:16px; }
 .mode-btn p { margin:0; font-size:12px; opacity:0.8; }
+
+/* Aides contextuelles */
+.help-icon { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; background:#0055A4; color:#fff; border-radius:50%; font-size:12px; font-weight:bold; margin-left:6px; cursor:help; }
+.help-text { display:none; background:#fff9c4; border-left:4px solid #fbc02d; padding:10px; margin-top:8px; font-size:12px; border-radius:4px; color:#333; }
+.help-text.show { display:block; }
+details.help-panel { background:#e3f2fd; border-radius:8px; padding:12px; margin-top:12px; }
+details.help-panel summary { font-weight:bold; color:#0055A4; cursor:pointer; }
+details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 </style>
 </head>
 <body>
@@ -113,21 +121,23 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <button id="startBtn" class="btn" style="margin-top:16px;">Commencer le relevé →</button>
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
-  <div class="card">
-    <h2 style="margin-top:0;font-size:17px;">ℹ️ Mode d'emploi</h2>
-    <ol class="small" style="padding-left:20px;line-height:1.6;">
-      <li>Choisir le type de travail (Aiguillage ou FOA).</li>
-      <li>Importer le CSV.</li>
-      <li>Remplir les données selon le mode.</li>
-      <li>Prendre les photos requises.</li>
-      <li>Exporter (ZIP + CSV brut).</li>
-    </ol>
-  </div>
-  <div class="card">
+
+  <details class="help-panel">
+    <summary>❓ Besoin d'aide ? (Guide du débutant)</summary>
+    <ul>
+      <li><b>Étape 1 :</b> Choisissez votre type de travail (Aiguillage pour l'étude, FOA pour le terrain).</li>
+      <li><b>Étape 2 :</b> Importez le fichier CSV fourni par le bureau d'études.</li>
+      <li><b>Étape 3 :</b> Cliquez sur "Commencer le relevé" et sélectionnez une chambre.</li>
+      <li><b>Astuce :</b> Les champs avec un point d'interrogation bleu (?) contiennent une aide.</li>
+      <li><b>Export :</b> À la fin, cliquez sur le bouton vert pour générer le fichier ZIP (partage WhatsApp) et le CSV (sauvegarde).</li>
+    </ul>
+  </details>
+
+  <div class="card" style="margin-top:12px;">
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    Développé par TOP SAT SERVICES<br>Version 5.2
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 5.4
   </div>
 </section>
 
@@ -241,7 +251,6 @@ function generateCSV(){
       const row = allHeaders.map(h => {
         if(headers.includes(h)) {
           if (h.toUpperCase() === 'BPE') return bpeFinal;
-          
           if (h.toUpperCase() === 'MASQUE') return p.masque_in || '';
           if (h.toUpperCase() === 'DIAMETRE') return p.diam_in || '';
           if (h.toUpperCase() === 'MASQUE_B') return p.masque_out || '';
@@ -369,8 +378,19 @@ function openDetail(id){
   const infoHtml = infoEntries.map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
   
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
+  
   const wazeVal = c.raw['WAZE'] || c.raw['waze'] || '';
-  const wazeBtn = wazeVal ? `<a href="https://waze.com/ul?q=${encodeURIComponent(wazeVal)}" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>` : '';
+  const lat = c.raw['LATITUDE'] || c.raw['latitude'] || '';
+  const lon = c.raw['LONGITUDE'] || c.raw['longitude'] || '';
+  const adresse = c.raw['adresse'] || '';
+  
+  let wazeBtn = '';
+  if (lat && lon) {
+    wazeBtn = `<a href="https://waze.com/ul?ll=${lat},${lon}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (GPS)</a>`;
+  } else if (wazeVal || adresse) {
+    const q = wazeVal || adresse;
+    wazeBtn = `<a href="https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze (Adresse)</a>`;
+  }
 
   const optionsDestination = chambres
     .filter(other => other.id !== c.id)
@@ -384,10 +404,12 @@ function openDetail(id){
       ${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
       <h4>Liaison ${index + 1}</h4>
 
-      <label style="margin-top:4px;">Nom du Câble (Info terrain)</label>
+      <label style="margin-top:4px;">Nom du Câble (Info terrain) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
+      <div class="help-text">Sert à identifier le câble sur le terrain (ex: Câble 1, Câble 2...). S'affichera dans le fichier Excel.</div>
       <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
       
-      <label style="margin-top:4px;">Masque Entrée (ex: A4)</label>
+      <label style="margin-top:4px;">Masque Entrée (ex: A4) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
+      <div class="help-text">Saisissez la lettre du masque et le numéro d'alvéole (ex: A4 pour Masque A, alvéole 4).</div>
       <div class="row-inputs">
         <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
         <select data-pass="${p.id}" data-field="diam_in">
@@ -396,7 +418,8 @@ function openDetail(id){
         </select>
       </div>
 
-      <label style="margin-top:8px;">Masque Sortie (ex: B2)</label>
+      <label style="margin-top:8px;">Masque Sortie (ex: B2) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
+      <div class="help-text">Masque où le câble ressort de la chambre.</div>
       <div class="row-inputs">
         <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
         <select data-pass="${p.id}" data-field="diam_out">
@@ -429,7 +452,8 @@ function openDetail(id){
   </div>
 
   <div class="card">
-    <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label>
+    <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE) <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
+    <div class="help-text">Si la boîte n'est pas posée, décochez cette case. Vous pourrez alors choisir vers quelle chambre elle a été déplacée.</div>
     <div class="toggle-container">
       <input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}>
       <label for="boiteToggle">Boîte posée / Validée dans cette chambre</label>
@@ -445,7 +469,8 @@ function openDetail(id){
   </div>
 
   <div class="card">
-    <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
+    <label style="margin-top:0; font-size:16px;">📷 Photos requises <span class="help-icon" onclick="this.nextElementSibling.classList.toggle('show')">?</span></label>
+    <div class="help-text">Seules les photos des masques saisis apparaissent. Cliquez sur une case pour prendre une photo.</div>
     <div class="photo-row" id="photoGrid">
       ${currentCats.map(cat => `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`).join('')}
     </div>
@@ -621,8 +646,7 @@ async function exportAll(){
   showOverlay(true);
   try{
     const zip=new JSZip();
-    const csvContent = generateCSV();
-    zip.file('releve_chambres.csv', '\uFEFF' + csvContent);
+    zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     
     for(const c of chambres){
       const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
@@ -687,7 +711,6 @@ document.getElementById('resetBtn').onclick=async()=>{
   await dbClear();chambres=[];headers=[];updateHomeStats();alert('Données effacées.');
 };
 
-// Gestion du choix du mode
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.onclick = () => {
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
