@@ -153,7 +153,6 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
-// Génère le CSV final avec la logique de transfert de BPE
 function generateCSV(){
   const finalCols = [
     'CODE_CH1', 'COMMUNE', 'WAZE', 'Ref_chambr', 'ETIQUETTE_2', 'ORDRE', 
@@ -168,11 +167,9 @@ function generateCSV(){
   const d=';';
   const lines=[finalCols.map(h=>esc(h,d)).join(d)];
   
-  // 1. Pré-calcul des BPE à recevoir
   const bpeRecues = {};
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
-      // Si cette chambre donne sa boîte à une autre, on ajoute la boîte d'origine à la liste des dons
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
       if (bpeName) {
         if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = [];
@@ -184,15 +181,12 @@ function generateCSV(){
   for(const c of chambres){
     const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
     
-    // Calcul de la BPE finale pour cette chambre
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
 
-    // Si la chambre n'a pas de boîte (don), elle est vidée
     if (!c.hasBoite) {
       bpeFinal = '';
     } else {
-      // Si la chambre est désignée comme destination d'une autre chambre, elle récupère les boîtes
       if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) {
         bpeFinal = bpeRecues[c.id].join(' + ');
       }
@@ -258,7 +252,6 @@ function updateHomeStats(){
   document.getElementById('statTodo').textContent=total-done;
   document.getElementById('homeStats').style.display=total?'block':'none';
 
-  // Mise à jour du résumé des transferts
   const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination);
   const trDiv = document.getElementById('transfertsResume');
   const trList = document.getElementById('transfertsList');
@@ -327,7 +320,6 @@ function openDetail(id){
   const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '';
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
 
-  // Options pour le sélecteur de destination
   const optionsDestination = chambres
     .filter(other => other.id !== c.id)
     .map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`)
@@ -494,12 +486,4 @@ function openDetail(id){
   cont.querySelectorAll('[data-del-cat]').forEach(b=>{
     b.onclick=async(e)=>{
       e.stopPropagation();e.preventDefault();
-      const cat=b.dataset.delCat,label=b.dataset.catLabel;
-      if(!confirm(`Supprimer toutes les photos « ${label} » ?`))return;
-      c.photos[cat]=[];
-      await dbPut(c);openDetail(id);
-    };
-  });
-
-  document.getElementById('validateBtn').onclick=async()=>{c.done=!c.done;await dbPut(c);openDetail(id);};
-  document.getElementById
+      const
