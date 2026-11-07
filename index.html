@@ -22,6 +22,7 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
 label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font-size:14px; color:#444; }
 .photo-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
+.photo-wrapper { display: block; width: 100%; }
 .photo-btn { position:relative; aspect-ratio:1; background:#eef3f8; border:2px dashed #b0c4d8; border-radius:10px; overflow:hidden; }
 .photo-btn label { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; font-size:11px; color:#0055A4; text-align:center; padding:4px; margin:0; font-weight:600; }
 .photo-btn .icon { font-size:22px; margin-bottom:2px; }
@@ -109,7 +110,6 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 const DB_NAME='releve-chambres-v3', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
 
-// Catégories exactes
 const PHOTO_CATS = [
   {id:'MA', label:'Masque A', icon:'🔘'},
   {id:'MB', label:'Masque B', icon:'🔘'},
@@ -260,14 +260,7 @@ function openDetail(id){
   PHOTO_CATS.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   
   if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''}];
-  if(c.hasBoite === undefined) c.hasBoite = true; // Par défaut, on considère la boîte présente
-
-  // Déterminer quels masques sont utilisés dans les passages
-  const activeMasques = new Set();
-  c.passages.forEach(p => {
-    if(p.masque_in) activeMasques.add(p.masque_in.toUpperCase().trim());
-    if(p.masque_out) activeMasques.add(p.masque_out.toUpperCase().trim());
-  });
+  if(c.hasBoite === undefined) c.hasBoite = true;
 
   const cont=document.getElementById('detailContainer');
   
@@ -277,20 +270,6 @@ function openDetail(id){
   const etiq2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
   const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '';
   const bpe = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
-
-  // Filtrage des photos visibles
-  const visibleCats = PHOTO_CATS.filter(cat => {
-    // 1. Filtrage des masques
-    if(['MA','MB','MC','MD'].includes(cat.id)) {
-      const masqueLetter = cat.id.charAt(1); // 'A', 'B', etc.
-      return activeMasques.has(masqueLetter);
-    }
-    // 2. Filtrage Boîte et Étiquette Boîte
-    if(['BOITE', 'ETIQ_BOITE'].includes(cat.id)) {
-      return c.hasBoite;
-    }
-    return true; // Vue ensemble, câbles, etc. toujours visibles
-  });
 
   cont.innerHTML=`
   <div class="card">
@@ -346,8 +325,8 @@ function openDetail(id){
   <div class="card">
     <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
     <p class="small" style="margin-bottom:8px;">Seules les photos des masques utilisés ci-dessus apparaissent.</p>
-    <div class="photo-row">
-      ${visibleCats.map(cat => photoSlot(cat, c.photos[cat.id])).join('')}
+    <div class="photo-row" id="photoGrid">
+      ${PHOTO_CATS.map(cat => `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`).join('')}
     </div>
   </div>
   
@@ -356,16 +335,50 @@ function openDetail(id){
   </button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
-  // Gestion des saisies de passages (déclenche le rafraîchissement pour afficher/masquer les photos)
+  // Fonction pour masquer/afficher les photos sans recharger la page
+  const updateVisibility = () => {
+    const activeMasks = new Set();
+    cont.querySelectorAll('input[data-field="masque_in"], input[data-field="masque_out"]').forEach(inp => {
+      const val = inp.value.trim().toUpperCase();
+      if(val) activeMasks.add(val);
+    });
+
+    const hasBoite = document.getElementById('boiteToggle').checked;
+
+    document.querySelectorAll('[data-cat-wrapper]').forEach(wrapper => {
+      const catId = wrapper.dataset.catWrapper;
+      let visible = true;
+
+      if(['MA','MB','MC','MD'].includes(catId)) {
+        const letter = catId.charAt(1); // A, B, C, D
+        // Si aucun masque n'est saisi, on affiche tout par défaut. 
+        // Sinon, on n'affiche que ceux saisis.
+        if (activeMasks.size > 0) {
+          visible = activeMasks.has(letter);
+        }
+      }
+
+      if(['BOITE', 'ETIQ_BOITE'].includes(catId)) {
+        visible = hasBoite;
+      }
+
+      wrapper.style.display = visible ? 'block' : 'none';
+    });
+  };
+
+  // Écouteurs en temps réel sur les champs de saisie (sans perdre le focus)
   cont.querySelectorAll('input[data-pass]').forEach(inp=>{
-    inp.onchange = (e) => {
+    inp.oninput = (e) => {
+      // 1. Mise à jour immédiate de l'affichage
+      updateVisibility();
+      
+      // 2. Sauvegarde dans la base de données
       const passId = inp.dataset.pass;
       const field = inp.dataset.field;
       const passage = c.passages.find(x => x.id === passId);
       if(passage) {
         passage[field] = e.target.value;
         dbPut(c);
-        openDetail(id); // Rafraîchit l'écran pour mettre à jour les boutons photos
       }
     };
   });
@@ -373,7 +386,7 @@ function openDetail(id){
   document.getElementById('addPassageBtn').onclick = () => {
     c.passages.push({id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''});
     dbPut(c);
-    openDetail(id);
+    openDetail(id); // Ici on recharge car on ajoute un nouveau bloc
   };
 
   cont.querySelectorAll('[data-del-passage]').forEach(btn => {
@@ -382,16 +395,16 @@ function openDetail(id){
       if(confirm('Supprimer cette liaison ?')) {
         c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage);
         dbPut(c);
-        openDetail(id);
+        openDetail(id); // Ici on recharge car on supprime un bloc
       }
     };
   });
 
-  // Gestion Toggle Boîte
+  // Toggle Boîte (sans recharger la page)
   document.getElementById('boiteToggle').onchange = (e) => {
     c.hasBoite = e.target.checked;
     dbPut(c);
-    openDetail(id); // Rafraîchit l'écran
+    updateVisibility(); // Juste mise à jour de l'affichage
   };
 
   // Photos
@@ -428,6 +441,8 @@ function openDetail(id){
     if(next)openDetail(next.id);else{renderList();showScreen('list');}
   };
 
+  // Lancer la vérification une première fois à l'ouverture
+  updateVisibility();
   showScreen('detail');
 }
 function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
@@ -506,11 +521,9 @@ async function exportAll(){
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const fname = 'releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
     
-    // Création du fichier pour le partage
     const file = new File([blob], fname, { type: 'application/zip' });
 
     try {
-      // Tentative de partage natif
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
@@ -521,7 +534,6 @@ async function exportAll(){
         throw new Error("Partage non supporté");
       }
     } catch (err) {
-      // En cas d'échec (Permission denied), on force le téléchargement
       console.warn("Partage natif échoué, téléchargement direct...", err);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
