@@ -140,7 +140,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.7
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.8
   </div>
 </section>
 
@@ -208,8 +208,8 @@ function generateCSV(){
   
   const hasMasque = headers.some(h => /^MASQUE$/i.test(h));
   const hasDiam = headers.some(h => /^DIAMETRE$/i.test(h));
-  const hasMasqueB = headers.some(h => /^MASQUE_B$/i.test(h));
-  const hasDiamB = headers.some(h => /^DIAMETRE_B$/i.test(h));
+  const hasMasqueB = headers.some(h => /^MASQUE B$/i.test(h) || /^MASQUE_B$/i.test(h));
+  const hasDiamB = headers.some(h => /^DIAMETRE B$/i.test(h) || /^DIAMETRE_B$/i.test(h));
   const hasCable = headers.some(h => /^C[ÂA]BLE$/i.test(h));
   const hasBpe = headers.some(h => /^BPE$/i.test(h));
 
@@ -257,8 +257,8 @@ function generateCSV(){
           if (h.toUpperCase() === 'BPE') return bpeFinal;
           if (h.toUpperCase() === 'MASQUE') return p.masque_in || '';
           if (h.toUpperCase() === 'DIAMETRE') return p.diam_in || '';
-          if (h.toUpperCase() === 'MASQUE_B') return p.masque_out || '';
-          if (h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
+          if (h.toUpperCase() === 'MASQUE B' || h.toUpperCase() === 'MASQUE_B') return p.masque_out || '';
+          if (h.toUpperCase() === 'DIAMETRE B' || h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
           
           return c.raw[h] || '';
@@ -383,51 +383,50 @@ function openDetail(id){
   
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   
-  // Analyse du lien Waze / Maps (Recherche via adresse ou extraction WKT)
-  let wazeQ = '';
-  const wazeVal = c.raw['WAZE'] || c.raw['waze'] || '';
-  const adresse = c.raw['adresse'] || '';
-  const wkt = c.raw['wkt_geom'] || c.raw['WKT_GEOM'] || '';
-  
-  // Extraction des coordonnées depuis WKT si possible (ex: MultiPoint Z ((649640.63 6845202.54 0)))
-  const wktMatch = wkt.match(/\(\(([\d.]+)\s+([\d.]+)/);
-  
-  if (wktMatch) {
-    const lon = wktMatch[1];
-    const lat = wktMatch[2];
-    wazeQ = `${lat},${lon}`;
-  } else if (wazeVal || adresse) {
-    wazeQ = wazeVal || adresse;
-  }
-
+  // --- CORRECTION WAZE / GOOGLE MAPS ---
+  // On lit directement la colonne WAZE du CSV, on ne touche plus au WKT.
+  const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
   let navBtns = '';
-  if (wazeQ) {
+  
+  if (wazeUrlCsv && wazeUrlCsv.includes('waze.com')) {
+    // Si le CSV contient déjà le lien complet de Waze
+    const mapsUrl = wazeUrlCsv.replace('https://www.waze.com/ul', 'https://www.google.com/maps/search/?api=1&query').replace('&navigate=yes', '');
     navBtns = `
-      <a href="https://waze.com/ul?ll=${encodeURIComponent(wazeQ)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>
-      <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wazeQ)}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>
+      <a href="${wazeUrlCsv}" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>
+      <a href="${mapsUrl}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>
     `;
+  } else if (wazeUrlCsv) {
+    // Si c'est juste une adresse ou des coordonnées textuelles
+    navBtns = `
+      <a href="https://waze.com/ul?q=${encodeURIComponent(wazeUrlCsv)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wazeUrlCsv)}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>
+    `;
+  } else {
+    navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de lien Waze dans le CSV</div>`;
   }
+  // -------------------------------------
 
   const optionsDestination = chambres
     .filter(other => other.id !== c.id)
     .map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`)
     .join('');
 
+  // --- CORRECTION CÂBLE ---
+  // On cherche dans le CSV la colonne CABLE ou CÂBLE pour pré-remplir
+  let csvCableVal = '';
+  for(const key in c.raw) {
+    if(/^C[ÂA]BLE$/i.test(key)) {
+      csvCableVal = c.raw[key];
+      break;
+    }
+  }
+
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
     
-    // Recherche du nom du câble dans le CSV (avec ou sans accent)
-    let csvCable = '';
-    for(const key in c.raw) {
-      if(/^C[ÂA]BLE$/i.test(key)) {
-        csvCable = c.raw[key];
-        break;
-      }
-    }
-
-    // On initialise la valeur si elle est vide
-    if(!p.cable_name && csvCable) {
-      p.cable_name = csvCable;
+    // Si c'est le premier passage et que le champ est vide, on le remplit avec la valeur du CSV
+    if (index === 0 && !p.cable_name && csvCableVal) {
+      p.cable_name = csvCableVal;
     }
 
     return `
