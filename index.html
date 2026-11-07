@@ -19,7 +19,6 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-secondary { background:#ccc; color:#333; }
 .btn-success { background:#2e7d32; }
 .btn-danger { background:#c62828; }
-.btn-whatsapp { background:#25D366; color:#fff; }
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
 label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font-size:14px; color:#444; }
 .photo-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
@@ -52,6 +51,9 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .delete-passage { position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; color:#c62828; cursor:pointer;}
 .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; margin-top:8px; }
 .info-item { background:#f0f4f8; padding:8px; border-radius:6px; }
+.toggle-container { display:flex; align-items:center; gap:10px; margin-top:10px; background:#eef3f8; padding:10px; border-radius:8px;}
+.toggle-container input[type=checkbox] { width:20px; height:20px; margin:0; }
+.toggle-container label { margin:0; font-size:14px; font-weight:normal;}
 </style>
 </head>
 <body>
@@ -85,9 +87,9 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <h2 style="margin-top:0;font-size:17px;">ℹ️ Mode d'emploi</h2>
     <ol class="small" style="padding-left:20px;line-height:1.6;">
       <li>Importer le CSV.</li>
-      <li>Ajouter les passages (Câbles Aller/Retour) avec leurs masques et numéros d'alvéoles.</li>
-      <li>Prendre les photos par catégorie.</li>
-      <li>Exporter le ZIP (prêt pour votre script Python).</li>
+      <li>Remplir les passages (Masques et Alvéoles). Les photos des masques concernés apparaîtront.</li>
+      <li>Valider la présence de la boîte pour prendre les photos associées.</li>
+      <li>Exporter le ZIP.</li>
     </ol>
   </div>
   <div class="card">
@@ -104,10 +106,10 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const DB_NAME='releve-chambres-v2', STORE='chambres';
+const DB_NAME='releve-chambres-v3', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
 
-// Catégories exactes demandées pour l'arborescence
+// Catégories exactes
 const PHOTO_CATS = [
   {id:'MA', label:'Masque A', icon:'🔘'},
   {id:'MB', label:'Masque B', icon:'🔘'},
@@ -140,13 +142,12 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
-// Génération du CSV pour le script Python
 function generateCSV(){
-  // On définit les colonnes finales attendues
   const finalCols = [
-    'CODE_CH1', 'COMMUNE', 'WAZE', 'Ref_chambr', 'ETIQUETTE_2', 'ORDRE', 
+    'CODE_CH1', 'COMMUNE', 'WAZE', 'Ref_chambr', 'ETIQUETTE_2', 'ORDRE', 'BPE',
     'Masque_IN', 'Alveole_IN', 'Diametre_IN', 
     'Masque_OUT', 'Alveole_OUT', 'Diametre_OUT',
+    'Boite_Validee',
     'Nb_MA', 'Nb_MB', 'Nb_MC', 'Nb_MD', 'Nb_ETIQ_BOITE', 'Nb_ETIQ_CABLE', 
     'Nb_VUE_ENSEMBLE', 'Nb_BOITE', 'Nb_CABLE', 'Nb_VUE_DESSUS_CH'
   ];
@@ -155,7 +156,6 @@ function generateCSV(){
   const lines=[finalCols.map(h=>esc(h,d)).join(d)];
   
   for(const c of chambres){
-    // Si la chambre a des passages, on crée une ligne par passage
     const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
     
     for(const p of passages) {
@@ -166,6 +166,7 @@ function generateCSV(){
         if (h === 'Ref_chambr') return c.raw['Ref_chambr'] || c.raw['REF_CHAMBR'] || c.raw['ref_chambr'] || '';
         if (h === 'ETIQUETTE_2') return c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
         if (h === 'ORDRE') return c.raw['ORDRE'] || c.raw['ordre'] || '';
+        if (h === 'BPE') return c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
         
         if (h === 'Masque_IN') return p.masque_in || '';
         if (h === 'Alveole_IN') return p.alveole_in || '';
@@ -174,6 +175,8 @@ function generateCSV(){
         if (h === 'Masque_OUT') return p.masque_out || '';
         if (h === 'Alveole_OUT') return p.alveole_out || '';
         if (h === 'Diametre_OUT') return p.diam_out || '';
+        
+        if (h === 'Boite_Validee') return c.hasBoite ? 'OUI' : 'NON';
         
         if (h.startsWith('Nb_')) {
           const cat = h.replace('Nb_', '');
@@ -257,15 +260,37 @@ function openDetail(id){
   PHOTO_CATS.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   
   if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''}];
+  if(c.hasBoite === undefined) c.hasBoite = true; // Par défaut, on considère la boîte présente
+
+  // Déterminer quels masques sont utilisés dans les passages
+  const activeMasques = new Set();
+  c.passages.forEach(p => {
+    if(p.masque_in) activeMasques.add(p.masque_in.toUpperCase().trim());
+    if(p.masque_out) activeMasques.add(p.masque_out.toUpperCase().trim());
+  });
 
   const cont=document.getElementById('detailContainer');
   
-  // Récupération des champs d'infos importants
   const commune = c.raw['COMMUNE'] || c.raw['commune'] || '';
   const waze = c.raw['WAZE'] || c.raw['waze'] || '';
   const ref = c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
   const etiq2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || '';
   const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '';
+  const bpe = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
+
+  // Filtrage des photos visibles
+  const visibleCats = PHOTO_CATS.filter(cat => {
+    // 1. Filtrage des masques
+    if(['MA','MB','MC','MD'].includes(cat.id)) {
+      const masqueLetter = cat.id.charAt(1); // 'A', 'B', etc.
+      return activeMasques.has(masqueLetter);
+    }
+    // 2. Filtrage Boîte et Étiquette Boîte
+    if(['BOITE', 'ETIQ_BOITE'].includes(cat.id)) {
+      return c.hasBoite;
+    }
+    return true; // Vue ensemble, câbles, etc. toujours visibles
+  });
 
   cont.innerHTML=`
   <div class="card">
@@ -276,12 +301,13 @@ function openDetail(id){
       <div class="info-item"><b>Ref:</b> ${escapeHTML(ref)}</div>
       <div class="info-item"><b>Étiq 2:</b> ${escapeHTML(etiq2)}</div>
       <div class="info-item" style="grid-column: span 2;"><b>Ordre:</b> ${escapeHTML(ordre)}</div>
+      <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE (CSV):</b> ${escapeHTML(bpe)}</div>
     </div>
   </div>
 
   <div class="card">
     <label style="margin-top:0; font-size:16px;">🔌 Passages (Câbles)</label>
-    <p class="small" style="margin-bottom:12px;">Gérez les doublons de câbles (Aller/Retour) et leurs alvéoles.</p>
+    <p class="small" style="margin-bottom:12px;">Saisissez les masques (A, B, C ou D) pour faire apparaître les photos correspondantes.</p>
     
     <div id="passages-container">
       ${c.passages.map((p, index) => `
@@ -289,29 +315,39 @@ function openDetail(id){
           ${c.passages.length > 1 ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
           <h4>Liaison ${index + 1}</h4>
           
-          <label style="margin-top:4px;">Masque Entrée (ex: A ou C)</label>
+          <label style="margin-top:4px;">Masque Entrée (A/B/C/D)</label>
           <div class="row-inputs">
-            <input type="text" placeholder="Masque (ex: A)" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
-            <input type="text" placeholder="N° Alvéole (ex: 4)" value="${escapeHTML(p.alveole_in)}" data-pass="${p.id}" data-field="alveole_in">
-            <input type="number" placeholder="Diam (ex: 45)" value="${escapeHTML(p.diam_in)}" data-pass="${p.id}" data-field="diam_in">
+            <input type="text" placeholder="Masque" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
+            <input type="text" placeholder="N° Alvéole" value="${escapeHTML(p.alveole_in)}" data-pass="${p.id}" data-field="alveole_in">
+            <input type="number" placeholder="Diam (mm)" value="${escapeHTML(p.diam_in)}" data-pass="${p.id}" data-field="diam_in">
           </div>
 
-          <label style="margin-top:8px;">Masque Sortie (ex: B ou D)</label>
+          <label style="margin-top:8px;">Masque Sortie (A/B/C/D)</label>
           <div class="row-inputs">
-            <input type="text" placeholder="Masque (ex: B)" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
-            <input type="text" placeholder="N° Alvéole (ex: 2)" value="${escapeHTML(p.alveole_out)}" data-pass="${p.id}" data-field="alveole_out">
-            <input type="number" placeholder="Diam (ex: 60)" value="${escapeHTML(p.diam_out)}" data-pass="${p.id}" data-field="diam_out">
+            <input type="text" placeholder="Masque" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
+            <input type="text" placeholder="N° Alvéole" value="${escapeHTML(p.alveole_out)}" data-pass="${p.id}" data-field="alveole_out">
+            <input type="number" placeholder="Diam (mm)" value="${escapeHTML(p.diam_out)}" data-pass="${p.id}" data-field="diam_out">
           </div>
         </div>
       `).join('')}
     </div>
-    <button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter un autre passage (câble)</button>
+    <button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison (câble)</button>
   </div>
 
   <div class="card">
-    <label style="margin-top:0; font-size:16px;">📷 Photos (Arborescence respectée)</label>
+    <label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label>
+    <div class="toggle-container">
+      <input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}>
+      <label for="boiteToggle">Boîte posée / Validée en chambre</label>
+    </div>
+    <p class="small" style="margin-top:8px;">Si décoché, les photos Boîte et Étiquette Boîte sont masquées.</p>
+  </div>
+
+  <div class="card">
+    <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
+    <p class="small" style="margin-bottom:8px;">Seules les photos des masques utilisés ci-dessus apparaissent.</p>
     <div class="photo-row">
-      ${PHOTO_CATS.map(cat => photoSlot(cat, c.photos[cat.id])).join('')}
+      ${visibleCats.map(cat => photoSlot(cat, c.photos[cat.id])).join('')}
     </div>
   </div>
   
@@ -320,7 +356,7 @@ function openDetail(id){
   </button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
-  // Gestion des champs de passages (Entrée/Sortie)
+  // Gestion des saisies de passages (déclenche le rafraîchissement pour afficher/masquer les photos)
   cont.querySelectorAll('input[data-pass]').forEach(inp=>{
     inp.onchange = (e) => {
       const passId = inp.dataset.pass;
@@ -329,28 +365,34 @@ function openDetail(id){
       if(passage) {
         passage[field] = e.target.value;
         dbPut(c);
+        openDetail(id); // Rafraîchit l'écran pour mettre à jour les boutons photos
       }
     };
   });
 
-  // Ajouter un passage
   document.getElementById('addPassageBtn').onclick = () => {
     c.passages.push({id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''});
     dbPut(c);
     openDetail(id);
   };
 
-  // Supprimer un passage
   cont.querySelectorAll('[data-del-passage]').forEach(btn => {
     btn.onclick = (e) => {
       e.preventDefault();
-      if(confirm('Supprimer ce passage ?')) {
+      if(confirm('Supprimer cette liaison ?')) {
         c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage);
         dbPut(c);
         openDetail(id);
       }
     };
   });
+
+  // Gestion Toggle Boîte
+  document.getElementById('boiteToggle').onchange = (e) => {
+    c.hasBoite = e.target.checked;
+    dbPut(c);
+    openDetail(id); // Rafraîchit l'écran
+  };
 
   // Photos
   cont.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
@@ -397,14 +439,12 @@ async function importCSV(file){
   headers=rows[0].map(h=>h.trim());
   const dataRows=rows.slice(1);
   
-  // Détection de la colonne ID (CODE_CH1 en priorité)
   const idIdx=(()=>{
     const pats=[/^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
     for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}
     return 0;
   })();
 
-  // On utilise une Map pour regrouper les doublons de CODE_CH1
   const mapChambres = new Map();
   
   for(const r of dataRows){
@@ -416,24 +456,22 @@ async function importCSV(file){
         id, 
         raw, 
         done: false,
+        hasBoite: true,
         photos: PHOTO_CATS.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}),
         passages: [{id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''}]
       });
     } else {
-      // Si la chambre existe déjà (doublon), on ajoute un passage vide
-      // pour que l'utilisateur comprenne qu'il y a plusieurs câbles
       const existing = mapChambres.get(id);
       existing.passages.push({id: crypto.randomUUID(), masque_in:'', alveole_in:'', diam_in:'', masque_out:'', alveole_out:'', diam_out:''});
     }
   }
   
-  // Fusionner avec les données existantes (si on réimporte le CSV)
   const existingDb = new Map(chambres.map(c=>[c.id,c]));
   const newC = Array.from(mapChambres.values()).map(newCh => {
     if(existingDb.has(newCh.id)) {
       const oldCh = existingDb.get(newCh.id);
-      oldCh.raw = newCh.raw; // On met à jour les infos du CSV
-      return oldCh; // On garde les photos et passages déjà saisis
+      oldCh.raw = newCh.raw;
+      return oldCh;
     }
     return newCh;
   });
@@ -449,20 +487,17 @@ async function exportAll(){
   showOverlay(true);
   try{
     const zip=new JSZip();
-    // Ajout du BOM UTF-8 pour Excel
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     
     for(const c of chambres){
       const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
       
-      // Création des sous-dossiers exacts
       PHOTO_CATS.forEach(catObj => {
-        const catFolder = catObj.id; // ex: MA, MB, ETIQ_BOITE...
+        const catFolder = catObj.id;
         const photos = c.photos[catFolder] || [];
         
         photos.forEach((p, i) => {
           const n = String(i + 1).padStart(2, '0');
-          // Arborescence : photos/CODE_CH1/MA/MA_01.jpg
           zip.file(`photos/${safe}/${catFolder}/${catFolder}_${n}.jpg`, p.blob);
         });
       });
@@ -470,22 +505,33 @@ async function exportAll(){
     
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const fname = 'releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
+    
+    // Création du fichier pour le partage
     const file = new File([blob], fname, { type: 'application/zip' });
 
-    // Tentative de partage natif (WhatsApp, Mail, etc.)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: 'Relevé Chambres',
-        text: 'Voici le ZIP contenant le CSV et les photos du relevé.'
-      });
-    } else {
-      // Fallback si le partage natif n'est pas supporté
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');a.href=url;a.download=fname;
-      document.body.appendChild(a);a.click();document.body.removeChild(a);
-      setTimeout(()=>URL.revokeObjectURL(url),60000);
-      alert("Partage direct non supporté par ce navigateur. Le fichier a été téléchargé dans vos téléchargements.");
+    try {
+      // Tentative de partage natif
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Relevé Chambres',
+          text: 'Relevé terrain'
+        });
+      } else {
+        throw new Error("Partage non supporté");
+      }
+    } catch (err) {
+      // En cas d'échec (Permission denied), on force le téléchargement
+      console.warn("Partage natif échoué, téléchargement direct...", err);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      alert("Le partage direct a été bloqué par le téléphone. Le fichier ZIP a été téléchargé dans vos dossiers, vous pouvez maintenant l'envoyer manuellement sur WhatsApp.");
     }
   }catch(e){alert('Erreur export : '+e.message);}
   finally{showOverlay(false);}
