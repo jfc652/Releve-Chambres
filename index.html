@@ -14,11 +14,12 @@ header h1 { font-size:17px; margin:0; flex:1; }
 header button { background:transparent; border:0; color:#fff; font-size:22px; padding:4px 8px; cursor:pointer; }
 main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .card { background:#fff; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-.btn { display:inline-block; background:#0055A4; color:#fff; border:0; padding:14px 20px; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer; width:100%; text-align:center; }
+.btn { display:inline-block; background:#0055A4; color:#fff; border:0; padding:14px 20px; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer; width:100%; text-align:center; text-decoration:none; }
 .btn:active { opacity:.85; }
 .btn-secondary { background:#ccc; color:#333; }
 .btn-success { background:#2e7d32; }
 .btn-danger { background:#c62828; }
+.btn-waze { background:#33ccff; color:#fff; padding:8px 16px; font-size:14px; border-radius:8px; display:inline-flex; align-items:center; gap:5px; font-weight:bold;}
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
 label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font-size:14px; color:#444; }
 .photo-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:8px; }
@@ -47,6 +48,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .stat-label { font-size:12px; color:#666; margin-top:2px; }
 .passage-card { border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 12px; padding: 16px; background: #fafafa; position:relative; }
 .passage-card h4 { margin: 0 0 10px 0; font-size: 15px; color: #0055A4; }
+.passage-card.foa { background: #fff; border-color: #0055A4; }
 .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .row-inputs input, .row-inputs select { padding: 8px; font-size: 14px; }
 .delete-passage { position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; color:#c62828; cursor:pointer;}
@@ -56,6 +58,11 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .toggle-container input[type=checkbox] { width:20px; height:20px; margin:0; }
 .toggle-container label { margin:0; font-size:14px; font-weight:normal;}
 .footer-credits { text-align: center; font-size: 11px; color: #999; margin-top: 20px; margin-bottom: 20px; }
+.mode-selector { display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.mode-btn { padding:16px; border:2px solid #0055A4; border-radius:10px; background:#fff; text-align:left; cursor:pointer; }
+.mode-btn.active { background:#0055A4; color:#fff; }
+.mode-btn h3 { margin:0 0 4px 0; font-size:16px; }
+.mode-btn p { margin:0; font-size:12px; opacity:0.8; }
 </style>
 </head>
 <body>
@@ -69,11 +76,26 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
 <section id="screen-home">
   <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">🎯 Type de travail</h2>
+    <div class="mode-selector">
+      <button class="mode-btn active" id="modeAiguillage" data-mode="aiguillage">
+        <h3>🔧 Aiguillage (Étude)</h3>
+        <p>Masques, alvéoles, diamètres. Pas de mires ni de boîtes.</p>
+      </button>
+      <button class="mode-btn" id="modeFoa" data-mode="foa">
+        <h3>📋 FOA (Occupation Alvéoles)</h3>
+        <p>Mires, câbles, boîtes. Masques pré-remplis (modifiables si besoin).</p>
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
     <h2 style="margin-top:0;font-size:17px;">📂 Importer le CSV</h2>
     <p class="small">Fichier des chambres à relever (séparateur ; ou ,).</p>
     <label for="csvInput" class="btn">Choisir un fichier CSV</label>
     <input type="file" id="csvInput" accept=".csv,text/csv" class="hidden">
   </div>
+  
   <div class="card" id="homeStats" style="display:none;">
     <h2 style="margin-top:0;font-size:17px;">📊 État du relevé</h2>
     <div class="stat-grid">
@@ -89,23 +111,23 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     </div>
 
     <button id="startBtn" class="btn" style="margin-top:16px;">Commencer le relevé →</button>
-    <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (WhatsApp/Mail)</button>
+    <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
   <div class="card">
     <h2 style="margin-top:0;font-size:17px;">ℹ️ Mode d'emploi</h2>
     <ol class="small" style="padding-left:20px;line-height:1.6;">
+      <li>Choisir le type de travail (Aiguillage ou FOA).</li>
       <li>Importer le CSV.</li>
-      <li>Remplir les liaisons (Masque+Alvéole, Diamètre, Câble).</li>
-      <li>Si la boîte BPE manque, sélectionnez la chambre de destination.</li>
+      <li>Remplir les données selon le mode.</li>
       <li>Prendre les photos requises.</li>
-      <li>Exporter le ZIP.</li>
+      <li>Exporter (ZIP + CSV brut).</li>
     </ol>
   </div>
   <div class="card">
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    Développé par TOP SAT SERVICES<br>Version 4.7
+    Développé par TOP SAT SERVICES<br>Version 5.2
   </div>
 </section>
 
@@ -118,14 +140,18 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-const DB_NAME='releve-chambres-v4', STORE='chambres';
+const DB_NAME='releve-chambres-v5', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
+let modeTravail = 'aiguillage';
 
-const PHOTO_CATS = [
+const PHOTO_CATS_AIGUILLAGE = [
   {id:'MA', label:'Masque A', icon:'🔘'},
   {id:'MB', label:'Masque B', icon:'🔘'},
   {id:'MC', label:'Masque C', icon:'🔘'},
-  {id:'MD', label:'Masque D', icon:'🔘'},
+  {id:'MD', label:'Masque D', icon:'🔘'}
+];
+
+const PHOTO_CATS_FOA = [
   {id:'MIRE_LG', label:'MIRE LG', icon:'📏'},
   {id:'MIRE_L', label:'MIRE L', icon:'📏'},
   {id:'MIRE_P', label:'MIRE P', icon:'📏'},
@@ -159,15 +185,13 @@ function parseCSV(text){
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
 function generateCSV(){
-  // On garde 100% des colonnes d'origine.
-  // On n'ajoute QUE les colonnes qui n'existent pas déjà.
+  const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
+  
   const extraCols = [
     'BPE_Origine', 
-    'Nb_MA', 'Nb_MB', 'Nb_MC', 'Nb_MD', 'Nb_MIRE_LG', 'Nb_MIRE_L', 'Nb_MIRE_P', 
-    'Nb_ETIQ_BOITE', 'Nb_ETIQ_CABLE', 'Nb_VUE_ENSEMBLE', 'Nb_BOITE', 'Nb_CABLE', 'Nb_VUE_DESSUS_CH'
+    ...currentCats.map(c => `Nb_${c.id}`)
   ];
   
-  // On vérifie si les colonnes clés existent déjà dans le CSV d'origine
   const hasMasque = headers.some(h => /^MASQUE$/i.test(h));
   const hasDiam = headers.some(h => /^DIAMETRE$/i.test(h));
   const hasMasqueB = headers.some(h => /^MASQUE_B$/i.test(h));
@@ -188,7 +212,6 @@ function generateCSV(){
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   
-  // Pré-calcul des BPE transférées
   const bpeRecues = {};
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
@@ -207,39 +230,35 @@ function generateCSV(){
     let bpeOrigine = bpeFinal;
 
     if (!c.hasBoite) {
-      bpeFinal = ''; // Si la boîte a été volée, on vide la BPE de cette chambre
+      bpeFinal = '';
     } else {
       if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) {
-        bpeFinal = bpeRecues[c.id].join(' + '); // On ajoute les boîtes reçues
+        bpeFinal = bpeRecues[c.id].join(' + ');
       }
     }
 
     for(const p of passages) {
       const row = allHeaders.map(h => {
-        // 1. On remplit TOUTES les colonnes d'origine en priorité
         if(headers.includes(h)) {
-          // Si c'est la colonne BPE, on met la BPE finale calculée
           if (h.toUpperCase() === 'BPE') return bpeFinal;
           
-          // Si c'est une colonne qui a été remplacée par la saisie terrain
           if (h.toUpperCase() === 'MASQUE') return p.masque_in || '';
           if (h.toUpperCase() === 'DIAMETRE') return p.diam_in || '';
           if (h.toUpperCase() === 'MASQUE_B') return p.masque_out || '';
           if (h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
           if (h.toUpperCase() === 'CABLE') return p.cable_name || '';
           
-          // Sinon, on garde la valeur brute du CSV d'origine
           return c.raw[h] || '';
         }
 
-        // 2. On gère les nouvelles colonnes
         if (h === 'BPE_Origine') return bpeOrigine;
+        if (h === 'CABLE') return p.cable_name || '';
+        if (h === 'BPE') return bpeFinal;
+        
         if (h === 'MASQUE') return p.masque_in || '';
         if (h === 'DIAMETRE') return p.diam_in || '';
         if (h === 'MASQUE_B') return p.masque_out || '';
         if (h === 'DIAMETRE_B') return p.diam_out || '';
-        if (h === 'CABLE') return p.cable_name || '';
-        if (h === 'BPE') return bpeFinal;
         
         if (h.startsWith('Nb_')) {
           const cat = h.replace('Nb_', '');
@@ -337,7 +356,8 @@ function openDetail(id){
   currentId=id;const c=chambres.find(x=>x.id===id);if(!c)return;
   
   if(!c.photos)c.photos={};
-  PHOTO_CATS.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
+  const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
+  currentCats.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   
   if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}];
   if(c.hasBoite === undefined) c.hasBoite = true;
@@ -345,16 +365,48 @@ function openDetail(id){
 
   const cont=document.getElementById('detailContainer');
   
-  // Affichage dynamique des infos du CSV (on affiche les 4 premières colonnes pour ne pas surcharger)
   const infoEntries = Object.entries(c.raw || {}).slice(0, 6).filter(([k,v]) => v);
   const infoHtml = infoEntries.map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
   
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
+  const wazeVal = c.raw['WAZE'] || c.raw['waze'] || '';
+  const wazeBtn = wazeVal ? `<a href="https://waze.com/ul?q=${encodeURIComponent(wazeVal)}" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a>` : '';
 
   const optionsDestination = chambres
     .filter(other => other.id !== c.id)
     .map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`)
     .join('');
+
+  const passagesHtml = c.passages.map((p, index) => {
+    const isFoa = modeTravail === 'foa';
+    return `
+    <div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">
+      ${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
+      <h4>Liaison ${index + 1}</h4>
+
+      <label style="margin-top:4px;">Nom du Câble (Info terrain)</label>
+      <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
+      
+      <label style="margin-top:4px;">Masque Entrée (ex: A4)</label>
+      <div class="row-inputs">
+        <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
+        <select data-pass="${p.id}" data-field="diam_in">
+          <option value="">Diamètre</option>
+          ${DIAMETRES.map(d => `<option value="${d}" ${p.diam_in == d ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+      </div>
+
+      <label style="margin-top:8px;">Masque Sortie (ex: B2)</label>
+      <div class="row-inputs">
+        <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
+        <select data-pass="${p.id}" data-field="diam_out">
+          <option value="">Diamètre</option>
+          ${DIAMETRES.map(d => `<option value="${d}" ${p.diam_out == d ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    `;
+  }).join('');
 
   cont.innerHTML=`
   <div class="card">
@@ -363,41 +415,17 @@ function openDetail(id){
       ${infoHtml}
       <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue (Étude):</b> ${escapeHTML(bpeOrigine)}</div>
     </div>
+    <div style="margin-top:12px; text-align:center;">
+      ${wazeBtn}
+    </div>
   </div>
 
   <div class="card">
     <label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label>
-    
     <div id="passages-container">
-      ${c.passages.map((p, index) => `
-        <div class="passage-card" data-passage-id="${p.id}">
-          ${c.passages.length > 1 ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
-          <h4>Liaison ${index + 1}</h4>
-
-          <label style="margin-top:4px;">Nom du Câble (Info terrain)</label>
-          <input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;">
-          
-          <label style="margin-top:4px;">Masque Entrée (ex: A4)</label>
-          <div class="row-inputs">
-            <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
-            <select data-pass="${p.id}" data-field="diam_in">
-              <option value="">Diamètre</option>
-              ${DIAMETRES.map(d => `<option value="${d}" ${p.diam_in == d ? 'selected' : ''}>${d}</option>`).join('')}
-            </select>
-          </div>
-
-          <label style="margin-top:8px;">Masque Sortie (ex: B2)</label>
-          <div class="row-inputs">
-            <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
-            <select data-pass="${p.id}" data-field="diam_out">
-              <option value="">Diamètre</option>
-              ${DIAMETRES.map(d => `<option value="${d}" ${p.diam_out == d ? 'selected' : ''}>${d}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-      `).join('')}
+      ${passagesHtml}
     </div>
-    <button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison (câble)</button>
+    ${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison (câble)</button>` : ''}
   </div>
 
   <div class="card">
@@ -419,7 +447,7 @@ function openDetail(id){
   <div class="card">
     <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
     <div class="photo-row" id="photoGrid">
-      ${PHOTO_CATS.map(cat => `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`).join('')}
+      ${currentCats.map(cat => `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`).join('')}
     </div>
   </div>
   
@@ -563,7 +591,7 @@ async function importCSV(file){
         done: false,
         hasBoite: true,
         bpeDestination: '',
-        photos: PHOTO_CATS.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}),
+        photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
         passages: [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}]
       });
     } else {
@@ -593,12 +621,14 @@ async function exportAll(){
   showOverlay(true);
   try{
     const zip=new JSZip();
-    zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
+    const csvContent = generateCSV();
+    zip.file('releve_chambres.csv', '\uFEFF' + csvContent);
     
     for(const c of chambres){
       const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
+      const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
       
-      PHOTO_CATS.forEach(catObj => {
+      currentCats.forEach(catObj => {
         const catFolder = catObj.id;
         const photos = c.photos[catFolder] || [];
         
@@ -656,6 +686,15 @@ document.getElementById('resetBtn').onclick=async()=>{
   if(!confirm('Effacer TOUTES les données (chambres + photos) ?'))return;
   await dbClear();chambres=[];headers=[];updateHomeStats();alert('Données effacées.');
 };
+
+// Gestion du choix du mode
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    modeTravail = btn.dataset.mode;
+  };
+});
 
 (async()=>{
   await openDB();chambres=await dbGetAll();updateHomeStats();
