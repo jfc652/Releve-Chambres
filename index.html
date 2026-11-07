@@ -93,7 +93,6 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
   
   <!-- Emplacement du Logo -->
   <div class="logo-container">
-    <!-- Remplacez le src par le lien de votre logo ou un fichier local -->
     <img src="logo.png" alt="TOP SAT SERVICES" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
     <div style="display:none; font-size:20px; font-weight:bold; color:#0055A4; margin-bottom:10px;">TOP SAT SERVICES</div>
   </div>
@@ -152,7 +151,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 7.4
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 7.6
   </div>
 </section>
 
@@ -240,6 +239,7 @@ function generateCSV(){
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   
+  // Pré-calcul des BPE à transférer (on ignore celles qui sont "non posées")
   const bpeRecues = {};
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination && !c.boiteNonPosee) {
@@ -414,7 +414,11 @@ function openDetail(id){
   const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || 'Non renseignée';
   const fci = c.raw['FCI'] || c.raw['fci'] || 'Non renseigné';
   
-  const infoHtml = infoEntries.slice(0, 4).filter(([k]) => k !== 'adresse' && k !== 'NUM_VOIE' && k !== 'FCI')
+  // MODIFICATION : Remplacer CODE_CH1 par ETIQUETTE_2 dans l'affichage
+  const etiquette2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || 'Non renseignée';
+  
+  // On affiche les 4 premières infos (hors FCI, Adresse, Etiquette_2)
+  const infoHtml = infoEntries.slice(0, 4).filter(([k]) => !['adresse','NUM_VOIE','FCI','CODE_CH1','CODE_CH2'].includes(k))
     .map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
     
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
@@ -513,6 +517,7 @@ function openDetail(id){
     <div class="info-grid" style="margin-bottom:12px;">
       <div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>Adresse:</b> ${escapeHTML(adresse)}</div>
       <div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div>
+      <div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div>
     </div>
 
     <div class="info-grid">
@@ -772,11 +777,14 @@ async function exportAll(){
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     
+    // MODIFICATION : On exporte TOUTES les photos, peu importe le mode actif
+    const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
+    const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
+
     for(const c of chambres){
       const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
-      const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
       
-      currentCats.forEach(catObj => {
+      uniqueCats.forEach(catObj => {
         const catFolder = catObj.id;
         const photos = c.photos[catFolder] || [];
         
