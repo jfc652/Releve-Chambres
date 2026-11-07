@@ -139,7 +139,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.4
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 6.5
   </div>
 </section>
 
@@ -408,6 +408,21 @@ function openDetail(id){
 
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
+    
+    // On récupère le nom du câble depuis le CSV d'origine
+    let csvCable = '';
+    for(const key in c.raw) {
+      if(/^CABLE/i.test(key)) {
+        csvCable = c.raw[key];
+        break;
+      }
+    }
+
+    // On initialise la valeur si elle est vide
+    if(!p.cable_name && csvCable) {
+      p.cable_name = csvCable;
+    }
+
     return `
     <div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">
       ${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}
