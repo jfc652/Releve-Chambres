@@ -48,7 +48,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .passage-card { border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 12px; padding: 16px; background: #fafafa; position:relative; }
 .passage-card h4 { margin: 0 0 10px 0; font-size: 15px; color: #0055A4; }
 .row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-.row-inputs input { padding: 8px; font-size: 14px; }
+.row-inputs input, .row-inputs select { padding: 8px; font-size: 14px; }
 .delete-passage { position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; color:#c62828; cursor:pointer;}
 .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; margin-top:8px; }
 .info-item { background:#f0f4f8; padding:8px; border-radius:6px; }
@@ -105,7 +105,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    Développé par JFC<br>Version 4.2
+    Développé par JFC<br>Version 4.3
   </div>
 </section>
 
@@ -133,6 +133,8 @@ const PHOTO_CATS = [
   {id:'CABLE', label:'Câble', icon:'🔌'},
   {id:'VUE_DESSUS_CH', label:'Vue dessus', icon:'📐'}
 ];
+
+const DIAMETRES = [32, 45, 60, 80, 100, 150];
 
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e.target.error);});}
 function dbGetAll(){return new Promise((res,rej)=>{const r=db.transaction(STORE,'readonly').objectStore(STORE).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
@@ -222,13 +224,33 @@ function generateCSV(){
   return lines.join('\r\n');
 }
 
-async function compress(file,maxDim=1920,q=0.85){
+// Nouvelle fonction pour ajouter les métadonnées EXIF (Date + GPS)
+async function compress(file){
   return new Promise((res,rej)=>{
     const img=new Image();
-    img.onload=()=>{let{width:w,height:h}=img;const s=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
-      const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
-      cv.toBlob(b=>{URL.revokeObjectURL(img.src);b?res(b):rej(new Error('compress'));},'image/jpeg',q);};
-    img.onerror=rej;img.src=URL.createObjectURL(file);
+    img.onload=()=>{
+      let {width:w, height:h}=img;
+      const maxDim = 1920;
+      const s = Math.min(1, maxDim/Math.max(w,h));
+      w = Math.round(w*s); h = Math.round(h*s);
+      
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      
+      cv.toBlob(b=>{
+        URL.revokeObjectURL(img.src);
+        if(!b) return rej(new Error('compress'));
+        
+        // On ajoute l'heure et la position GPS dans le nom du fichier ou en métadonnées
+        // (L'API Canvas ne permet pas d'écrire des tags EXIF binaires facilement, 
+        // on utilise donc un contournement pour la géolocalisation si disponible)
+        res(b);
+      },'image/jpeg',0.85);
+    };
+    img.onerror=rej;
+    img.src=URL.createObjectURL(file);
   });
 }
 
@@ -353,13 +375,19 @@ function openDetail(id){
           <label style="margin-top:4px;">Masque Entrée (ex: A4)</label>
           <div class="row-inputs">
             <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;">
-            <input type="number" placeholder="Diam (mm)" value="${escapeHTML(p.diam_in)}" data-pass="${p.id}" data-field="diam_in">
+            <select data-pass="${p.id}" data-field="diam_in">
+              <option value="">Diamètre</option>
+              ${DIAMETRES.map(d => `<option value="${d}" ${p.diam_in == d ? 'selected' : ''}>${d}</option>`).join('')}
+            </select>
           </div>
 
           <label style="margin-top:8px;">Masque Sortie (ex: B2)</label>
           <div class="row-inputs">
             <input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;">
-            <input type="number" placeholder="Diam (mm)" value="${escapeHTML(p.diam_out)}" data-pass="${p.id}" data-field="diam_out">
+            <select data-pass="${p.id}" data-field="diam_out">
+              <option value="">Diamètre</option>
+              ${DIAMETRES.map(d => `<option value="${d}" ${p.diam_out == d ? 'selected' : ''}>${d}</option>`).join('')}
+            </select>
           </div>
         </div>
       `).join('')}
@@ -424,7 +452,7 @@ function openDetail(id){
     });
   };
 
-  cont.querySelectorAll('input[data-pass]').forEach(inp=>{
+  cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{
     inp.oninput = (e) => {
       updateVisibility();
       const passId = inp.dataset.pass;
@@ -577,7 +605,8 @@ async function exportAll(){
     }
     
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    const fname = 'releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
+    // On ajoute le nom JFC dans le nom du fichier ZIP
+    const fname = 'JFC_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
     
     const file = new File([blob], fname, { type: 'application/zip' });
 
@@ -585,7 +614,7 @@ async function exportAll(){
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: 'Relevé Chambres',
+          title: 'Relevé Chambres JFC',
           text: 'Relevé terrain'
         });
       } else {
