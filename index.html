@@ -13,7 +13,7 @@ header { background:#0055A4; color:#fff; padding:12px 16px; position:sticky; top
 header h1 { font-size:17px; margin:0; flex:1; }
 header button { background:transparent; border:0; color:#fff; font-size:22px; padding:4px 8px; cursor:pointer; }
 main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
-.card { background:#fff; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.card { background:#fff; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:hidden; }
 .btn { display:inline-block; background:#0055A4; color:#fff; border:0; padding:14px 20px; border-radius:8px; font-size:16px; font-weight:600; cursor:pointer; width:100%; text-align:center; text-decoration:none; }
 .btn:active { opacity:.85; }
 .btn-secondary { background:#ccc; color:#333; }
@@ -49,6 +49,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
 .stat { background:#eef3f8; padding:12px; border-radius:8px; text-align:center; }
 .stat-num { font-size:24px; font-weight:bold; color:#0055A4; }
+.stat-num.small-num { font-size: 20px; letter-spacing: -0.5px; }
 .stat-label { font-size:12px; color:#666; margin-top:2px; }
 .passage-card { border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 12px; padding: 16px; background: #fafafa; position:relative; }
 .passage-card h4 { margin: 0 0 10px 0; font-size: 15px; color: #0055A4; }
@@ -81,12 +82,13 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
 .modal-content { background:#fff; width:90%; max-width:400px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
 
-/* Styles pour l'analyse ORDRE */
-table { border-collapse:collapse; width:100%; margin:8px 0; font-size:13px; }
-th, td { border:1px solid #d6dde5; padding:7px 8px; text-align:left; vertical-align:top; }
-th { background:#eef3f8; color:#0055A4; font-weight:600; }
+/* Styles pour l'analyse ORDRE - Responsive */
+.table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 8px 0; border-radius: 6px; border: 1px solid #d6dde5; }
+table { border-collapse:collapse; width:100%; min-width: 450px; font-size:12px; margin: 0; }
+th, td { border:1px solid #d6dde5; padding:6px 8px; text-align:left; vertical-align:top; }
+th { background:#eef3f8; color:#0055A4; font-weight:600; white-space: nowrap; }
 tr:nth-child(even) td { background:#fafcfe; }
-code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Consolas, monospace; font-size:12px; }
+code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Consolas, monospace; font-size:11px; word-break: break-all; }
 .box { background:#f7f9fb; border-left:4px solid #0055A4; padding:10px 12px; margin:10px 0; border-radius:0 6px 6px 0; font-size:14px; }
 .warn-box { background:#fff9c4; border-left:4px solid #fbc02d; padding:10px 12px; margin:10px 0; border-radius:0 6px 6px 0; font-size:14px; }
 .card h3.ana { margin:14px 0 6px; font-size:15px; color:#0055A4; }
@@ -172,7 +174,7 @@ code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Conso
     <p class="small">Comparaison des trois exports fournis pour comprendre pourquoi l'ordre des chambres a changé dans l'application.</p>
     <div class="stat-grid">
       <div class="stat"><div class="stat-num">3</div><div class="stat-label">Fichiers comparés</div></div>
-      <div class="stat"><div class="stat-num">105/105/99</div><div class="stat-label">Lignes (csv réf / xlsx / csv)</div></div>
+      <div class="stat"><div class="stat-num small-num">105/105/99</div><div class="stat-label">Lignes (csv réf / xlsx / csv)</div></div>
       <div class="stat"><div class="stat-num">2</div><div class="stat-label">Critères de tri différents</div></div>
       <div class="stat"><div class="stat-num">7</div><div class="stat-label">Paires dupliquées</div></div>
     </div>
@@ -183,40 +185,42 @@ code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Conso
 
   <div class="card">
     <h2 style="margin-top:0;font-size:17px;">📂 Les trois exports</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Fichier</th>
-          <th>Lignes</th>
-          <th>ORDRE</th>
-          <th>Tri apparent</th>
-          <th>Doublons</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>Chambres (1).csv</code></td>
-          <td>105</td>
-          <td>1 → 105</td>
-          <td><span class="status-badge status-ok">Géographique</span></td>
-          <td>Non</td>
-        </tr>
-        <tr>
-          <td><code>releve_chambres.xlsx</code></td>
-          <td>105</td>
-          <td>1 → 105</td>
-          <td><span class="status-badge status-bad">CODE_CH1 texte</span></td>
-          <td>Oui (7 paires)</td>
-        </tr>
-        <tr>
-          <td><code>releve_chambres.csv</code></td>
-          <td>99</td>
-          <td>1 → 99</td>
-          <td><span class="status-badge status-warn">Géo + ligne fantôme</span></td>
-          <td>Oui (7 paires)</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Fichier</th>
+            <th>Lignes</th>
+            <th>ORDRE</th>
+            <th>Tri apparent</th>
+            <th>Doublons</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Chambres (1).csv</code></td>
+            <td>105</td>
+            <td>1 → 105</td>
+            <td><span class="status-badge status-ok">Géographique</span></td>
+            <td>Non</td>
+          </tr>
+          <tr>
+            <td><code>releve_chambres.xlsx</code></td>
+            <td>105</td>
+            <td>1 → 105</td>
+            <td><span class="status-badge status-bad">CODE_CH1 texte</span></td>
+            <td>Oui (7 paires)</td>
+          </tr>
+          <tr>
+            <td><code>releve_chambres.csv</code></td>
+            <td>99</td>
+            <td>1 → 99</td>
+            <td><span class="status-badge status-warn">Géo + ligne fantôme</span></td>
+            <td>Oui (7 paires)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <div class="box">
       Le tri <b>texte</b> du xlsx explique le passage de <code>1119</code> avant <code>114</code> : en comparaison de chaînes, <code>"11" &lt; "14"</code>. C'est exactement le symptôme constaté dans l'application.
     </div>
@@ -225,26 +229,28 @@ code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Conso
   <div class="card">
     <h2 style="margin-top:0;font-size:17px;">🔀 ORDRE n'est pas stable</h2>
     <p class="small">La même chambre n'a pas le même ORDRE selon le fichier.</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Chambre (CH2 / CH1 / VOIE)</th>
-          <th>Commune</th>
-          <th>CSV réf</th>
-          <th>XLSX</th>
-          <th>CSV</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr><td>POP MAZ</td><td>CHILLY-MAZARIN</td><td>1</td><td>105</td><td>1</td></tr>
-        <tr><td>91161 / 586 / 34</td><td>CHILLY-MAZARIN</td><td>2</td><td>78</td><td>2</td></tr>
-        <tr><td>91345 / 1003 / 0</td><td>LONGJUMEAU</td><td>19</td><td>1</td><td>20</td></tr>
-        <tr><td>91345 / 1008 / 17</td><td>LONGJUMEAU</td><td>20</td><td>2</td><td>21</td></tr>
-        <tr><td>91477 / 1829 / 73 (DIST 10)</td><td>PALAISEAU</td><td>64</td><td>27 / 28</td><td>64 (×2)</td></tr>
-        <tr><td>91477 / 2515 / 100 (DIST 8)</td><td>PALAISEAU</td><td>62</td><td>39 / 40</td><td>62 (×2)</td></tr>
-        <tr><td>POP ALB</td><td>MASSY</td><td>105</td><td>104</td><td>99</td></tr>
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Chambre (CH2 / CH1 / VOIE)</th>
+            <th>Commune</th>
+            <th>CSV réf</th>
+            <th>XLSX</th>
+            <th>CSV</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>POP MAZ</td><td>CHILLY-MAZARIN</td><td>1</td><td>105</td><td>1</td></tr>
+          <tr><td>91161 / 586 / 34</td><td>CHILLY-MAZARIN</td><td>2</td><td>78</td><td>2</td></tr>
+          <tr><td>91345 / 1003 / 0</td><td>LONGJUMEAU</td><td>19</td><td>1</td><td>20</td></tr>
+          <tr><td>91345 / 1008 / 17</td><td>LONGJUMEAU</td><td>20</td><td>2</td><td>21</td></tr>
+          <tr><td>91477 / 1829 / 73 (DIST 10)</td><td>PALAISEAU</td><td>64</td><td>27 / 28</td><td>64 (×2)</td></tr>
+          <tr><td>91477 / 2515 / 100 (DIST 8)</td><td>PALAISEAU</td><td>62</td><td>39 / 40</td><td>62 (×2)</td></tr>
+          <tr><td>POP ALB</td><td>MASSY</td><td>105</td><td>104</td><td>99</td></tr>
+        </tbody>
+      </table>
+    </div>
     <div class="box">
       Si l'application affiche selon <b>ORDRE</b> → l'ordre change à chaque export.<br>
       Si elle affiche selon <b>CODE_CH1</b> → l'ordre est stable mais les doublons/pertes créent des incohérences.
@@ -254,36 +260,38 @@ code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Conso
   <div class="card">
     <h2 style="margin-top:0;font-size:17px;">🐛 Doublons et pertes de lignes</h2>
     <p class="small">Exemple avec <code>CODE_CH1 = 1829</code> (PALAISEAU) qui a deux liaisons distinctes (DIST 10 et DIST 148).</p>
-    <table>
-      <thead>
-        <tr>
-          <th>Fichier</th>
-          <th>ORDRE 1829 (DIST 10)</th>
-          <th>ORDRE 1829 (DIST 148)</th>
-          <th>Diagnostic</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>Chambres (1).csv</code></td>
-          <td>64</td>
-          <td>66</td>
-          <td><span class="status-badge status-ok">Correct</span></td>
-        </tr>
-        <tr>
-          <td><code>releve_chambres.xlsx</code></td>
-          <td>27 <em>et</em> 28</td>
-          <td>—</td>
-          <td><span class="status-badge status-bad">DIST 148 perdu, DIST 10 dupliqué</span></td>
-        </tr>
-        <tr>
-          <td><code>releve_chambres.csv</code></td>
-          <td>64 <em>et</em> 64</td>
-          <td>—</td>
-          <td><span class="status-badge status-bad">Même bug</span></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Fichier</th>
+            <th>ORDRE 1829 (DIST 10)</th>
+            <th>ORDRE 1829 (DIST 148)</th>
+            <th>Diagnostic</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Chambres (1).csv</code></td>
+            <td>64</td>
+            <td>66</td>
+            <td><span class="status-badge status-ok">Correct</span></td>
+          </tr>
+          <tr>
+            <td><code>releve_chambres.xlsx</code></td>
+            <td>27 <em>et</em> 28</td>
+            <td>—</td>
+            <td><span class="status-badge status-bad">DIST 148 perdu, DIST 10 dupliqué</span></td>
+          </tr>
+          <tr>
+            <td><code>releve_chambres.csv</code></td>
+            <td>64 <em>et</em> 64</td>
+            <td>—</td>
+            <td><span class="status-badge status-bad">Même bug</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <div class="info-grid">
       <div class="info-item"><b>Chambres affectées :</b> 1829, 2515, 2516, 515, 523, 924, 925</div>
       <div class="info-item"><b>Effet :</b> 2 lignes identiques au lieu de 2 liaisons distinctes</div>
@@ -330,7 +338,7 @@ code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Conso
       <li style="margin:8px 0;"><b>Supprimer la ligne fantôme</b> de <code>releve_chambres.csv</code>.</li>
       <li style="margin:8px 0;">
         <b>Définir un ordre métier explicite</b> si nécessaire :
-        <div class="info-item" style="margin-top:6px; font-family:Consolas, monospace; font-size:12px;">
+        <div class="info-item" style="margin-top:6px; font-family:Consolas, monospace; font-size:12px; word-break: break-word;">
           ORDER BY CODE_CH2, CAST(CODE_CH1 AS INTEGER), NUM_VOIE
         </div>
         <span class="small">Et le <b>stocker en base</b> plutôt que de le recalculer à chaque export. Si l'ordre géographique est voulu, le nommer <code>ORDRE_GEO</code> pour éviter la confusion.</span>
@@ -378,7 +386,6 @@ const DB_NAME='releve-chambres-v5', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
 let modeTravail = 'aiguillage';
 
-// Mémorisation des colonnes dans le localStorage (persiste après fermeture)
 function saveHeaders() { localStorage.setItem('releve_headers', JSON.stringify(headers)); }
 function loadHeaders() {
   const saved = localStorage.getItem('releve_headers');
