@@ -78,6 +78,10 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 /* Logo Placeholder */
 .logo-container { text-align: center; padding: 10px 0; }
 .logo-container img { max-width: 200px; max-height: 80px; object-fit: contain; }
+
+/* Modal Ajout Chambre */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
+.modal-content { background:#fff; width:90%; max-width:400px; border-radius:12px; padding:20px; }
 </style>
 </head>
 <body>
@@ -132,7 +136,8 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
       <ul id="transfertsList" style="margin:5px 0 0 20px; padding:0;"></ul>
     </div>
 
-    <button id="startBtn" class="btn" style="margin-top:16px;">Commencer le relevé →</button>
+    <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px; background:#e0e0e0; color:#333; border:1px solid #ccc;">➕ Ajouter une nouvelle chambre</button>
+    <button id="startBtn" class="btn" style="margin-top:8px;">Commencer le relevé →</button>
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
 
@@ -151,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 7.6
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 8.1
   </div>
 </section>
 
@@ -159,6 +164,25 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 <section id="screen-detail" class="hidden"><div id="detailContainer"></div></section>
 
 </main>
+
+<!-- Fenêtre Modale d'ajout de chambre -->
+<div id="modalAddChambre" class="modal-overlay">
+  <div class="modal-content">
+    <h3 style="margin-top:0;">Ajouter une chambre</h3>
+    <p class="small">La chambre sera insérée après celle choisie, et l'ordre des suivantes sera incrémenté.</p>
+    
+    <label>Nouveau N° de chambre (ex: CH-999)</label>
+    <input type="text" id="newId" placeholder="Numéro">
+    
+    <label>Après quelle chambre l'insérer ?</label>
+    <select id="insertAfterSelect"></select>
+    
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button id="cancelAddBtn" class="btn btn-secondary">Annuler</button>
+      <button id="confirmAddBtn" class="btn btn-success">Ajouter</button>
+    </div>
+  </div>
+</div>
 
 <div id="overlay" class="overlay hidden"><div class="spinner"></div></div>
 
@@ -225,6 +249,7 @@ function generateCSV(){
   const hasDiamB = headers.some(h => /^DIAMETRE B$/i.test(h) || /^DIAMETRE_B$/i.test(h));
   const hasCable = headers.some(h => /^C[ÂA]BLE$/i.test(h));
   const hasBpe = headers.some(h => /^BPE$/i.test(h));
+  const hasOrdre = headers.some(h => /^ORDRE$/i.test(h));
 
   let allHeaders = [...headers];
   if(!hasMasque) allHeaders.push('MASQUE');
@@ -233,13 +258,14 @@ function generateCSV(){
   if(!hasDiamB) allHeaders.push('DIAMETRE_B');
   if(!hasCable) allHeaders.push('CABLE');
   if(!hasBpe) allHeaders.push('BPE');
+  if(!hasOrdre) allHeaders.push('ORDRE');
   
   allHeaders = [...allHeaders, ...extraCols];
   
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   
-  // Pré-calcul des BPE à transférer (on ignore celles qui sont "non posées")
+  // Pré-calcul des BPE à transférer
   const bpeRecues = {};
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination && !c.boiteNonPosee) {
@@ -413,11 +439,8 @@ function openDetail(id){
   const infoEntries = Object.entries(c.raw || {}).filter(([k,v]) => v && k !== 'wkt_geom' && k !== 'WKT_GEOM');
   const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || 'Non renseignée';
   const fci = c.raw['FCI'] || c.raw['fci'] || 'Non renseigné';
-  
-  // MODIFICATION : Remplacer CODE_CH1 par ETIQUETTE_2 dans l'affichage
   const etiquette2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || 'Non renseignée';
   
-  // On affiche les 4 premières infos (hors FCI, Adresse, Etiquette_2)
   const infoHtml = infoEntries.slice(0, 4).filter(([k]) => !['adresse','NUM_VOIE','FCI','CODE_CH1','CODE_CH2'].includes(k))
     .map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
     
@@ -777,7 +800,6 @@ async function exportAll(){
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     
-    // MODIFICATION : On exporte TOUTES les photos, peu importe le mode actif
     const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
     const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
 
@@ -850,6 +872,65 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     modeTravail = btn.dataset.mode;
   };
 });
+
+// --- GESTION AJOUT CHAMBRE ---
+document.getElementById('addChambreBtn').onclick = () => {
+  if(!chambres.length) { alert("Veuillez d'abord importer un CSV."); return; }
+  
+  const select = document.getElementById('insertAfterSelect');
+  select.innerHTML = chambres.map(c => `<option value="${c.id}">${c.id}</option>`).join('');
+  
+  document.getElementById('newId').value = '';
+  document.getElementById('modalAddChambre').style.display = 'flex';
+};
+
+document.getElementById('cancelAddBtn').onclick = () => {
+  document.getElementById('modalAddChambre').style.display = 'none';
+};
+
+document.getElementById('confirmAddBtn').onclick = async () => {
+  const newId = document.getElementById('newId').value.trim();
+  const afterId = document.getElementById('insertAfterSelect').value;
+  
+  if(!newId) { alert("Veuillez saisir un numéro de chambre."); return; }
+  if(chambres.some(c => c.id === newId)) { alert("Ce numéro de chambre existe déjà."); return; }
+  
+  const idx = chambres.findIndex(c => c.id === afterId);
+  if(idx === -1) return;
+  
+  // Création de la nouvelle chambre
+  const newCh = {
+    id: newId,
+    raw: {},
+    done: false,
+    hasBoite: true,
+    bpeDestination: '',
+    boiteNonPosee: false,
+    notes: '',
+    photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
+    passages: [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}]
+  };
+  
+  // Insertion
+  chambres.splice(idx + 1, 0, newCh);
+  
+  // Incrémentation de l'ordre
+  let currentOrdre = 1;
+  for(const c of chambres) {
+    if(c.raw['ORDRE'] !== undefined) {
+      // On force la colonne ORDRE
+      c.raw['ORDRE'] = String(currentOrdre);
+    }
+    currentOrdre++;
+  }
+  
+  await dbClear();
+  for(const c of chambres) await dbPut(c);
+  
+  document.getElementById('modalAddChambre').style.display = 'none';
+  updateHomeStats();
+  alert(`Chambre ${newId} ajoutée avec succès.`);
+};
 
 (async()=>{
   await openDB();chambres=await dbGetAll();updateHomeStats();
