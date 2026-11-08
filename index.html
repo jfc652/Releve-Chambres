@@ -138,7 +138,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.3
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.4
   </div>
 </section>
 
@@ -224,25 +224,42 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
-// EXPORT v10.3
+// EXPORT v10.4 : Gestion intelligente de l'ordre des colonnes
 function generateCSV(){
-  const savedHeaders = JSON.parse(localStorage.getItem('releve_headers') || '[]');
-  if(savedHeaders.length === 0 && headers.length === 0) {
-    return "Aucune colonne mémorisée. Veuillez importer un CSV d'abord.";
+  const sourceHeaders = headers; // Les headers mémorisés d'origine
+  
+  let allHeaders = [];
+  let ordreGeoInserted = false;
+
+  // 1. On parcourt les colonnes d'origine
+  sourceHeaders.forEach(h => {
+    allHeaders.push(h);
+    // Dès qu'on croise "ORDRE", on insère "ORDRE_GEO" juste après
+    if (h.toUpperCase().trim() === 'ORDRE') {
+      allHeaders.push('ORDRE_GEO');
+      ordreGeoInserted = true;
+    }
+  });
+
+  // 2. On ajoute les autres colonnes de terrain si elles ne sont pas déjà présentes
+  const terrainCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
+  
+  // Si "ORDRE" n'était pas dans le fichier d'origine, on ajoute ORDRE et ORDRE_GEO à la fin
+  if (!ordreGeoInserted) {
+    terrainCols.push('ORDRE', 'ORDRE_GEO');
   }
-  const sourceHeaders = savedHeaders.length > 0 ? savedHeaders : headers;
-  
-  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE'];
-  // Ajout de ORDRE_GEO
-  const terrainCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','ORDRE_GEO','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
-  
-  let allHeaders = [...sourceHeaders];
-  
+
   terrainCols.forEach(col => {
     const exists = allHeaders.some(h => h.toUpperCase().replace(/_/g,' ').trim() === col.toUpperCase().replace(/_/g,' ').trim());
     if(!exists) allHeaders.push(col);
   });
-  allHeaders = [...allHeaders, ...extraCols];
+
+  // 3. On ajoute les colonnes de gestion (BPE_Origine, notes, etc.) à la toute fin
+  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE'];
+  extraCols.forEach(col => {
+    const exists = allHeaders.some(h => h.toUpperCase().replace(/_/g,' ').trim() === col.toUpperCase().replace(/_/g,' ').trim());
+    if(!exists) allHeaders.push(col);
+  });
   
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
@@ -270,7 +287,6 @@ function generateCSV(){
       if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
     }
     
-    // Fallback pour les anciennes chambres sans ordreGeo
     const ordreGeoVal = c.ordreGeo || ('A' + (c.raw['ORDRE'] || ordreCounter));
 
     for(const p of passages) {
@@ -282,7 +298,6 @@ function generateCSV(){
           if (hUpper === 'WAZE') return c.raw['WAZE'] || '';
           if (hUpper === 'WKT_GEOM') return c.raw['wkt_geom'] || c.raw['WKT_GEOM'] || '';
           if (hUpper === 'ORDRE') return String(ordreCounter);
-          if (hUpper === 'ORDRE_GEO') return ordreGeoVal;
           if (hUpper === 'BPE') return bpeFinal;
           if (hUpper === 'MASQUE') return p.masque_in || '';
           if (hUpper === 'DIAMETRE') return p.diam_in || '';
@@ -292,6 +307,7 @@ function generateCSV(){
           return c.raw[h] || '';
         }
         
+        if (h === 'ORDRE_GEO') return ordreGeoVal;
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
@@ -304,7 +320,6 @@ function generateCSV(){
         if (h === 'CABLE') return p.cable_name || '';
         if (h === 'BPE') return bpeFinal;
         if (h === 'ORDRE') return String(ordreCounter);
-        if (h === 'ORDRE_GEO') return ordreGeoVal;
         if (h === 'CODE_CH2') return c.raw['CODE_CH2'] || '';
         if (h === 'COMMUNE') return c.raw['COMMUNE'] || '';
         if (h === 'PROPRIETAI') return c.raw['PROPRIETAI'] || '';
@@ -486,7 +501,6 @@ async function importCSV(file){
       headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
       let id = raw[headers[idIdx]] || 'CH-' + Math.random().toString(36).slice(2, 8).toUpperCase();
       
-      // Génération de l'ORDRE_GEO
       let rawOrdre = raw['ORDRE'] || raw['ordre'];
       let ordreGeoValue = rawOrdre ? 'A' + rawOrdre : 'A' + ordreSeq;
 
@@ -510,7 +524,7 @@ async function importCSV(file){
       if (existingDb.has(newCh.id)) { 
         const oldCh = existingDb.get(newCh.id); 
         oldCh.raw = newCh.raw; 
-        if (!oldCh.ordreGeo) oldCh.ordreGeo = newCh.ordreGeo; // Rétrocompatibilité
+        if (!oldCh.ordreGeo) oldCh.ordreGeo = newCh.ordreGeo;
         return oldCh; 
       } 
       return newCh; 
