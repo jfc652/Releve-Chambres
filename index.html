@@ -134,7 +134,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.6 — Tri ORDRE_GEO avant export
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.7 — Affichage CODE_CH1
   </div>
 </section>
 
@@ -199,6 +199,17 @@ const PHOTO_CATS_FOA = [
 ];
 const DIAMETRES = [32, 45, 60, 80, 100, 150];
 
+/* -------------------- Nom lisible d'une chambre : CODE_CH1 -------------------- */
+function getDisplayName(c) {
+  if (!c) return '?';
+  const r = c.raw || {};
+  return r['CODE_CH1'] || r['code_ch1'] || r['Code_ch1'] || r['CODE_CH1 '] || c.id || '?';
+}
+function getDisplayNameById(id) {
+  const c = chambres.find(x => x.id === id);
+  return getDisplayName(c) || id;
+}
+
 /* -------------------- ORDRE_GEO helpers -------------------- */
 function makeOrdreGeo(ordreVal) {
   const s = String(ordreVal ?? '').trim().replace(/^A/i, '');
@@ -207,10 +218,8 @@ function makeOrdreGeo(ordreVal) {
 }
 function parseOrdreGeo(v) {
   if (v === null || v === undefined || v === '') return 999999;
-  // Accepte : "A1", "A01", "A 1", "A1.5", "1", "  A12 "
   const m = String(v).toUpperCase().replace(/\s/g,'').match(/^A?(-?\d+(?:\.\d+)?)$/);
   if (m) return parseFloat(m[1]);
-  // Fallback : extrait le premier nombre trouvé
   const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? 999999 : n;
 }
@@ -238,8 +247,7 @@ function parseCSV(text){
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
 /* ------------------------------------------------------------------ *
- * EXPORT CSV — respecte l'ordre des colonnes du CSV source,
- * insère ORDRE_GEO juste après ORDRE, 1 seule ligne par chambre.
+ * EXPORT CSV
  * ------------------------------------------------------------------ */
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
@@ -321,7 +329,7 @@ function generateCSV(){
     if (!c.hasBoite) {
       bpeFinal = '';
       if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
-      else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${c.bpeDestination}`;
+      else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${getDisplayNameById(c.bpeDestination)}`;
     } else if (bpeRecues[c.id] && bpeRecues[c.id].length) {
       bpeFinal = bpeRecues[c.id].join(' + ');
       obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
@@ -410,7 +418,10 @@ function updateHomeStats(){
   if (transferts.length > 0) {
     trDiv.style.display = 'block';
     let html = '';
-    transferts.forEach(c => { const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue'; html += `<li>La BPE de <b>${c.id}</b> (${bpe}) est transférée vers <b>${c.bpeDestination}</b></li>`; });
+    transferts.forEach(c => {
+      const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
+      html += `<li>La BPE de <b>${escapeHTML(getDisplayName(c))}</b> (${escapeHTML(bpe)}) est transférée vers <b>${escapeHTML(getDisplayNameById(c.bpeDestination))}</b></li>`;
+    });
     trList.innerHTML = html;
   } else { trDiv.style.display = 'none'; }
 }
@@ -428,7 +439,7 @@ function renderList(){
     const ref = c.raw['REF_CHAMBR'] || c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
     const geo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || '';
     const sub = [geo ? `📌 ${geo}` : '', commune, ref].filter(Boolean).join(' • ');
-    div.innerHTML=`<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}</div><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div><span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
+    div.innerHTML=`<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}</div><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div><span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
     div.onclick=()=>openDetail(c.id);
     cont.appendChild(div);
   }
@@ -454,6 +465,7 @@ function openDetail(id){
   if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
   if(!c.notes) c.notes = '';
   const cont=document.getElementById('detailContainer');
+  const displayName = getDisplayName(c);
   const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || 'Non renseignée';
   const fci = c.raw['FCI'] || c.raw['fci'] || 'Non renseigné';
   const etiquette2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || 'Non renseignée';
@@ -471,7 +483,7 @@ function openDetail(id){
   } else if (wazeUrlCsv) {
     navBtns = `<a href="https://waze.com/ul?q=${encodeURIComponent(wazeUrlCsv)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wazeUrlCsv)}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>`;
   } else { navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de lien Waze dans le CSV</div>`; }
-  const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`).join('');
+  const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${escapeHTML(getDisplayName(other))}</option>`).join('');
   let csvCableVal = '';
   for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
   const passagesHtml = c.passages.map((p, index) => {
@@ -483,7 +495,7 @@ function openDetail(id){
     const diamOutVal = p.diam_out || (index === 0 ? (c.raw['DIAMETRE B'] || c.raw['DIAMETRE_B'] || '') : '');
     return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
-  cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;"><b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span> &nbsp;<span class="small">(ORDRE d'origine : ${escapeHTML(ordre)})</span></div><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>Adresse:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
+  cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(displayName)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;"><b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span> &nbsp;<span class="small">(ORDRE d'origine : ${escapeHTML(ordre)})</span></div><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>Adresse:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
   const photoGrid = document.getElementById('photoGrid');
   const renderPhotoGrid = () => {
@@ -516,7 +528,7 @@ function openDetail(id){
 }
 
 /* ------------------------------------------------------------------ *
- * IMPORT CSV — clé composite + fusion non destructive
+ * IMPORT CSV
  * ------------------------------------------------------------------ */
 async function importCSV(file){
   try {
@@ -621,31 +633,21 @@ function trierChambres() {
 
 /* ------------------------------------------------------------------ *
  * TRI STRICT PAR ORDRE_GEO — appelé avant CHAQUE export.
- * Priorités : 1) ORDRE_GEO  2) ORDRE  3) ordre d'insertion
  * ------------------------------------------------------------------ */
 function trierParOrdreGeo() {
   chambres.forEach((c, i) => { c.__srcIndex = i; });
-
   chambres.sort((a, b) => {
-    // 1) ORDRE_GEO (A1, A2, A3, ... A1.5 ...)
     const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']);
     const gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']);
     if (ga !== gb) return ga - gb;
-
-    // 2) Fallback : ORDRE numérique
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
     const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
     const va = isNaN(oa) ? 999999 : oa;
     const vb = isNaN(ob) ? 999999 : ob;
     if (va !== vb) return va - vb;
-
-    // 3) Dernier recours : ordre d'insertion (tri stable)
     return (a.__srcIndex || 0) - (b.__srcIndex || 0);
   });
-
   chambres.forEach(c => delete c.__srcIndex);
-
-  // Feedback console pour vérifier à chaque export
   if (chambres.length) {
     const first = chambres[0].raw['ORDRE_GEO'] || '—';
     const last  = chambres[chambres.length-1].raw['ORDRE_GEO'] || '—';
@@ -659,19 +661,18 @@ async function exportAll(){
   if(!chambres.length){alert('Rien à exporter.');return;}
   showOverlay(true);
   try{
-    // ✅ TRI PAR ORDRE_GEO — avant toute génération
     trierParOrdreGeo();
-
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
     const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
     for(const c of chambres){
-      const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
+      // Dossier photos : CODE_CH1 si dispo, sinon id interne (safe)
+      const folderName = (c.raw['CODE_CH1'] || c.id).replace(/[^A-Za-z0-9_-]/g,'_');
       uniqueCats.forEach(catObj => {
         const catFolder = catObj.id;
         const photos = c.photos[catFolder] || [];
-        photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${safe}/${catFolder}/${catFolder}_${n}.jpg`, p.blob); });
+        photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${folderName}/${catFolder}/${catFolder}_${n}.jpg`, p.blob); });
       });
     }
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
@@ -686,8 +687,6 @@ async function exportAll(){
       setTimeout(() => URL.revokeObjectURL(url), 60000);
       alert("Le partage direct a été bloqué. Le fichier ZIP a été téléchargé dans vos dossiers.");
     }
-
-    // ✅ Confirmation finale visible
     const first = chambres[0]?.raw?.['ORDRE_GEO'] || '?';
     const last  = chambres[chambres.length-1]?.raw?.['ORDRE_GEO'] || '?';
     console.log(`✅ Export terminé — trié par ORDRE_GEO : ${first} → ${last} (${chambres.length} chambres)`);
@@ -714,7 +713,7 @@ let pendingLat = '', pendingLon = '';
 document.getElementById('addChambreBtn').onclick = () => {
   if(!chambres.length) { alert("Veuillez d'abord importer un CSV."); return; }
   const select = document.getElementById('insertAfterSelect');
-  select.innerHTML = chambres.map(c => `<option value="${c.id}">${c.id}</option>`).join('');
+  select.innerHTML = chambres.map(c => `<option value="${c.id}">${escapeHTML(getDisplayName(c))}</option>`).join('');
   document.getElementById('newId').value = ''; document.getElementById('newProprietaire').value = ''; document.getElementById('newCodeCh2').value = ''; document.getElementById('newCommune').value = ''; document.getElementById('newRefChambr').value = ''; document.getElementById('newComment').value = ''; document.getElementById('gpsStatus').textContent = '';
   pendingLat = ''; pendingLon = '';
   document.getElementById('modalAddChambre').style.display = 'flex';
@@ -738,7 +737,8 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   const refChambr = document.getElementById('newRefChambr').value.trim();
   const comment = document.getElementById('newComment').value.trim();
   if(!newId) { alert("Veuillez saisir un numéro."); return; }
-  if(chambres.some(c => c.id === newId)) { alert("Ce numéro existe déjà."); return; }
+  // On vérifie que CODE_CH1 n'existe pas déjà
+  if(chambres.some(c => (c.raw['CODE_CH1'] || '') === newId)) { alert("Ce numéro CODE_CH1 existe déjà."); return; }
   const idx = chambres.findIndex(c => c.id === afterId);
   if(idx === -1) return;
   const wazeUrl = (pendingLat && pendingLon) ? `https://www.waze.com/ul?ll=${pendingLat},${pendingLon}&navigate=yes` : '';
@@ -754,7 +754,16 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   const compositeId = [codeCh2, refChambr, newOrdre].filter(Boolean).join('|') || newId;
   const newCh = {
     id: compositeId,
-    raw: { 'WAZE': wazeUrl, 'PROPRIETAI': proprietaire, 'CODE_CH2': codeCh2, 'COMMUNE': commune, 'REF_CHAMBR': refChambr, 'ORDRE': newOrdre, 'ORDRE_GEO': newOrdreGeo },
+    raw: {
+      'CODE_CH1': newId,            // ← Nom affiché partout
+      'WAZE': wazeUrl,
+      'PROPRIETAI': proprietaire,
+      'CODE_CH2': codeCh2,
+      'COMMUNE': commune,
+      'REF_CHAMBR': refChambr,
+      'ORDRE': newOrdre,
+      'ORDRE_GEO': newOrdreGeo
+    },
     done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: comment, lat: pendingLat, lon: pendingLon,
     photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
     passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
@@ -768,7 +777,7 @@ document.getElementById('confirmAddBtn').onclick = async () => {
 };
 
 /* ------------------------------------------------------------------ *
- * DÉMARRAGE — migration ORDRE_GEO + reprise dernière chambre
+ * DÉMARRAGE
  * ------------------------------------------------------------------ */
 (async()=>{
   try {
