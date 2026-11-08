@@ -156,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.4
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.5
   </div>
 </section>
 
@@ -238,6 +238,9 @@ function dbPut(item){return new Promise((res,rej)=>{const t=db.transaction(STORE
 function dbClear(){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).clear();t.oncomplete=res;t.onerror=()=>rej(t.error);});}
 
 function parseCSV(text){
+  // Nettoyage du BOM UTF-8
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
   const first=text.split(/\r?\n/)[0]||'';
   const delim=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?';':',';
   const rows=[];let row=[],cur='',inQ=false;
@@ -251,7 +254,7 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
-// FONCTION D'EXPORT CORRIGÉE (v9.4)
+// FONCTION D'EXPORT CORRIGÉE (v9.5)
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
   
@@ -264,11 +267,11 @@ function generateCSV(){
   ];
   
   // On force la présence des colonnes clés si elles n'existent pas dans les en-têtes mémorisés
-  const requiredCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
+  const requiredCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR','WAZE','wkt_geom','CODE_CH1'];
   
   let allHeaders = [...headers];
   requiredCols.forEach(col => {
-    const exists = allHeaders.some(h => h.toUpperCase() === col.toUpperCase() || h.toUpperCase() === col.replace(' ','_').toUpperCase());
+    const exists = allHeaders.some(h => h.toUpperCase().replace('_',' ') === col.toUpperCase().replace('_',' '));
     if(!exists) allHeaders.push(col);
   });
   
@@ -347,6 +350,9 @@ function generateCSV(){
         if (h === 'COMMUNE') return c.raw['COMMUNE'] || '';
         if (h === 'PROPRIETAI') return c.raw['PROPRIETAI'] || '';
         if (h === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || c.id;
+        if (h === 'CODE_CH1') return c.id;
+        if (h === 'WAZE') return c.raw['WAZE'] || '';
+        if (h === 'wkt_geom') return c.raw['wkt_geom'] || '';
 
         if (h.startsWith('Nb_')) {
           const cat = h.replace('Nb_', '');
@@ -765,7 +771,7 @@ async function importCSV(file){
   const rows=parseCSV(text);
   if(rows.length<2){alert('CSV invalide ou vide.');return;}
   
-  // On ne met à jour les headers QUE si c'est le tout premier import
+  // Sauvegarde des en-têtes d'origine (si c'est le premier import)
   if(headers.length === 0) {
     headers = rows[0].map(h=>h.trim());
   }
