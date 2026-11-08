@@ -81,7 +81,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 
 /* Modal Ajout Chambre */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
-.modal-content { background:#fff; width:90%; max-width:400px; border-radius:12px; padding:20px; }
+.modal-content { background:#fff; width:90%; max-width:400px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
 </style>
 </head>
 <body>
@@ -156,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 8.1
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 8.4
   </div>
 </section>
 
@@ -169,13 +169,19 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 <div id="modalAddChambre" class="modal-overlay">
   <div class="modal-content">
     <h3 style="margin-top:0;">Ajouter une chambre</h3>
-    <p class="small">La chambre sera insérée après celle choisie, et l'ordre des suivantes sera incrémenté.</p>
+    <p class="small">La chambre sera insérée après celle choisie, et l'ordre des suivantes sera recalculé.</p>
     
-    <label>Nouveau N° de chambre (ex: CH-999)</label>
+    <label>Nouveau N° de chambre (ex: FT1)</label>
     <input type="text" id="newId" placeholder="Numéro">
     
     <label>Après quelle chambre l'insérer ?</label>
     <select id="insertAfterSelect"></select>
+
+    <label>Commentaire (optionnel)</label>
+    <input type="text" id="newComment" placeholder="Ex: Chambre créée suite à GC">
+    
+    <button id="gpsBtn" class="btn btn-secondary" style="margin-top:12px; background:#e3f2fd; color:#0055A4;">📍 Prendre ma position GPS</button>
+    <div id="gpsStatus" class="small" style="text-align:center; margin-top:5px;"></div>
     
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button id="cancelAddBtn" class="btn btn-secondary">Annuler</button>
@@ -240,6 +246,7 @@ function generateCSV(){
     'BPE_Origine', 
     'Observation_BPE',
     'Commentaire_Terrain',
+    'LATITUDE', 'LONGITUDE',
     ...currentCats.map(c => `Nb_${c.id}`)
   ];
   
@@ -308,12 +315,17 @@ function generateCSV(){
           if (h.toUpperCase() === 'DIAMETRE B' || h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
           
+          // On force le CODE_CH1 et REF_CHAMBR à contenir l'ID de la chambre
+          if (h.toUpperCase() === 'CODE_CH1' || h.toUpperCase() === 'REF_CHAMBR') return c.id;
+
           return c.raw[h] || '';
         }
 
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
+        if (h === 'LATITUDE') return c.lat || '';
+        if (h === 'LONGITUDE') return c.lon || '';
         if (h === 'CABLE') return p.cable_name || '';
         if (h === 'BPE') return bpeFinal;
         
@@ -768,6 +780,7 @@ async function importCSV(file){
         bpeDestination: '',
         boiteNonPosee: false,
         notes: '',
+        lat: '', lon: '',
         photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
         passages: [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}]
       });
@@ -874,6 +887,8 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 });
 
 // --- GESTION AJOUT CHAMBRE ---
+let pendingLat = '', pendingLon = '';
+
 document.getElementById('addChambreBtn').onclick = () => {
   if(!chambres.length) { alert("Veuillez d'abord importer un CSV."); return; }
   
@@ -881,6 +896,10 @@ document.getElementById('addChambreBtn').onclick = () => {
   select.innerHTML = chambres.map(c => `<option value="${c.id}">${c.id}</option>`).join('');
   
   document.getElementById('newId').value = '';
+  document.getElementById('newComment').value = '';
+  document.getElementById('gpsStatus').textContent = '';
+  pendingLat = ''; pendingLon = '';
+  
   document.getElementById('modalAddChambre').style.display = 'flex';
 };
 
@@ -888,9 +907,34 @@ document.getElementById('cancelAddBtn').onclick = () => {
   document.getElementById('modalAddChambre').style.display = 'none';
 };
 
+document.getElementById('gpsBtn').onclick = () => {
+  const status = document.getElementById('gpsStatus');
+  status.textContent = "Recherche GPS en cours...";
+  
+  if (!navigator.geolocation) {
+    status.textContent = "GPS non supporté par ce téléphone.";
+    return;
+  }
+  
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      pendingLat = pos.coords.latitude.toFixed(6);
+      pendingLon = pos.coords.longitude.toFixed(6);
+      status.textContent = `Position enregistrée : ${pendingLat}, ${pendingLon}`;
+      status.style.color = "green";
+    },
+    (err) => {
+      status.textContent = "Impossible de récupérer le GPS. Vérifiez vos autorisations.";
+      status.style.color = "red";
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+};
+
 document.getElementById('confirmAddBtn').onclick = async () => {
   const newId = document.getElementById('newId').value.trim();
   const afterId = document.getElementById('insertAfterSelect').value;
+  const comment = document.getElementById('newComment').value.trim();
   
   if(!newId) { alert("Veuillez saisir un numéro de chambre."); return; }
   if(chambres.some(c => c.id === newId)) { alert("Ce numéro de chambre existe déjà."); return; }
@@ -898,15 +942,19 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   const idx = chambres.findIndex(c => c.id === afterId);
   if(idx === -1) return;
   
-  // Création de la nouvelle chambre
+  // Création de la nouvelle chambre avec le lien Waze généré
+  const wazeUrl = (pendingLat && pendingLon) ? `https://www.waze.com/ul?ll=${pendingLat},${pendingLon}&navigate=yes` : '';
+  
   const newCh = {
     id: newId,
-    raw: {},
+    raw: { 'WAZE': wazeUrl },
     done: false,
     hasBoite: true,
     bpeDestination: '',
     boiteNonPosee: false,
-    notes: '',
+    notes: comment,
+    lat: pendingLat,
+    lon: pendingLon,
     photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
     passages: [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}]
   };
@@ -917,10 +965,8 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   // Incrémentation de l'ordre
   let currentOrdre = 1;
   for(const c of chambres) {
-    if(c.raw['ORDRE'] !== undefined) {
-      // On force la colonne ORDRE
-      c.raw['ORDRE'] = String(currentOrdre);
-    }
+    if(c.raw['ORDRE'] === undefined) c.raw['ORDRE'] = '';
+    c.raw['ORDRE'] = String(currentOrdre);
     currentOrdre++;
   }
   
