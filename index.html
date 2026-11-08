@@ -156,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.0
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.1
   </div>
 </section>
 
@@ -894,7 +894,7 @@ document.getElementById('csvInput').onchange=async e=>{
   try{await importCSV(f);}catch(err){alert('Erreur import : '+err.message);}
   finally{showOverlay(false);e.target.value='';}
 };
-document.getElementById('startBtn').onclick=()=>{triChambres();renderList();showScreen('list');};
+document.getElementById('startBtn').onclick=()=>{trierChambres();renderList();showScreen('list');};
 document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('backBtn').onclick=()=>{
   if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');}
