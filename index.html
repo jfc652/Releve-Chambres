@@ -156,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 8.4
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 8.5
   </div>
 </section>
 
@@ -176,6 +176,18 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     
     <label>Après quelle chambre l'insérer ?</label>
     <select id="insertAfterSelect"></select>
+
+    <label>PROPRIETAI (ex: FT, FREE)</label>
+    <input type="text" id="newProprietaire" placeholder="Propriétaire">
+    
+    <label>CODE_CH2 (ex: 91161)</label>
+    <input type="text" id="newCodeCh2" placeholder="Code INSEE">
+    
+    <label>COMMUNE (ex: CHILLY-MAZARIN)</label>
+    <input type="text" id="newCommune" placeholder="Commune">
+    
+    <label>REF_CHAMBR (ex: L2T, B1)</label>
+    <input type="text" id="newRefChambr" placeholder="Référence">
 
     <label>Commentaire (optionnel)</label>
     <input type="text" id="newComment" placeholder="Ex: Chambre créée suite à GC">
@@ -257,6 +269,10 @@ function generateCSV(){
   const hasCable = headers.some(h => /^C[ÂA]BLE$/i.test(h));
   const hasBpe = headers.some(h => /^BPE$/i.test(h));
   const hasOrdre = headers.some(h => /^ORDRE$/i.test(h));
+  const hasCodeCH2 = headers.some(h => /^CODE_CH2$/i.test(h));
+  const hasCommune = headers.some(h => /^COMMUNE$/i.test(h));
+  const hasProprietaire = headers.some(h => /^PROPRIETAI$/i.test(h));
+  const hasRefChambr = headers.some(h => /^REF_CHAMBR$/i.test(h));
 
   let allHeaders = [...headers];
   if(!hasMasque) allHeaders.push('MASQUE');
@@ -266,6 +282,10 @@ function generateCSV(){
   if(!hasCable) allHeaders.push('CABLE');
   if(!hasBpe) allHeaders.push('BPE');
   if(!hasOrdre) allHeaders.push('ORDRE');
+  if(!hasCodeCH2) allHeaders.push('CODE_CH2');
+  if(!hasCommune) allHeaders.push('COMMUNE');
+  if(!hasProprietaire) allHeaders.push('PROPRIETAI');
+  if(!hasRefChambr) allHeaders.push('REF_CHAMBR');
   
   allHeaders = [...allHeaders, ...extraCols];
   
@@ -315,8 +335,11 @@ function generateCSV(){
           if (h.toUpperCase() === 'DIAMETRE B' || h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
           
-          // On force le CODE_CH1 et REF_CHAMBR à contenir l'ID de la chambre
-          if (h.toUpperCase() === 'CODE_CH1' || h.toUpperCase() === 'REF_CHAMBR') return c.id;
+          // Ne pas écraser REF_CHAMBR si présent dans le raw
+          if (h.toUpperCase() === 'REF_CHAMBR') {
+            return c.raw['REF_CHAMBR'] || c.id;
+          }
+          if (h.toUpperCase() === 'CODE_CH1') return c.id;
 
           return c.raw[h] || '';
         }
@@ -334,6 +357,11 @@ function generateCSV(){
         if (h === 'MASQUE_B') return p.masque_out || '';
         if (h === 'DIAMETRE_B') return p.diam_out || '';
         
+        if (h === 'CODE_CH2') return c.raw['CODE_CH2'] || '';
+        if (h === 'COMMUNE') return c.raw['COMMUNE'] || '';
+        if (h === 'PROPRIETAI') return c.raw['PROPRIETAI'] || '';
+        if (h === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || c.id;
+
         if (h.startsWith('Nb_')) {
           const cat = h.replace('Nb_', '');
           return (c.photos[cat] || []).length;
@@ -896,6 +924,10 @@ document.getElementById('addChambreBtn').onclick = () => {
   select.innerHTML = chambres.map(c => `<option value="${c.id}">${c.id}</option>`).join('');
   
   document.getElementById('newId').value = '';
+  document.getElementById('newProprietaire').value = '';
+  document.getElementById('newCodeCh2').value = '';
+  document.getElementById('newCommune').value = '';
+  document.getElementById('newRefChambr').value = '';
   document.getElementById('newComment').value = '';
   document.getElementById('gpsStatus').textContent = '';
   pendingLat = ''; pendingLon = '';
@@ -934,6 +966,10 @@ document.getElementById('gpsBtn').onclick = () => {
 document.getElementById('confirmAddBtn').onclick = async () => {
   const newId = document.getElementById('newId').value.trim();
   const afterId = document.getElementById('insertAfterSelect').value;
+  const proprietaire = document.getElementById('newProprietaire').value.trim();
+  const codeCh2 = document.getElementById('newCodeCh2').value.trim();
+  const commune = document.getElementById('newCommune').value.trim();
+  const refChambr = document.getElementById('newRefChambr').value.trim();
   const comment = document.getElementById('newComment').value.trim();
   
   if(!newId) { alert("Veuillez saisir un numéro de chambre."); return; }
@@ -947,7 +983,13 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   
   const newCh = {
     id: newId,
-    raw: { 'WAZE': wazeUrl },
+    raw: { 
+      'WAZE': wazeUrl,
+      'PROPRIETAI': proprietaire,
+      'CODE_CH2': codeCh2,
+      'COMMUNE': commune,
+      'REF_CHAMBR': refChambr
+    },
     done: false,
     hasBoite: true,
     bpeDestination: '',
