@@ -156,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.2
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.4
   </div>
 </section>
 
@@ -251,6 +251,7 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
+// FONCTION D'EXPORT CORRIGÉE (v9.4)
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
   
@@ -262,22 +263,14 @@ function generateCSV(){
     ...currentCats.map(c => `Nb_${c.id}`)
   ];
   
-  const hasMasque = headers.some(h => /^MASQUE$/i.test(h));
-  const hasDiam = headers.some(h => /^DIAMETRE$/i.test(h));
-  const hasMasqueB = headers.some(h => /^MASQUE B$/i.test(h) || /^MASQUE_B$/i.test(h));
-  const hasDiamB = headers.some(h => /^DIAMETRE B$/i.test(h) || /^DIAMETRE_B$/i.test(h));
-  const hasCable = headers.some(h => /^C[ÂA]BLE$/i.test(h));
-  const hasBpe = headers.some(h => /^BPE$/i.test(h));
-  const hasOrdre = headers.some(h => /^ORDRE$/i.test(h));
-
+  // On force la présence des colonnes clés si elles n'existent pas dans les en-têtes mémorisés
+  const requiredCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
+  
   let allHeaders = [...headers];
-  if(!hasMasque) allHeaders.push('MASQUE');
-  if(!hasDiam) allHeaders.push('DIAMETRE');
-  if(!hasMasqueB) allHeaders.push('MASQUE_B');
-  if(!hasDiamB) allHeaders.push('DIAMETRE_B');
-  if(!hasCable) allHeaders.push('CABLE');
-  if(!hasBpe) allHeaders.push('BPE');
-  if(!hasOrdre) allHeaders.push('ORDRE');
+  requiredCols.forEach(col => {
+    const exists = allHeaders.some(h => h.toUpperCase() === col.toUpperCase() || h.toUpperCase() === col.replace(' ','_').toUpperCase());
+    if(!exists) allHeaders.push(col);
+  });
   
   allHeaders = [...allHeaders, ...extraCols];
   
@@ -319,6 +312,7 @@ function generateCSV(){
 
     for(const p of passages) {
       const row = allHeaders.map(h => {
+        // Si c'est une colonne d'origine, on la remplit
         if(headers.includes(h)) {
           if (h.toUpperCase() === 'BPE') return bpeFinal;
           if (h.toUpperCase() === 'MASQUE') return p.masque_in || '';
@@ -327,7 +321,6 @@ function generateCSV(){
           if (h.toUpperCase() === 'DIAMETRE B' || h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
           
-          // Ne pas écraser REF_CHAMBR si présent dans le raw
           if (h.toUpperCase() === 'REF_CHAMBR') {
             return c.raw['REF_CHAMBR'] || c.id;
           }
@@ -336,6 +329,7 @@ function generateCSV(){
           return c.raw[h] || '';
         }
 
+        // Si c'est une colonne ajoutée par nous
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
@@ -663,7 +657,6 @@ function openDetail(id){
           if (activeMasks.size > 0) visible = activeMasks.has(letter);
         }
       } else {
-        // Mode FOA : Si pas de boîte, on ne montre QUE les câbles et vue ensemble
         if(!hasBoite) {
           if(['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(cat.id)) {
             visible = false;
@@ -676,7 +669,6 @@ function openDetail(id){
       return `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`;
     }).join('');
 
-    // Événements sur les boutons photos nouvellement créés
     photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
       inp.onchange=async()=>{
         const files=Array.from(inp.files||[]);if(!files.length)return;
@@ -773,7 +765,7 @@ async function importCSV(file){
   const rows=parseCSV(text);
   if(rows.length<2){alert('CSV invalide ou vide.');return;}
   
-  // Sauvegarde des en-têtes d'origine (si c'est le premier import)
+  // On ne met à jour les headers QUE si c'est le tout premier import
   if(headers.length === 0) {
     headers = rows[0].map(h=>h.trim());
   }
@@ -827,7 +819,6 @@ async function importCSV(file){
   alert(`${chambres.length} chambre(s) importée(s).`);
 }
 
-// Tri des chambres par ordre numérique
 function trierChambres() {
   chambres.sort((a, b) => {
     const ordreA = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '999999');
