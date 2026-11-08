@@ -37,6 +37,9 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .status-badge { font-size:12px; padding:4px 10px; border-radius:12px; font-weight:600; white-space:nowrap; }
 .status-todo { background:#fff3e0; color:#e65100; }
 .status-done { background:#e8f5e9; color:#2e7d32; }
+.status-ok { background:#e8f5e9; color:#2e7d32; }
+.status-warn { background:#fff3e0; color:#e65100; }
+.status-bad { background:#ffebee; color:#c62828; }
 .hidden { display:none !important; }
 .small { font-size:13px; color:#666; }
 .empty { text-align:center; padding:40px 20px; color:#888; }
@@ -77,6 +80,16 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 .logo-container img { max-width: 200px; max-height: 80px; object-fit: contain; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
 .modal-content { background:#fff; width:90%; max-width:400px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
+
+/* Styles pour l'analyse ORDRE */
+table { border-collapse:collapse; width:100%; margin:8px 0; font-size:13px; }
+th, td { border:1px solid #d6dde5; padding:7px 8px; text-align:left; vertical-align:top; }
+th { background:#eef3f8; color:#0055A4; font-weight:600; }
+tr:nth-child(even) td { background:#fafcfe; }
+code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Consolas, monospace; font-size:12px; }
+.box { background:#f7f9fb; border-left:4px solid #0055A4; padding:10px 12px; margin:10px 0; border-radius:0 6px 6px 0; font-size:14px; }
+.warn-box { background:#fff9c4; border-left:4px solid #fbc02d; padding:10px 12px; margin:10px 0; border-radius:0 6px 6px 0; font-size:14px; }
+.card h3.ana { margin:14px 0 6px; font-size:15px; color:#0055A4; }
 </style>
 </head>
 <body>
@@ -135,6 +148,12 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
   </div>
 
   <div class="card" style="margin-top:12px;">
+    <h2 style="margin-top:0;font-size:17px;">📊 Analyse des exports</h2>
+    <p class="small">Comprendre l'évolution de la colonne ORDRE entre les exports.</p>
+    <button id="analyseBtn" class="btn" style="background:#455a64;">📊 Voir l'analyse ORDRE</button>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
@@ -144,6 +163,183 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
 <section id="screen-detail" class="hidden"><div id="detailContainer"></div></section>
+
+<!-- ============ NOUVEL ÉCRAN : ANALYSE ORDRE ============ -->
+<section id="screen-analyse" class="hidden">
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">📊 Résumé de l'analyse</h2>
+    <p class="small">Comparaison des trois exports fournis pour comprendre pourquoi l'ordre des chambres a changé dans l'application.</p>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-num">3</div><div class="stat-label">Fichiers comparés</div></div>
+      <div class="stat"><div class="stat-num">105/105/99</div><div class="stat-label">Lignes (csv réf / xlsx / csv)</div></div>
+      <div class="stat"><div class="stat-num">2</div><div class="stat-label">Critères de tri différents</div></div>
+      <div class="stat"><div class="stat-num">7</div><div class="stat-label">Paires dupliquées</div></div>
+    </div>
+    <div class="warn-box" style="margin-top:14px;">
+      <b>⚠️ Cause principale :</b> la colonne <code>ORDRE</code> n'est pas une donnée métier stable. Elle est <b>recalculée à chaque export</b> selon le tri courant (texte sur <code>CODE_CH1</code> dans le xlsx, géographique dans les CSV).
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">📂 Les trois exports</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Fichier</th>
+          <th>Lignes</th>
+          <th>ORDRE</th>
+          <th>Tri apparent</th>
+          <th>Doublons</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Chambres (1).csv</code></td>
+          <td>105</td>
+          <td>1 → 105</td>
+          <td><span class="status-badge status-ok">Géographique</span></td>
+          <td>Non</td>
+        </tr>
+        <tr>
+          <td><code>releve_chambres.xlsx</code></td>
+          <td>105</td>
+          <td>1 → 105</td>
+          <td><span class="status-badge status-bad">CODE_CH1 texte</span></td>
+          <td>Oui (7 paires)</td>
+        </tr>
+        <tr>
+          <td><code>releve_chambres.csv</code></td>
+          <td>99</td>
+          <td>1 → 99</td>
+          <td><span class="status-badge status-warn">Géo + ligne fantôme</span></td>
+          <td>Oui (7 paires)</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box">
+      Le tri <b>texte</b> du xlsx explique le passage de <code>1119</code> avant <code>114</code> : en comparaison de chaînes, <code>"11" &lt; "14"</code>. C'est exactement le symptôme constaté dans l'application.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">🔀 ORDRE n'est pas stable</h2>
+    <p class="small">La même chambre n'a pas le même ORDRE selon le fichier.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Chambre (CH2 / CH1 / VOIE)</th>
+          <th>Commune</th>
+          <th>CSV réf</th>
+          <th>XLSX</th>
+          <th>CSV</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>POP MAZ</td><td>CHILLY-MAZARIN</td><td>1</td><td>105</td><td>1</td></tr>
+        <tr><td>91161 / 586 / 34</td><td>CHILLY-MAZARIN</td><td>2</td><td>78</td><td>2</td></tr>
+        <tr><td>91345 / 1003 / 0</td><td>LONGJUMEAU</td><td>19</td><td>1</td><td>20</td></tr>
+        <tr><td>91345 / 1008 / 17</td><td>LONGJUMEAU</td><td>20</td><td>2</td><td>21</td></tr>
+        <tr><td>91477 / 1829 / 73 (DIST 10)</td><td>PALAISEAU</td><td>64</td><td>27 / 28</td><td>64 (×2)</td></tr>
+        <tr><td>91477 / 2515 / 100 (DIST 8)</td><td>PALAISEAU</td><td>62</td><td>39 / 40</td><td>62 (×2)</td></tr>
+        <tr><td>POP ALB</td><td>MASSY</td><td>105</td><td>104</td><td>99</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      Si l'application affiche selon <b>ORDRE</b> → l'ordre change à chaque export.<br>
+      Si elle affiche selon <b>CODE_CH1</b> → l'ordre est stable mais les doublons/pertes créent des incohérences.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">🐛 Doublons et pertes de lignes</h2>
+    <p class="small">Exemple avec <code>CODE_CH1 = 1829</code> (PALAISEAU) qui a deux liaisons distinctes (DIST 10 et DIST 148).</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Fichier</th>
+          <th>ORDRE 1829 (DIST 10)</th>
+          <th>ORDRE 1829 (DIST 148)</th>
+          <th>Diagnostic</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Chambres (1).csv</code></td>
+          <td>64</td>
+          <td>66</td>
+          <td><span class="status-badge status-ok">Correct</span></td>
+        </tr>
+        <tr>
+          <td><code>releve_chambres.xlsx</code></td>
+          <td>27 <em>et</em> 28</td>
+          <td>—</td>
+          <td><span class="status-badge status-bad">DIST 148 perdu, DIST 10 dupliqué</span></td>
+        </tr>
+        <tr>
+          <td><code>releve_chambres.csv</code></td>
+          <td>64 <em>et</em> 64</td>
+          <td>—</td>
+          <td><span class="status-badge status-bad">Même bug</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="info-grid">
+      <div class="info-item"><b>Chambres affectées :</b> 1829, 2515, 2516, 515, 523, 924, 925</div>
+      <div class="info-item"><b>Effet :</b> 2 lignes identiques au lieu de 2 liaisons distinctes</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">👻 Ligne fantôme</h2>
+    <p class="small">Dans <code>releve_chambres.csv</code>, entre ORDRE 5 et ORDRE 7, une ligne ne contient que des masques, sans géométrie ni CODE_CH1 :</p>
+    <div class="info-grid">
+      <div class="info-item" style="grid-column:span 2; background:#ffe0b2;">
+        <b>MASQUE A2 / DIAMETRE 80 / MASQUE B D7 / DIAMETRE B 80</b><br>
+        <span class="small">Aucun <code>wkt_geom</code>, aucun <code>CODE_CH1</code>, aucun <code>REF_CHAMBR</code>.</span>
+      </div>
+      <div class="info-item"><b>Conséquence 1 :</b> ORDRE 6 est sauté</div>
+      <div class="info-item"><b>Conséquence 2 :</b> tous les ORDRE suivants décalés de +1</div>
+    </div>
+    <div class="warn-box" style="margin-top:10px;">
+      Exemple : <code>CODE_CH1 1003</code> apparaît à ORDRE <b>20</b> dans le CSV, alors qu'il est à ORDRE <b>19</b> dans <code>Chambres (1).csv</code>.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">✅ Conclusion</h2>
+    <ul style="margin:6px 0 6px 18px; padding:0; font-size:14px;">
+      <li style="margin:4px 0;"><b>ORDRE est recalculé à chaque export</b> selon le tri courant → ce n'est pas une clé stable.</li>
+      <li style="margin:4px 0;">Le xlsx trie par <b>CODE_CH1 en texte</b>, les CSV trient <b>géographiquement</b> → d'où le changement constaté.</li>
+      <li style="margin:4px 0;">Les exports xlsx et csv ont en plus un <b>bug de duplication / perte</b> (1829, 2515, 2516, 515, 523, 924, 925).</li>
+      <li style="margin:4px 0;">Le CSV contient une <b>ligne fantôme</b> qui décale tous les ORDRE suivants.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:17px;">🛠️ Recommandations</h2>
+    <ol style="margin:6px 0 6px 18px; padding:0; font-size:14px;">
+      <li style="margin:8px 0;">
+        <b>Ne pas utiliser ORDRE</b> comme identifiant ni comme clé de tri stable.<br>
+        <span class="small">Clé métier : <code>CODE_CH2 + CODE_CH1 + NUM_VOIE + DIST_CHAMB</code> (+ <code>MASQUE B</code> si besoin de distinguer deux chambres sur le même point).</span>
+      </li>
+      <li style="margin:8px 0;">
+        <b>Corriger le bug d'export</b> qui duplique certaines lignes et en perd d'autres.<br>
+        <span class="small">Référence saine : <code>Chambres (1).csv</code> (complet, sans doublon strict).</span>
+      </li>
+      <li style="margin:8px 0;"><b>Supprimer la ligne fantôme</b> de <code>releve_chambres.csv</code>.</li>
+      <li style="margin:8px 0;">
+        <b>Définir un ordre métier explicite</b> si nécessaire :
+        <div class="info-item" style="margin-top:6px; font-family:Consolas, monospace; font-size:12px;">
+          ORDER BY CODE_CH2, CAST(CODE_CH1 AS INTEGER), NUM_VOIE
+        </div>
+        <span class="small">Et le <b>stocker en base</b> plutôt que de le recalculer à chaque export. Si l'ordre géographique est voulu, le nommer <code>ORDRE_GEO</code> pour éviter la confusion.</span>
+      </li>
+    </ol>
+  </div>
+
+</section>
+<!-- ============ FIN ÉCRAN ANALYSE ============ -->
 
 </main>
 
@@ -225,46 +421,35 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
-// EXPORT v10.2 : utilise les headers mémorisés + ordre strict
 function generateCSV(){
-  // On charge la liste des headers mémorisés
   const savedHeaders = JSON.parse(localStorage.getItem('releve_headers') || '[]');
   if(savedHeaders.length === 0 && headers.length === 0) {
     return "Aucune colonne mémorisée. Veuillez importer un CSV d'abord.";
   }
   const sourceHeaders = savedHeaders.length > 0 ? savedHeaders : headers;
-  
   const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE'];
   const terrainCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
-  
-  // On part des headers MÉMORISÉS
   let allHeaders = [...sourceHeaders];
-  
-  // On ajoute les colonnes de terrain si absentes
   terrainCols.forEach(col => {
     const exists = allHeaders.some(h => h.toUpperCase().replace(/_/g,' ').trim() === col.toUpperCase().replace(/_/g,' ').trim());
     if(!exists) allHeaders.push(col);
   });
   allHeaders = [...allHeaders, ...extraCols];
-  
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   const bpeRecues = {};
-  
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
       if (bpeName) { if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = []; bpeRecues[c.bpeDestination].push(bpeName); }
     }
   }
-  
   let ordreCounter = 1;
   for(const c of chambres){
     const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
     let obsBpe = '';
-    
     if (!c.hasBoite) {
       bpeFinal = '';
       if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
@@ -272,10 +457,8 @@ function generateCSV(){
     } else {
       if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
     }
-    
     for(const p of passages) {
       const row = allHeaders.map(h => {
-        // Colonnes d'origine (mémorisées)
         if(sourceHeaders.includes(h)) {
           const hUpper = h.toUpperCase().trim();
           if (hUpper === 'CODE_CH1') return c.id;
@@ -291,8 +474,6 @@ function generateCSV(){
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
           return c.raw[h] || '';
         }
-        
-        // Colonnes de terrain ajoutées
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
@@ -332,7 +513,7 @@ function showScreen(name){
   document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
   document.getElementById('screen-'+name).classList.remove('hidden');
   document.getElementById('backBtn').classList.toggle('hidden',name==='home');
-  document.getElementById('title').textContent={home:'Relevé Chambres',list:'Chambres',detail:'Détail'}[name];
+  document.getElementById('title').textContent={home:'Relevé Chambres',list:'Chambres',detail:'Détail',analyse:'Analyse ORDRE'}[name];
   window.scrollTo(0,0);
 }
 
@@ -462,16 +643,13 @@ async function importCSV(file){
     if (!text || text.length < 5) throw new Error("Le fichier semble illisible.");
     const rows = parseCSV(text);
     if (rows.length < 2) throw new Error("Le fichier CSV ne contient pas assez de lignes.");
-    
-    // MÉMORISATION des headers (une seule fois, en localStorage)
     const saved = localStorage.getItem('releve_headers');
     if (!saved) {
       headers = rows[0].map(h => h.trim());
-      saveHeaders();  // Sauvegarde dans le localStorage
+      saveHeaders();
     } else {
       headers = JSON.parse(saved);
     }
-    
     const dataRows = rows.slice(1);
     const idIdx = (() => {
       const pats = [/^id_chambre/i, /^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
@@ -546,7 +724,18 @@ document.getElementById('csvInput').onchange=async e=>{
 
 document.getElementById('startBtn').onclick=()=>{renderList();showScreen('list');};
 document.getElementById('exportBtn').onclick=exportAll;
-document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
+document.getElementById('analyseBtn').onclick=()=>showScreen('analyse');
+document.getElementById('backBtn').onclick=()=>{
+  const onList = !document.getElementById('screen-list').classList.contains('hidden');
+  const onAnalyse = !document.getElementById('screen-analyse').classList.contains('hidden');
+  if(onList || onAnalyse){
+    updateHomeStats();
+    showScreen('home');
+  } else {
+    renderList();
+    showScreen('list');
+  }
+};
 document.getElementById('resetBtn').onclick=async()=>{ if(!confirm('Effacer TOUTES les données ?'))return; await dbClear();chambres=[];headers=[];localStorage.removeItem('releve_headers');updateHomeStats();alert('Données effacées.'); };
 
 document.querySelectorAll('.mode-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); modeTravail = btn.dataset.mode; }; });
@@ -600,7 +789,7 @@ document.getElementById('confirmAddBtn').onclick = async () => {
 (async()=>{
   try {
     await openDB();
-    loadHeaders(); // Charge les headers mémorisés au démarrage
+    loadHeaders();
     chambres=await dbGetAll();
     updateHomeStats();
     if(chambres.length){renderList();showScreen('list');}
