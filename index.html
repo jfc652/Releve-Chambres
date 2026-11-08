@@ -138,7 +138,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.9
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.0
   </div>
 </section>
 
@@ -219,33 +219,79 @@ function parseCSV(text){
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
 /* ------------------------------------------------------------------ *
- * EXPORT CSV — 1 ligne = 1 chambre (plus de duplication par passage)
+ * EXPORT CSV — respecte STRICTEMENT l'ordre des colonnes du CSV importé
+ * Une seule ligne par chambre. Colonnes calculées ajoutées à la fin
+ * uniquement si absentes du CSV d'origine.
  * ------------------------------------------------------------------ */
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
-  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE', ...currentCats.map(c => `Nb_${c.id}`)];
-  const terrainCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
 
+  // ✅ On part STRICTEMENT des headers du CSV importé, dans le même ordre
   let allHeaders = [...headers];
-  terrainCols.forEach(col => {
-    const exists = allHeaders.some(h => h.toUpperCase().replace(/_/g,' ').trim() === col.toUpperCase().replace(/_/g,' ').trim());
-    if(!exists) allHeaders.push(col);
-  });
-  allHeaders = [...allHeaders, ...extraCols];
+
+  // Colonnes calculées : ajoutées en fin uniquement si absentes
+  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE',
+                     ...currentCats.map(c => `Nb_${c.id}`)];
+  const headerUpperSet = new Set(allHeaders.map(h => h.toUpperCase().trim()));
+  for (const col of extraCols) {
+    if (!headerUpperSet.has(col.toUpperCase())) {
+      allHeaders.push(col);
+      headerUpperSet.add(col.toUpperCase());
+    }
+  }
+
+  // Helper : retrouve le nom réel d'une colonne logique (tolère _ / espaces / casse)
+  const norm = s => s.toUpperCase().replace(/[_\s]/g,'');
+  const findHeader = (aliases) => {
+    for (const a of aliases) {
+      const found = allHeaders.find(h => norm(h) === norm(a));
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const H = {
+    ordre:        findHeader(['ORDRE']),
+    codeCh1:      findHeader(['CODE_CH1']),
+    codeCh2:      findHeader(['CODE_CH2']),
+    refChambr:    findHeader(['REF_CHAMBR']),
+    proprietaire: findHeader(['PROPRIETAI','PROPRIETAIRE']),
+    commune:      findHeader(['COMMUNE']),
+    waze:         findHeader(['WAZE']),
+    wkt:          findHeader(['wkt_geom','WKT_GEOM']),
+    bpe:          findHeader(['BPE']),
+    masque:       findHeader(['MASQUE']),
+    diametre:     findHeader(['DIAMETRE']),
+    masqueB:      findHeader(['MASQUE B','MASQUE_B']),
+    diametreB:    findHeader(['DIAMETRE B','DIAMETRE_B']),
+    cable:        findHeader(['CABLE']),
+    etiquette2:   findHeader(['ETIQUETTE_2']),
+    numVoie:      findHeader(['NUM_VOIE']),
+    distChamb:    findHeader(['DIST_CHAMB']),
+    fci:          findHeader(['FCI']),
+    bpeOrigine:   findHeader(['BPE_Origine']),
+    obsBpe:       findHeader(['Observation_BPE']),
+    commentaire:  findHeader(['Commentaire_Terrain']),
+    latitude:     findHeader(['LATITUDE']),
+    longitude:    findHeader(['LONGITUDE'])
+  };
 
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
-  const bpeRecues = {};
 
+  // BPE reçues par chambre (transferts)
+  const bpeRecues = {};
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
-      if (bpeName) { if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = []; bpeRecues[c.bpeDestination].push(bpeName); }
+      if (bpeName) {
+        if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = [];
+        bpeRecues[c.bpeDestination].push(bpeName);
+      }
     }
   }
 
   for(const c of chambres){
-    // ⚠️ On n'utilise QUE le premier passage pour ne pas dupliquer la ligne
     const p = (c.passages && c.passages[0]) ? c.passages[0] : {};
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
@@ -256,51 +302,49 @@ function generateCSV(){
       if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
       else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${c.bpeDestination}`;
     } else {
-      if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
+      if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) {
+        bpeFinal = bpeRecues[c.id].join(' + ');
+        obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
+      }
     }
 
-    const row = allHeaders.map(h => {
-      const hUpper = h.toUpperCase().trim();
-
-      // Colonnes d'origine → on respecte le sens d'origine
-      if (headers.includes(h)) {
-        if (hUpper === 'CODE_CH1') return c.raw['CODE_CH1'] || c.id;
-        if (hUpper === 'ORDRE') return c.raw['ORDRE'] ?? c.raw['ordre'] ?? '';
-        if (hUpper === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || '';
-        if (hUpper === 'WAZE') return c.raw['WAZE'] || '';
-        if (hUpper === 'WKT_GEOM') return c.raw['wkt_geom'] || c.raw['WKT_GEOM'] || '';
-        if (hUpper === 'BPE') return bpeFinal;
-        if (hUpper === 'MASQUE') return p.masque_in || '';
-        if (hUpper === 'DIAMETRE') return p.diam_in || '';
-        if (hUpper === 'MASQUE B' || hUpper === 'MASQUE_B') return p.masque_out || '';
-        if (hUpper === 'DIAMETRE B' || hUpper === 'DIAMETRE_B') return p.diam_out || '';
-        if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
-        return c.raw[h] || '';
+    const valFor = (logical) => {
+      switch(logical){
+        case 'ordre':        return c.raw[H.ordre] ?? c.raw['ordre'] ?? '';
+        case 'codeCh1':      return c.raw[H.codeCh1] || c.id;
+        case 'codeCh2':      return c.raw[H.codeCh2] || '';
+        case 'refChambr':    return c.raw[H.refChambr] || '';
+        case 'proprietaire': return c.raw[H.proprietaire] || '';
+        case 'commune':      return c.raw[H.commune] || '';
+        case 'waze':         return c.raw[H.waze] || '';
+        case 'wkt':          return c.raw[H.wkt] || '';
+        case 'bpe':          return bpeFinal;
+        case 'masque':       return p.masque_in || '';
+        case 'diametre':     return p.diam_in || '';
+        case 'masqueB':      return p.masque_out || '';
+        case 'diametreB':    return p.diam_out || '';
+        case 'cable':        return p.cable_name || c.raw[H.cable] || '';
+        case 'bpeOrigine':   return bpeOrigine;
+        case 'obsBpe':       return obsBpe;
+        case 'commentaire':  return c.notes || '';
+        case 'latitude':     return c.lat || '';
+        case 'longitude':    return c.lon || '';
+        default:             return '';
       }
+    };
 
-      // Colonnes ajoutées à la fin
-      if (h === 'BPE_Origine') return bpeOrigine;
-      if (h === 'Observation_BPE') return obsBpe;
-      if (h === 'Commentaire_Terrain') return c.notes || '';
-      if (h === 'LATITUDE') return c.lat || '';
-      if (h === 'LONGITUDE') return c.lon || '';
-      if (h === 'MASQUE') return p.masque_in || '';
-      if (h === 'DIAMETRE') return p.diam_in || '';
-      if (h === 'MASQUE_B') return p.masque_out || '';
-      if (h === 'DIAMETRE_B') return p.diam_out || '';
-      if (h === 'CABLE') return p.cable_name || '';
-      if (h === 'BPE') return bpeFinal;
-      if (h === 'ORDRE') return c.raw['ORDRE'] ?? c.raw['ordre'] ?? '';
-      if (h === 'CODE_CH2') return c.raw['CODE_CH2'] || '';
-      if (h === 'COMMUNE') return c.raw['COMMUNE'] || '';
-      if (h === 'PROPRIETAI') return c.raw['PROPRIETAI'] || '';
-      if (h === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || '';
-      if (h === 'CODE_CH1') return c.raw['CODE_CH1'] || c.id;
-      if (h === 'WAZE') return c.raw['WAZE'] || '';
-      if (h === 'wkt_geom') return c.raw['wkt_geom'] || '';
-      if (h.startsWith('Nb_')) return (c.photos[h.replace('Nb_', '')] || []).length;
-      return '';
+    const logicalByHeader = new Map();
+    Object.entries(H).forEach(([logical, headerName]) => {
+      if (headerName) logicalByHeader.set(headerName, logical);
     });
+
+    const row = allHeaders.map(h => {
+      if (h.startsWith('Nb_')) return (c.photos[h.replace('Nb_', '')] || []).length;
+      const logical = logicalByHeader.get(h);
+      if (logical) return valFor(logical);
+      return c.raw[h] || '';
+    });
+
     lines.push(row.map(v=>esc(v,d)).join(d));
   }
   return lines.join('\r\n');
@@ -373,7 +417,6 @@ function photoSlot(catObj, arr){
 
 function openDetail(id){
   currentId=id;const c=chambres.find(x=>x.id===id);if(!c)return;
-  // Reprise : mémorise la dernière chambre ouverte
   try { localStorage.setItem('derniereChambre', id); } catch(e){}
   if(!c.photos)c.photos={};
   PHOTO_CATS_AIGUILLAGE.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
@@ -384,11 +427,11 @@ function openDetail(id){
   if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
   if(!c.notes) c.notes = '';
   const cont=document.getElementById('detailContainer');
-  const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || 'Non renseignée';
+  const adresse = c.raw['NUM_VOIE'] || c.raw['adresse'] || 'Non renseignée';
   const fci = c.raw['FCI'] || c.raw['fci'] || 'Non renseigné';
   const etiquette2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || 'Non renseignée';
   const infoEntries = Object.entries(c.raw || {}).filter(([k,v]) => v && !['wkt_geom','WKT_GEOM'].includes(k));
-  const infoHtml = infoEntries.slice(0, 4).filter(([k]) => !['adresse','NUM_VOIE','FCI','CODE_CH1','CODE_CH2'].includes(k)).map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
+  const infoHtml = infoEntries.slice(0, 4).filter(([k]) => !['NUM_VOIE','adresse','FCI','CODE_CH1','CODE_CH2'].includes(k)).map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
   let navBtns = '';
@@ -414,7 +457,7 @@ function openDetail(id){
     return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
   
-  cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>Adresse:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
+  cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>N° Voie:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
   const photoGrid = document.getElementById('photoGrid');
   const renderPhotoGrid = () => {
@@ -461,7 +504,6 @@ async function importCSV(file){
     if (headers.length === 0) { headers = rows[0].map(h => h.trim()); }
     const dataRows = rows.slice(1);
 
-    // Index des colonnes clés
     const ordreIdx   = headers.findIndex(h => /^ORDRE$/i.test(h.trim()));
     const refIdx     = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
     const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
@@ -489,16 +531,12 @@ async function importCSV(file){
           photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
           passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
         });
-      } else {
-        // Doublon dans le CSV source → on garde le premier passage
-        // (une chambre = une ligne dans le fichier final)
       }
     }
     if (mapChambres.size === 0) throw new Error("Aucune chambre valide n'a été trouvée dans le fichier.");
 
-    // Fusion : on préserve tout l'état existant, on ne rafraîchit que les colonnes "source"
     const existingDb = new Map(chambres.map(c => [c.id, c]));
-    const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE'];
+    const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE'];
     const newC = Array.from(mapChambres.values()).map(newCh => {
       const oldCh = existingDb.get(newCh.id);
       if (oldCh) {
@@ -526,7 +564,6 @@ async function importCSV(file){
 }
 
 function trierChambres() {
-  // Tri stable par ORDRE croissant, fallback index d'insertion
   chambres.forEach((c, i) => { c.__srcIndex = i; });
   chambres.sort((a, b) => {
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
@@ -617,7 +654,6 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   const idx = chambres.findIndex(c => c.id === afterId);
   if(idx === -1) return;
   const wazeUrl = (pendingLat && pendingLon) ? `https://www.waze.com/ul?ll=${pendingLat},${pendingLon}&navigate=yes` : '';
-  // ID stable pour une chambre ajoutée manuellement : CODE_CH2|REF_CHAMBR|ORDRE
   const maxOrdre = chambres.reduce((m, c) => Math.max(m, parseInt(c.raw['ORDRE'] || '0', 10) || 0), 0);
   const newOrdre = String(maxOrdre + 1);
   const compositeId = [codeCh2, refChambr, newOrdre].filter(Boolean).join('|') || newId;
@@ -647,7 +683,6 @@ document.getElementById('confirmAddBtn').onclick = async () => {
     if (chambres.length) {
       renderList();
       showScreen('list');
-      // Reprise automatique : dernière chambre non terminée
       let derniere = null;
       try { derniere = localStorage.getItem('derniereChambre'); } catch(e){}
       const cible = chambres.find(c => c.id === derniere && !c.done)
