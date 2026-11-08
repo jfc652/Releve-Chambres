@@ -138,7 +138,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.1
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.2
   </div>
 </section>
 
@@ -182,6 +182,13 @@ const DB_NAME='releve-chambres-v5', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
 let modeTravail = 'aiguillage';
 
+// Mémorisation des colonnes dans le localStorage (persiste après fermeture)
+function saveHeaders() { localStorage.setItem('releve_headers', JSON.stringify(headers)); }
+function loadHeaders() {
+  const saved = localStorage.getItem('releve_headers');
+  if(saved) { try { headers = JSON.parse(saved); } catch(e){ headers = []; } }
+}
+
 const PHOTO_CATS_AIGUILLAGE = [
   {id:'MA', label:'Masque A', icon:'🔘'}, {id:'MB', label:'Masque B', icon:'🔘'},
   {id:'MC', label:'Masque C', icon:'🔘'}, {id:'MD', label:'Masque D', icon:'🔘'},
@@ -218,24 +225,26 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
-// FONCTION D'EXPORT v10.1 : Ordre strict + suppression des Nb_*
+// EXPORT v10.2 : utilise les headers mémorisés + ordre strict
 function generateCSV(){
-  const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
+  // On charge la liste des headers mémorisés
+  const savedHeaders = JSON.parse(localStorage.getItem('releve_headers') || '[]');
+  if(savedHeaders.length === 0 && headers.length === 0) {
+    return "Aucune colonne mémorisée. Veuillez importer un CSV d'abord.";
+  }
+  const sourceHeaders = savedHeaders.length > 0 ? savedHeaders : headers;
   
-  // On ne garde QUE les colonnes utiles, sans les Nb_*
   const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE'];
   const terrainCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
   
-  // On part des headers d'origine
-  let allHeaders = [...headers];
+  // On part des headers MÉMORISÉS
+  let allHeaders = [...sourceHeaders];
   
-  // On ajoute à la fin les colonnes de terrain UNIQUEMENT si absentes
+  // On ajoute les colonnes de terrain si absentes
   terrainCols.forEach(col => {
     const exists = allHeaders.some(h => h.toUpperCase().replace(/_/g,' ').trim() === col.toUpperCase().replace(/_/g,' ').trim());
     if(!exists) allHeaders.push(col);
   });
-  
-  // On ajoute les colonnes custom À LA TOUTE FIN
   allHeaders = [...allHeaders, ...extraCols];
   
   const d=';';
@@ -266,7 +275,8 @@ function generateCSV(){
     
     for(const p of passages) {
       const row = allHeaders.map(h => {
-        if(headers.includes(h)) {
+        // Colonnes d'origine (mémorisées)
+        if(sourceHeaders.includes(h)) {
           const hUpper = h.toUpperCase().trim();
           if (hUpper === 'CODE_CH1') return c.id;
           if (hUpper === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || c.id;
@@ -282,6 +292,7 @@ function generateCSV(){
           return c.raw[h] || '';
         }
         
+        // Colonnes de terrain ajoutées
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
@@ -298,7 +309,6 @@ function generateCSV(){
         if (h === 'COMMUNE') return c.raw['COMMUNE'] || '';
         if (h === 'PROPRIETAI') return c.raw['PROPRIETAI'] || '';
         if (h === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || c.id;
-        
         return '';
       });
       lines.push(row.map(v=>esc(v,d)).join(d));
@@ -453,8 +463,14 @@ async function importCSV(file){
     const rows = parseCSV(text);
     if (rows.length < 2) throw new Error("Le fichier CSV ne contient pas assez de lignes.");
     
-    // Mémorise les headers d'origine UNE SEULE FOIS
-    if (headers.length === 0) { headers = rows[0].map(h => h.trim()); }
+    // MÉMORISATION des headers (une seule fois, en localStorage)
+    const saved = localStorage.getItem('releve_headers');
+    if (!saved) {
+      headers = rows[0].map(h => h.trim());
+      saveHeaders();  // Sauvegarde dans le localStorage
+    } else {
+      headers = JSON.parse(saved);
+    }
     
     const dataRows = rows.slice(1);
     const idIdx = (() => {
@@ -531,7 +547,7 @@ document.getElementById('csvInput').onchange=async e=>{
 document.getElementById('startBtn').onclick=()=>{renderList();showScreen('list');};
 document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
-document.getElementById('resetBtn').onclick=async()=>{ if(!confirm('Effacer TOUTES les données ?'))return; await dbClear();chambres=[];headers=[];updateHomeStats();alert('Données effacées.'); };
+document.getElementById('resetBtn').onclick=async()=>{ if(!confirm('Effacer TOUTES les données ?'))return; await dbClear();chambres=[];headers=[];localStorage.removeItem('releve_headers');updateHomeStats();alert('Données effacées.'); };
 
 document.querySelectorAll('.mode-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); modeTravail = btn.dataset.mode; }; });
 
@@ -574,8 +590,6 @@ document.getElementById('confirmAddBtn').onclick = async () => {
     passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
   };
   chambres.splice(idx + 1, 0, newCh);
-  let currentOrdre = 1;
-  for(const c of chambres) { if(c.raw['ORDRE'] === undefined) c.raw['ORDRE'] = ''; c.raw['ORDRE'] = String(currentOrdre); currentOrdre++; }
   await dbClear();
   for(const c of chambres) await dbPut(c);
   document.getElementById('modalAddChambre').style.display = 'none';
@@ -586,11 +600,12 @@ document.getElementById('confirmAddBtn').onclick = async () => {
 (async()=>{
   try {
     await openDB();
+    loadHeaders(); // Charge les headers mémorisés au démarrage
     chambres=await dbGetAll();
     updateHomeStats();
     if(chambres.length){renderList();showScreen('list');}
   } catch(e) {
-    alert("Erreur d'initialisation de la base de données : " + e.message);
+    alert("Erreur d'initialisation : " + e.message);
   }
 })();
 </script>
