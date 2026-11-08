@@ -156,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.1
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.2
   </div>
 </section>
 
@@ -772,9 +772,13 @@ async function importCSV(file){
   const text=await file.text();
   const rows=parseCSV(text);
   if(rows.length<2){alert('CSV invalide ou vide.');return;}
-  headers=rows[0].map(h=>h.trim());
-  const dataRows=rows.slice(1);
   
+  // Sauvegarde des en-têtes d'origine (si c'est le premier import)
+  if(headers.length === 0) {
+    headers = rows[0].map(h=>h.trim());
+  }
+
+  const dataRows = rows.slice(1);
   const idIdx=(()=>{
     const pats=[/^id_chambre/i, /^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
     for(const p of pats){const i=headers.findIndex(h=>p.test(h));if(i>=0)return i;}
