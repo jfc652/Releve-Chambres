@@ -138,7 +138,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.7
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.8
   </div>
 </section>
 
@@ -220,12 +220,17 @@ function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||
 
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
-  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE',...currentCats.map(c => `Nb_${c.id}`)];
-  const requiredCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR','WAZE','wkt_geom','CODE_CH1'];
+  
+  // Colonnes supplémentaires à ajouter à la fin
+  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE', ...currentCats.map(c => `Nb_${c.id}`)];
+  
+  // On respecte STRICTEMENT l'ordre des headers d'origine
+  // Si une colonne de terrain n'existe pas, on l'ajoute à la fin
+  const terrainCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
   
   let allHeaders = [...headers];
-  requiredCols.forEach(col => {
-    const exists = allHeaders.some(h => h.toUpperCase().replace('_',' ') === col.toUpperCase().replace('_',' '));
+  terrainCols.forEach(col => {
+    const exists = allHeaders.some(h => h.toUpperCase().replace(/_/g,' ').trim() === col.toUpperCase().replace(/_/g,' ').trim());
     if(!exists) allHeaders.push(col);
   });
   allHeaders = [...allHeaders, ...extraCols];
@@ -233,18 +238,21 @@ function generateCSV(){
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   const bpeRecues = {};
+  
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
       if (bpeName) { if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = []; bpeRecues[c.bpeDestination].push(bpeName); }
     }
   }
+  
   let ordreCounter = 1;
   for(const c of chambres){
     const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
     let obsBpe = '';
+    
     if (!c.hasBoite) {
       bpeFinal = '';
       if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
@@ -252,31 +260,51 @@ function generateCSV(){
     } else {
       if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
     }
-    for(const p of passages) {
+    
+    // On boucle sur les passages pour générer les lignes
+    for(let idxP = 0; idxP < passages.length; idxP++) {
+      const p = passages[idxP];
+      // Pour le premier passage, on met l'ordre. Pour les suivants, on met aussi l'ordre (le fichier sera dupliqué)
+      
       const row = allHeaders.map(h => {
+        // COLONNES D'ORIGINE
         if(headers.includes(h)) {
-          if (h.toUpperCase() === 'BPE') return bpeFinal;
-          if (h.toUpperCase() === 'MASQUE') return p.masque_in || '';
-          if (h.toUpperCase() === 'DIAMETRE') return p.diam_in || '';
-          if (h.toUpperCase() === 'MASQUE B' || h.toUpperCase() === 'MASQUE_B') return p.masque_out || '';
-          if (h.toUpperCase() === 'DIAMETRE B' || h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
+          const hUpper = h.toUpperCase().trim();
+          
+          // 1. Champs fixes
+          if (hUpper === 'CODE_CH1') return c.id;
+          if (hUpper === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || c.id;
+          if (hUpper === 'WAZE') return c.raw['WAZE'] || '';
+          if (hUpper === 'WKT_GEOM') return c.raw['wkt_geom'] || c.raw['WKT_GEOM'] || '';
+          if (hUpper === 'ORDRE') return String(ordreCounter);
+          
+          // 2. Champs de relevé (on les remplit si on les a)
+          if (hUpper === 'BPE') return bpeFinal;
+          if (hUpper === 'MASQUE') return p.masque_in || '';
+          if (hUpper === 'DIAMETRE') return p.diam_in || '';
+          if (hUpper === 'MASQUE B' || hUpper === 'MASQUE_B') return p.masque_out || '';
+          if (hUpper === 'DIAMETRE B' || hUpper === 'DIAMETRE_B') return p.diam_out || '';
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
-          if (h.toUpperCase() === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || c.id;
-          if (h.toUpperCase() === 'CODE_CH1') return c.id;
-          if (h.toUpperCase() === 'ORDRE') { const ord = ordreCounter++; return String(ord); }
+          
+          // 3. Autres colonnes (on garde la valeur brute)
           return c.raw[h] || '';
         }
+        
+        // NOUVELLES COLONNES
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
         if (h === 'LATITUDE') return c.lat || '';
         if (h === 'LONGITUDE') return c.lon || '';
-        if (h === 'CABLE') return p.cable_name || '';
-        if (h === 'BPE') return bpeFinal;
+        
         if (h === 'MASQUE') return p.masque_in || '';
         if (h === 'DIAMETRE') return p.diam_in || '';
         if (h === 'MASQUE_B') return p.masque_out || '';
         if (h === 'DIAMETRE_B') return p.diam_out || '';
+        if (h === 'CABLE') return p.cable_name || '';
+        if (h === 'BPE') return bpeFinal;
+        if (h === 'ORDRE') return String(ordreCounter);
+        
         if (h === 'CODE_CH2') return c.raw['CODE_CH2'] || '';
         if (h === 'COMMUNE') return c.raw['COMMUNE'] || '';
         if (h === 'PROPRIETAI') return c.raw['PROPRIETAI'] || '';
@@ -284,11 +312,15 @@ function generateCSV(){
         if (h === 'CODE_CH1') return c.id;
         if (h === 'WAZE') return c.raw['WAZE'] || '';
         if (h === 'wkt_geom') return c.raw['wkt_geom'] || '';
-        if (h === 'ORDRE') { const ord = ordreCounter++; return String(ord); }
-        if (h.startsWith('Nb_')) { const cat = h.replace('Nb_', ''); return (c.photos[cat] || []).length; }
+        
+        if (h.startsWith('Nb_')) {
+          const cat = h.replace('Nb_', '');
+          return (c.photos[cat] || []).length;
+        }
         return '';
       });
       lines.push(row.map(v=>esc(v,d)).join(d));
+      ordreCounter++; // On incrémente l'ordre pour chaque ligne (passage)
     }
   }
   return lines.join('\r\n');
@@ -388,11 +420,20 @@ function openDetail(id){
   const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`).join('');
   let csvCableVal = '';
   for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
+  
+  // FIX: On restaure correctement les données de chaque passage
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
-    if (index === 0 && csvCableVal && !p.cable_name) { p.cable_name = csvCableVal; }
-    return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name || csvCableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${p.diam_in == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${p.diam_out == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
+    // Si c'est la 1ère fois, on initialise avec la valeur CSV
+    const cableVal = p.cable_name || (index === 0 ? csvCableVal : '');
+    const masqueInVal = p.masque_in || (index === 0 ? (c.raw['MASQUE'] || '') : '');
+    const diamInVal = p.diam_in || (index === 0 ? (c.raw['DIAMETRE'] || '') : '');
+    const masqueOutVal = p.masque_out || (index === 0 ? (c.raw['MASQUE B'] || c.raw['MASQUE_B'] || '') : '');
+    const diamOutVal = p.diam_out || (index === 0 ? (c.raw['DIAMETRE B'] || c.raw['DIAMETRE_B'] || '') : '');
+    
+    return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
+  
   cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>Adresse:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
   const photoGrid = document.getElementById('photoGrid');
@@ -411,6 +452,7 @@ function openDetail(id){
     photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{ inp.onchange=async()=>{ const files=Array.from(inp.files||[]);if(!files.length)return; const cat = inp.dataset.cat; showOverlay(true); try{ for(const f of files){ const blob=await compress(f); if(!c.photos[cat]) c.photos[cat] = []; c.photos[cat].push({id:crypto.randomUUID(),blob,ts:Date.now()}); } await dbPut(c);openDetail(id); }catch(err){alert('Erreur photo : '+err.message);} finally{showOverlay(false);} }; });
     photoGrid.querySelectorAll('[data-del-cat]').forEach(b=>{ b.onclick=async(e)=>{ e.stopPropagation();e.preventDefault(); const cat=b.dataset.delCat,label=b.dataset.catLabel; if(!confirm(`Supprimer les photos « ${label} » ?`))return; c.photos[cat]=[]; await dbPut(c);openDetail(id); }; });
   };
+  
   cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passId = inp.dataset.pass; const field = inp.dataset.field; const passage = c.passages.find(x => x.id === passId); if(passage) { passage[field] = e.target.value; dbPut(c); if(modeTravail === 'aiguillage') renderPhotoGrid(); } }; });
   document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c); openDetail(id); });
   cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c); openDetail(id); } }; });
@@ -428,67 +470,40 @@ function showOverlay(s){document.getElementById('overlay').classList.toggle('hid
 async function importCSV(file){
   try {
     showOverlay(true);
-    // Vérification basique de la taille du fichier
     if (file.size === 0) throw new Error("Le fichier est vide.");
-    
     const text = await file.text();
     if (!text || text.length < 5) throw new Error("Le fichier semble illisible.");
-
     const rows = parseCSV(text);
     if (rows.length < 2) throw new Error("Le fichier CSV ne contient pas assez de lignes.");
-
-    if (headers.length === 0) {
-      headers = rows[0].map(h => h.trim());
-    }
-
+    if (headers.length === 0) { headers = rows[0].map(h => h.trim()); }
     const dataRows = rows.slice(1);
     const idIdx = (() => {
       const pats = [/^id_chambre/i, /^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
       for (const p of pats) { const i = headers.findIndex(h => p.test(h)); if (i >= 0) return i; }
       return 0;
     })();
-
     const mapChambres = new Map();
-
     for (const r of dataRows) {
-      if (r.length < 2) continue; // On ignore les lignes vides
-      
+      if (r.length < 2) continue;
       const raw = {};
       headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
-      
       let id = raw[headers[idIdx]] || 'CH-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-
       if (!mapChambres.has(id)) {
-        mapChambres.set(id, {
-          id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '',
-          photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
-          passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
-        });
+        mapChambres.set(id, { id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '', photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) }, passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] });
       } else {
         const existing = mapChambres.get(id);
         existing.passages.push({ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' });
       }
     }
-
     if (mapChambres.size === 0) throw new Error("Aucune chambre valide n'a été trouvée dans le fichier.");
-
     const existingDb = new Map(chambres.map(c => [c.id, c]));
-    const newC = Array.from(mapChambres.values()).map(newCh => {
-      if (existingDb.has(newCh.id)) {
-        const oldCh = existingDb.get(newCh.id);
-        oldCh.raw = newCh.raw;
-        return oldCh;
-      }
-      return newCh;
-    });
-
+    const newC = Array.from(mapChambres.values()).map(newCh => { if (existingDb.has(newCh.id)) { const oldCh = existingDb.get(newCh.id); oldCh.raw = newCh.raw; return oldCh; } return newCh; });
     await dbClear();
     chambres = newC;
     for (const c of chambres) await dbPut(c);
     trierChambres();
     updateHomeStats();
     alert(`${chambres.length} chambre(s) importée(s) avec succès.`);
-    
   } catch(err) {
     alert("Erreur d'importation : \n" + err.message);
   } finally {
