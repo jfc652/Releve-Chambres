@@ -159,7 +159,7 @@ code { background:#f3f3f3; padding:1px 5px; border-radius:3px; font-family:Conso
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.2
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.3
   </div>
 </section>
 
@@ -428,12 +428,14 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
+// 🔥 CORRECTION 2 : Tri explicite avant l'export
 function generateCSV(){
   const savedHeaders = JSON.parse(localStorage.getItem('releve_headers') || '[]');
   if(savedHeaders.length === 0 && headers.length === 0) {
     return "Aucune colonne mémorisée. Veuillez importer un CSV d'abord.";
   }
   const sourceHeaders = savedHeaders.length > 0 ? savedHeaders : headers;
+  
   const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE'];
   const terrainCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR'];
   let allHeaders = [...sourceHeaders];
@@ -442,21 +444,41 @@ function generateCSV(){
     if(!exists) allHeaders.push(col);
   });
   allHeaders = [...allHeaders, ...extraCols];
+  
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   const bpeRecues = {};
+  
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
       if (bpeName) { if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = []; bpeRecues[c.bpeDestination].push(bpeName); }
     }
   }
+
+  // Tri par Commune, puis par Code Chambre (numérique), puis par Numéro de Voie
+  const chambresTriees = [...chambres].sort((a, b) => {
+    const comA = (a.raw['COMMUNE'] || '').toUpperCase();
+    const comB = (b.raw['COMMUNE'] || '').toUpperCase();
+    if (comA !== comB) return comA.localeCompare(comB);
+
+    const ch1A = parseInt(a.id, 10);
+    const ch1B = parseInt(b.id, 10);
+    if (!isNaN(ch1A) && !isNaN(ch1B) && ch1A !== ch1B) return ch1A - ch1B;
+    if (a.id !== b.id) return String(a.id).localeCompare(String(b.id));
+
+    const voieA = a.raw['NUM_VOIE'] || '';
+    const voieB = b.raw['NUM_VOIE'] || '';
+    return String(voieA).localeCompare(String(voieB));
+  });
+  
   let ordreCounter = 1;
-  for(const c of chambres){
+  for(const c of chambresTriees){
     const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
     let obsBpe = '';
+    
     if (!c.hasBoite) {
       bpeFinal = '';
       if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
@@ -464,6 +486,7 @@ function generateCSV(){
     } else {
       if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
     }
+    
     for(const p of passages) {
       const row = allHeaders.map(h => {
         if(sourceHeaders.includes(h)) {
@@ -481,6 +504,7 @@ function generateCSV(){
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
           return c.raw[h] || '';
         }
+        
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
@@ -642,6 +666,7 @@ function openDetail(id){
 }
 function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
 
+// 🔥 CORRECTION 1 : Ignorer les lignes vides lors de l'import
 async function importCSV(file){
   try {
     showOverlay(true);
@@ -650,6 +675,7 @@ async function importCSV(file){
     if (!text || text.length < 5) throw new Error("Le fichier semble illisible.");
     const rows = parseCSV(text);
     if (rows.length < 2) throw new Error("Le fichier CSV ne contient pas assez de lignes.");
+    
     const saved = localStorage.getItem('releve_headers');
     if (!saved) {
       headers = rows[0].map(h => h.trim());
@@ -657,18 +683,24 @@ async function importCSV(file){
     } else {
       headers = JSON.parse(saved);
     }
+    
     const dataRows = rows.slice(1);
     const idIdx = (() => {
       const pats = [/^id_chambre/i, /^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
       for (const p of pats) { const i = headers.findIndex(h => p.test(h)); if (i >= 0) return i; }
       return 0;
     })();
+    
     const mapChambres = new Map();
     for (const r of dataRows) {
       if (r.length < 2) continue;
       const raw = {};
       headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
-      let id = raw[headers[idIdx]] || 'CH-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+      
+      // On ignore les lignes sans identifiant (ligne fantôme)
+      let id = raw[headers[idIdx]];
+      if (!id || id === '') continue; 
+
       if (!mapChambres.has(id)) {
         mapChambres.set(id, { id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '', photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) }, passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] });
       } else {
@@ -679,6 +711,10 @@ async function importCSV(file){
     if (mapChambres.size === 0) throw new Error("Aucune chambre valide n'a été trouvée dans le fichier.");
     const existingDb = new Map(chambres.map(c => [c.id, c]));
     const newC = Array.from(mapChambres.values()).map(newCh => { if (existingDb.has(newCh.id)) { const oldCh = existingDb.get(newCh.id); oldCh.raw = newCh.raw; return oldCh; } return newCh; });
+    
+    // On trie la liste dès l'import pour qu'elle reste cohérente dans l'app
+    newC.sort((a, b) => (parseInt(a.id) || 0) - (parseInt(b.id) || 0));
+
     await dbClear();
     chambres = newC;
     for (const c of chambres) await dbPut(c);
