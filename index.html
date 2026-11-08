@@ -65,7 +65,6 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .mode-btn h3 { margin:0 0 4px 0; font-size:16px; }
 .mode-btn p { margin:0; font-size:12px; opacity:0.8; }
 
-/* Aides contextuelles */
 .label-row { display:flex; align-items:center; justify-content:space-between; margin-top:12px; margin-bottom:6px;}
 .label-row label { margin:0; }
 .help-icon { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; background:#0055A4; color:#fff; border-radius:50%; font-size:13px; font-weight:bold; cursor:pointer; }
@@ -74,12 +73,8 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 details.help-panel { background:#e3f2fd; border-radius:8px; padding:12px; margin-top:12px; }
 details.help-panel summary { font-weight:bold; color:#0055A4; cursor:pointer; }
 details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
-
-/* Logo Placeholder */
 .logo-container { text-align: center; padding: 10px 0; }
 .logo-container img { max-width: 200px; max-height: 80px; object-fit: contain; }
-
-/* Modal Ajout Chambre */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
 .modal-content { background:#fff; width:90%; max-width:400px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
 </style>
@@ -94,8 +89,6 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 <main>
 
 <section id="screen-home">
-  
-  <!-- Emplacement du Logo -->
   <div class="logo-container">
     <img src="logo.png" alt="TOP SAT SERVICES" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
     <div style="display:none; font-size:20px; font-weight:bold; color:#0055A4; margin-bottom:10px;">TOP SAT SERVICES</div>
@@ -141,22 +134,11 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
 
-  <details class="help-panel">
-    <summary>❓ Besoin d'aide ? (Guide du débutant)</summary>
-    <ul>
-      <li><b>Étape 1 :</b> Choisissez votre type de travail (Aiguillage pour l'étude, FOA pour le terrain).</li>
-      <li><b>Étape 2 :</b> Importez le fichier CSV fourni par le bureau d'études.</li>
-      <li><b>Étape 3 :</b> Cliquez sur "Commencer le relevé" et sélectionnez une chambre.</li>
-      <li><b>Astuce :</b> Les champs avec un point d'interrogation bleu (?) contiennent une aide.</li>
-      <li><b>Export :</b> À la fin, cliquez sur le bouton vert pour générer le fichier ZIP (partage WhatsApp) et le CSV (sauvegarde).</li>
-    </ul>
-  </details>
-
   <div class="card" style="margin-top:12px;">
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.6
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 9.7
   </div>
 </section>
 
@@ -165,36 +147,26 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 
 </main>
 
-<!-- Fenêtre Modale d'ajout de chambre -->
 <div id="modalAddChambre" class="modal-overlay">
   <div class="modal-content">
     <h3 style="margin-top:0;">Ajouter une chambre</h3>
-    <p class="small">La chambre sera insérée après celle choisie, et l'ordre des suivantes sera recalculé.</p>
-    
-    <label>Nouveau N° de chambre (ex: FT1)</label>
+    <p class="small">La chambre sera insérée après celle choisie.</p>
+    <label>Nouveau N° (ex: FT1)</label>
     <input type="text" id="newId" placeholder="Numéro">
-    
-    <label>Après quelle chambre l'insérer ?</label>
+    <label>Après quelle chambre ?</label>
     <select id="insertAfterSelect"></select>
-
-    <label>PROPRIETAI (ex: FT, FREE)</label>
-    <input type="text" id="newProprietaire" placeholder="Propriétaire">
-    
-    <label>CODE_CH2 (ex: 91161)</label>
-    <input type="text" id="newCodeCh2" placeholder="Code INSEE">
-    
-    <label>COMMUNE (ex: CHILLY-MAZARIN)</label>
-    <input type="text" id="newCommune" placeholder="Commune">
-    
-    <label>REF_CHAMBR (ex: L2T, B1)</label>
-    <input type="text" id="newRefChambr" placeholder="Référence">
-
-    <label>Commentaire (optionnel)</label>
-    <input type="text" id="newComment" placeholder="Ex: Chambre créée suite à GC">
-    
+    <label>PROPRIETAI (FT/FREE)</label>
+    <input type="text" id="newProprietaire">
+    <label>CODE_CH2</label>
+    <input type="text" id="newCodeCh2">
+    <label>COMMUNE</label>
+    <input type="text" id="newCommune">
+    <label>REF_CHAMBR</label>
+    <input type="text" id="newRefChambr">
+    <label>Commentaire</label>
+    <input type="text" id="newComment">
     <button id="gpsBtn" class="btn btn-secondary" style="margin-top:12px; background:#e3f2fd; color:#0055A4;">📍 Prendre ma position GPS</button>
     <div id="gpsStatus" class="small" style="text-align:center; margin-top:5px;"></div>
-    
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button id="cancelAddBtn" class="btn btn-secondary">Annuler</button>
       <button id="confirmAddBtn" class="btn btn-success">Ajouter</button>
@@ -211,22 +183,16 @@ let db=null, chambres=[], headers=[], currentId=null;
 let modeTravail = 'aiguillage';
 
 const PHOTO_CATS_AIGUILLAGE = [
-  {id:'MA', label:'Masque A', icon:'🔘'},
-  {id:'MB', label:'Masque B', icon:'🔘'},
-  {id:'MC', label:'Masque C', icon:'🔘'},
-  {id:'MD', label:'Masque D', icon:'🔘'},
+  {id:'MA', label:'Masque A', icon:'🔘'}, {id:'MB', label:'Masque B', icon:'🔘'},
+  {id:'MC', label:'Masque C', icon:'🔘'}, {id:'MD', label:'Masque D', icon:'🔘'},
   {id:'VUE_ENSEMBLE', label:'Vue ensemble', icon:'🌐'}
 ];
 
 const PHOTO_CATS_FOA = [
-  {id:'MIRE_LG', label:'MIRE LG', icon:'📏'},
-  {id:'MIRE_L', label:'MIRE L', icon:'📏'},
-  {id:'MIRE_P', label:'MIRE P', icon:'📏'},
-  {id:'ETIQ_BOITE', label:'Étiq Boîte', icon:'🏷️'},
-  {id:'ETIQ_CABLE', label:'Étiq Câble', icon:'🏷️'},
-  {id:'VUE_ENSEMBLE', label:'Vue ens.', icon:'🌐'},
-  {id:'BOITE', label:'Boîte', icon:'📦'},
-  {id:'CABLE', label:'Câble', icon:'🔌'},
+  {id:'MIRE_LG', label:'MIRE LG', icon:'📏'}, {id:'MIRE_L', label:'MIRE L', icon:'📏'},
+  {id:'MIRE_P', label:'MIRE P', icon:'📏'}, {id:'ETIQ_BOITE', label:'Étiq Boîte', icon:'🏷️'},
+  {id:'ETIQ_CABLE', label:'Étiq Câble', icon:'🏷️'}, {id:'VUE_ENSEMBLE', label:'Vue ens.', icon:'🌐'},
+  {id:'BOITE', label:'Boîte', icon:'📦'}, {id:'CABLE', label:'Câble', icon:'🔌'},
   {id:'VUE_DESSUS_CH', label:'Vue dessus', icon:'📐'}
 ];
 
@@ -238,9 +204,7 @@ function dbPut(item){return new Promise((res,rej)=>{const t=db.transaction(STORE
 function dbClear(){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).clear();t.oncomplete=res;t.onerror=()=>rej(t.error);});}
 
 function parseCSV(text){
-  // Nettoyage du BOM UTF-8
   if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-
   const first=text.split(/\r?\n/)[0]||'';
   const delim=(first.match(/;/g)||[]).length>(first.match(/,/g)||[]).length?';':',';
   const rows=[];let row=[],cur='',inQ=false;
@@ -254,18 +218,9 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
-// FONCTION D'EXPORT CORRIGÉE (v9.6)
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
-  
-  const extraCols = [
-    'BPE_Origine', 
-    'Observation_BPE',
-    'Commentaire_Terrain',
-    'LATITUDE', 'LONGITUDE',
-    ...currentCats.map(c => `Nb_${c.id}`)
-  ];
-  
+  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE',...currentCats.map(c => `Nb_${c.id}`)];
   const requiredCols = ['MASQUE','DIAMETRE','MASQUE B','DIAMETRE B','CABLE','BPE','ORDRE','CODE_CH2','COMMUNE','PROPRIETAI','REF_CHAMBR','WAZE','wkt_geom','CODE_CH1'];
   
   let allHeaders = [...headers];
@@ -273,48 +228,30 @@ function generateCSV(){
     const exists = allHeaders.some(h => h.toUpperCase().replace('_',' ') === col.toUpperCase().replace('_',' '));
     if(!exists) allHeaders.push(col);
   });
-  
   allHeaders = [...allHeaders, ...extraCols];
   
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
-  
-  // Pré-calcul des BPE à transférer
   const bpeRecues = {};
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
-      if (bpeName) {
-        if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = [];
-        bpeRecues[c.bpeDestination].push(bpeName);
-      }
+      if (bpeName) { if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = []; bpeRecues[c.bpeDestination].push(bpeName); }
     }
   }
-
-  // On force le calcul de l'ordre
   let ordreCounter = 1;
-
   for(const c of chambres){
     const passages = c.passages && c.passages.length > 0 ? c.passages : [{}];
-    
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
     let obsBpe = '';
-
     if (!c.hasBoite) {
       bpeFinal = '';
-      if (c.boiteNonPosee && !c.bpeDestination) {
-        obsBpe = 'BOITE NON POSEE : Manque de place / Saturation / Autre';
-      } else if (c.bpeDestination) {
-        obsBpe = `TRANSFEREE VERS : ${c.bpeDestination}`;
-      }
+      if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
+      else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${c.bpeDestination}`;
     } else {
-      if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) {
-        bpeFinal = bpeRecues[c.id].join(' + ');
-        obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
-      }
+      if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
     }
-
     for(const p of passages) {
       const row = allHeaders.map(h => {
         if(headers.includes(h)) {
@@ -324,21 +261,11 @@ function generateCSV(){
           if (h.toUpperCase() === 'MASQUE B' || h.toUpperCase() === 'MASQUE_B') return p.masque_out || '';
           if (h.toUpperCase() === 'DIAMETRE B' || h.toUpperCase() === 'DIAMETRE_B') return p.diam_out || '';
           if (/^C[ÂA]BLE$/i.test(h)) return p.cable_name || '';
-          
-          if (h.toUpperCase() === 'REF_CHAMBR') {
-            return c.raw['REF_CHAMBR'] || c.id;
-          }
+          if (h.toUpperCase() === 'REF_CHAMBR') return c.raw['REF_CHAMBR'] || c.id;
           if (h.toUpperCase() === 'CODE_CH1') return c.id;
-          
-          // On force la colonne ORDRE
-          if (h.toUpperCase() === 'ORDRE') {
-            const ord = ordreCounter++;
-            return String(ord);
-          }
-
+          if (h.toUpperCase() === 'ORDRE') { const ord = ordreCounter++; return String(ord); }
           return c.raw[h] || '';
         }
-
         if (h === 'BPE_Origine') return bpeOrigine;
         if (h === 'Observation_BPE') return obsBpe;
         if (h === 'Commentaire_Terrain') return c.notes || '';
@@ -346,12 +273,10 @@ function generateCSV(){
         if (h === 'LONGITUDE') return c.lon || '';
         if (h === 'CABLE') return p.cable_name || '';
         if (h === 'BPE') return bpeFinal;
-        
         if (h === 'MASQUE') return p.masque_in || '';
         if (h === 'DIAMETRE') return p.diam_in || '';
         if (h === 'MASQUE_B') return p.masque_out || '';
         if (h === 'DIAMETRE_B') return p.diam_out || '';
-        
         if (h === 'CODE_CH2') return c.raw['CODE_CH2'] || '';
         if (h === 'COMMUNE') return c.raw['COMMUNE'] || '';
         if (h === 'PROPRIETAI') return c.raw['PROPRIETAI'] || '';
@@ -359,17 +284,8 @@ function generateCSV(){
         if (h === 'CODE_CH1') return c.id;
         if (h === 'WAZE') return c.raw['WAZE'] || '';
         if (h === 'wkt_geom') return c.raw['wkt_geom'] || '';
-        
-        // On force l'ORDRE
-        if (h === 'ORDRE') {
-          const ord = ordreCounter++;
-          return String(ord);
-        }
-
-        if (h.startsWith('Nb_')) {
-          const cat = h.replace('Nb_', '');
-          return (c.photos[cat] || []).length;
-        }
+        if (h === 'ORDRE') { const ord = ordreCounter++; return String(ord); }
+        if (h.startsWith('Nb_')) { const cat = h.replace('Nb_', ''); return (c.photos[cat] || []).length; }
         return '';
       });
       lines.push(row.map(v=>esc(v,d)).join(d));
@@ -399,31 +315,21 @@ function showScreen(name){
 function updateHomeStats(){
   const total=chambres.length,done=chambres.filter(c=>c.done).length;
   let photos=0;
-  for(const c of chambres) {
-    for(const k in c.photos) photos+=(c.photos[k]||[]).length;
-  }
+  for(const c of chambres) { for(const k in c.photos) photos+=(c.photos[k]||[]).length; }
   document.getElementById('statTotal').textContent=total;
   document.getElementById('statDone').textContent=done;
   document.getElementById('statPhotos').textContent=photos;
   document.getElementById('statTodo').textContent=total-done;
   document.getElementById('homeStats').style.display=total?'block':'none';
-
   const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination);
-  
   const trDiv = document.getElementById('transfertsResume');
   const trList = document.getElementById('transfertsList');
-  
   if (transferts.length > 0) {
     trDiv.style.display = 'block';
     let html = '';
-    transferts.forEach(c => {
-      const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
-      html += `<li>La BPE de <b>${c.id}</b> (${bpe}) est transférée vers <b>${c.bpeDestination}</b></li>`;
-    });
+    transferts.forEach(c => { const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue'; html += `<li>La BPE de <b>${c.id}</b> (${bpe}) est transférée vers <b>${c.bpeDestination}</b></li>`; });
     trList.innerHTML = html;
-  } else {
-    trDiv.style.display = 'none';
-  }
+  } else { trDiv.style.display = 'none'; }
 }
 
 function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -439,8 +345,270 @@ function renderList(){
     const ref = c.raw['Ref_chambr'] || c.raw['ref_chambr'] || '';
     const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || '';
     const sub = [adresse, commune, ref].filter(Boolean).join(' • ');
+    div.innerHTML=`<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}</div><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div><span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
+    div.onclick=()=>openDetail(c.id);
+    cont.appendChild(div);
+  }
+}
+
+function photoSlot(catObj, arr){
+  const cat = catObj.id;
+  arr=arr||[];const count=arr.length;const last=arr[count-1];
+  let inner=`<div class="icon">${catObj.icon}</div><div>${catObj.label}</div>`;
+  if(last){const u=URL.createObjectURL(last.blob);inner=`<img src="${u}">`;}
+  return `<div class="photo-btn">${count?`<span class="badge">${count}</span>`:''}${count?`<button type="button" class="photo-del" data-del-cat="${cat}" data-cat-label="${catObj.label}">×</button>`:''}<label>${inner}<input type="file" accept="image/*" capture="environment" multiple data-cat="${cat}"></label></div>`;
+}
+
+function openDetail(id){
+  currentId=id;const c=chambres.find(x=>x.id===id);if(!c)return;
+  if(!c.photos)c.photos={};
+  PHOTO_CATS_AIGUILLAGE.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
+  PHOTO_CATS_FOA.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
+  if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}];
+  if(c.hasBoite === undefined) c.hasBoite = true;
+  if(!c.bpeDestination) c.bpeDestination = '';
+  if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
+  if(!c.notes) c.notes = '';
+  const cont=document.getElementById('detailContainer');
+  const infoEntries = Object.entries(c.raw || {}).filter(([k,v]) => v && k !== 'wkt_geom' && k !== 'WKT_GEOM');
+  const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || 'Non renseignée';
+  const fci = c.raw['FCI'] || c.raw['fci'] || 'Non renseigné';
+  const etiquette2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || 'Non renseignée';
+  const infoHtml = infoEntries.slice(0, 4).filter(([k]) => !['adresse','NUM_VOIE','FCI','CODE_CH1','CODE_CH2'].includes(k)).map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
+  const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
+  const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
+  let navBtns = '';
+  if (wazeUrlCsv && wazeUrlCsv.includes('waze.com')) {
+    const match = wazeUrlCsv.match(/ll=([\d.-]+),([\d.-]+)/);
+    let mapsUrl = match ? `https://www.google.com/maps/search/?api=1&query=${match[1]},${match[2]}` : wazeUrlCsv.replace('https://www.waze.com/ul?ll=', 'https://www.google.com/maps/search/?api=1&query=').replace('&navigate=yes', '');
+    navBtns = `<a href="${wazeUrlCsv}" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a><a href="${mapsUrl}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>`;
+  } else if (wazeUrlCsv) {
+    navBtns = `<a href="https://waze.com/ul?q=${encodeURIComponent(wazeUrlCsv)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wazeUrlCsv)}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>`;
+  } else { navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de lien Waze dans le CSV</div>`; }
+  const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`).join('');
+  let csvCableVal = '';
+  for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
+  const passagesHtml = c.passages.map((p, index) => {
+    const isFoa = modeTravail === 'foa';
+    if (index === 0 && csvCableVal && !p.cable_name) { p.cable_name = csvCableVal; }
+    return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(p.cable_name || csvCableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_in)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${p.diam_in == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(p.masque_out)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${p.diam_out == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
+  }).join('');
+  cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>Adresse:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
+
+  const photoGrid = document.getElementById('photoGrid');
+  const renderPhotoGrid = () => {
+    const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
+    let activeMasks = new Set();
+    if(modeTravail === 'aiguillage') { cont.querySelectorAll('input[data-field="masque_in"], input[data-field="masque_out"]').forEach(inp => { const val = inp.value.trim().toUpperCase(); if(val) { const letter = val.charAt(0); if(['A','B','C','D'].includes(letter)) activeMasks.add(letter); } }); }
+    const hasBoite = document.getElementById('boiteToggle').checked;
+    photoGrid.innerHTML = currentCats.map(cat => {
+      let visible = true;
+      if(modeTravail === 'aiguillage') { if(['MA','MB','MC','MD'].includes(cat.id)) { const letter = cat.id.charAt(1); if (activeMasks.size > 0) visible = activeMasks.has(letter); } }
+      else { if(!hasBoite) { if(['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(cat.id)) { visible = false; } } }
+      if(!visible) return '';
+      return `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`;
+    }).join('');
+    photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{ inp.onchange=async()=>{ const files=Array.from(inp.files||[]);if(!files.length)return; const cat = inp.dataset.cat; showOverlay(true); try{ for(const f of files){ const blob=await compress(f); if(!c.photos[cat]) c.photos[cat] = []; c.photos[cat].push({id:crypto.randomUUID(),blob,ts:Date.now()}); } await dbPut(c);openDetail(id); }catch(err){alert('Erreur photo : '+err.message);} finally{showOverlay(false);} }; });
+    photoGrid.querySelectorAll('[data-del-cat]').forEach(b=>{ b.onclick=async(e)=>{ e.stopPropagation();e.preventDefault(); const cat=b.dataset.delCat,label=b.dataset.catLabel; if(!confirm(`Supprimer les photos « ${label} » ?`))return; c.photos[cat]=[]; await dbPut(c);openDetail(id); }; });
+  };
+  cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passId = inp.dataset.pass; const field = inp.dataset.field; const passage = c.passages.find(x => x.id === passId); if(passage) { passage[field] = e.target.value; dbPut(c); if(modeTravail === 'aiguillage') renderPhotoGrid(); } }; });
+  document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c); openDetail(id); });
+  cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c); openDetail(id); } }; });
+  document.getElementById('boiteToggle').onchange = (e) => { c.hasBoite = e.target.checked; document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block'; dbPut(c); if(modeTravail === 'foa') renderPhotoGrid(); };
+  document.getElementById('bpeDestinationSelect').onchange = (e) => { c.bpeDestination = e.target.value; dbPut(c); };
+  document.getElementById('nonPoseeToggle').onchange = (e) => { c.boiteNonPosee = e.target.checked; dbPut(c); };
+  document.getElementById('notesInput').oninput = (e) => { c.notes = e.target.value; dbPut(c); };
+  document.getElementById('validateBtn').onclick=async()=>{c.done=!c.done;await dbPut(c);openDetail(id);};
+  document.getElementById('nextBtn').onclick=()=>{ const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1]; if(next)openDetail(next.id);else{renderList();showScreen('list');} };
+  renderPhotoGrid();
+  showScreen('detail');
+}
+function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
+
+async function importCSV(file){
+  try {
+    showOverlay(true);
+    // Vérification basique de la taille du fichier
+    if (file.size === 0) throw new Error("Le fichier est vide.");
     
-    div.innerHTML=`<div style="min-width:0;flex:1;">
-      <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(c.id)}</div>
-      <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div>
-      <span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ F
+    const text = await file.text();
+    if (!text || text.length < 5) throw new Error("Le fichier semble illisible.");
+
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error("Le fichier CSV ne contient pas assez de lignes.");
+
+    if (headers.length === 0) {
+      headers = rows[0].map(h => h.trim());
+    }
+
+    const dataRows = rows.slice(1);
+    const idIdx = (() => {
+      const pats = [/^id_chambre/i, /^CODE_CH1/i, /^id/i, /^ref/i, /chambre/i];
+      for (const p of pats) { const i = headers.findIndex(h => p.test(h)); if (i >= 0) return i; }
+      return 0;
+    })();
+
+    const mapChambres = new Map();
+
+    for (const r of dataRows) {
+      if (r.length < 2) continue; // On ignore les lignes vides
+      
+      const raw = {};
+      headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
+      
+      let id = raw[headers[idIdx]] || 'CH-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+      if (!mapChambres.has(id)) {
+        mapChambres.set(id, {
+          id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '',
+          photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
+          passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
+        });
+      } else {
+        const existing = mapChambres.get(id);
+        existing.passages.push({ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' });
+      }
+    }
+
+    if (mapChambres.size === 0) throw new Error("Aucune chambre valide n'a été trouvée dans le fichier.");
+
+    const existingDb = new Map(chambres.map(c => [c.id, c]));
+    const newC = Array.from(mapChambres.values()).map(newCh => {
+      if (existingDb.has(newCh.id)) {
+        const oldCh = existingDb.get(newCh.id);
+        oldCh.raw = newCh.raw;
+        return oldCh;
+      }
+      return newCh;
+    });
+
+    await dbClear();
+    chambres = newC;
+    for (const c of chambres) await dbPut(c);
+    trierChambres();
+    updateHomeStats();
+    alert(`${chambres.length} chambre(s) importée(s) avec succès.`);
+    
+  } catch(err) {
+    alert("Erreur d'importation : \n" + err.message);
+  } finally {
+    showOverlay(false);
+  }
+}
+
+function trierChambres() {
+  chambres.sort((a, b) => {
+    const ordreA = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '999999');
+    const ordreB = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '999999');
+    return ordreA - ordreB;
+  });
+}
+
+async function exportAll(){
+  if(!chambres.length){alert('Rien à exporter.');return;}
+  showOverlay(true);
+  try{
+    trierChambres();
+    const zip=new JSZip();
+    zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
+    const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
+    const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
+    for(const c of chambres){
+      const safe=c.id.replace(/[^A-Za-z0-9_-]/g,'_');
+      uniqueCats.forEach(catObj => {
+        const catFolder = catObj.id;
+        const photos = c.photos[catFolder] || [];
+        photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${safe}/${catFolder}/${catFolder}_${n}.jpg`, p.blob); });
+      });
+    }
+    const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const fname = 'TOP_SAT_SERVICES_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
+    const file = new File([blob], fname, { type: 'application/zip' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relevé Chambres - TOP SAT SERVICES', text: 'Relevé terrain' }); }
+      else { throw new Error("Partage non supporté"); }
+    } catch (err) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      alert("Le partage direct a été bloqué. Le fichier ZIP a été téléchargé dans vos dossiers.");
+    }
+  }catch(e){alert('Erreur export : '+e.message);}
+  finally{showOverlay(false);}
+}
+
+document.getElementById('csvInput').onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  await importCSV(f);
+  e.target.value=''; 
+};
+
+document.getElementById('startBtn').onclick=()=>{trierChambres();renderList();showScreen('list');};
+document.getElementById('exportBtn').onclick=exportAll;
+document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
+document.getElementById('resetBtn').onclick=async()=>{ if(!confirm('Effacer TOUTES les données ?'))return; await dbClear();chambres=[];headers=[];updateHomeStats();alert('Données effacées.'); };
+
+document.querySelectorAll('.mode-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); modeTravail = btn.dataset.mode; }; });
+
+let pendingLat = '', pendingLon = '';
+document.getElementById('addChambreBtn').onclick = () => {
+  if(!chambres.length) { alert("Veuillez d'abord importer un CSV."); return; }
+  const select = document.getElementById('insertAfterSelect');
+  select.innerHTML = chambres.map(c => `<option value="${c.id}">${c.id}</option>`).join('');
+  document.getElementById('newId').value = ''; document.getElementById('newProprietaire').value = ''; document.getElementById('newCodeCh2').value = ''; document.getElementById('newCommune').value = ''; document.getElementById('newRefChambr').value = ''; document.getElementById('newComment').value = ''; document.getElementById('gpsStatus').textContent = '';
+  pendingLat = ''; pendingLon = '';
+  document.getElementById('modalAddChambre').style.display = 'flex';
+};
+document.getElementById('cancelAddBtn').onclick = () => { document.getElementById('modalAddChambre').style.display = 'none'; };
+document.getElementById('gpsBtn').onclick = () => {
+  const status = document.getElementById('gpsStatus'); status.textContent = "Recherche GPS...";
+  if (!navigator.geolocation) { status.textContent = "GPS non supporté."; return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { pendingLat = pos.coords.latitude.toFixed(6); pendingLon = pos.coords.longitude.toFixed(6); status.textContent = `Position : ${pendingLat}, ${pendingLon}`; status.style.color = "green"; },
+    (err) => { status.textContent = "Impossible de récupérer le GPS."; status.style.color = "red"; },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+};
+document.getElementById('confirmAddBtn').onclick = async () => {
+  const newId = document.getElementById('newId').value.trim();
+  const afterId = document.getElementById('insertAfterSelect').value;
+  const proprietaire = document.getElementById('newProprietaire').value.trim();
+  const codeCh2 = document.getElementById('newCodeCh2').value.trim();
+  const commune = document.getElementById('newCommune').value.trim();
+  const refChambr = document.getElementById('newRefChambr').value.trim();
+  const comment = document.getElementById('newComment').value.trim();
+  if(!newId) { alert("Veuillez saisir un numéro."); return; }
+  if(chambres.some(c => c.id === newId)) { alert("Ce numéro existe déjà."); return; }
+  const idx = chambres.findIndex(c => c.id === afterId);
+  if(idx === -1) return;
+  const wazeUrl = (pendingLat && pendingLon) ? `https://www.waze.com/ul?ll=${pendingLat},${pendingLon}&navigate=yes` : '';
+  const newCh = {
+    id: newId, raw: { 'WAZE': wazeUrl, 'PROPRIETAI': proprietaire, 'CODE_CH2': codeCh2, 'COMMUNE': commune, 'REF_CHAMBR': refChambr },
+    done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: comment, lat: pendingLat, lon: pendingLon,
+    photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
+    passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
+  };
+  chambres.splice(idx + 1, 0, newCh);
+  let currentOrdre = 1;
+  for(const c of chambres) { if(c.raw['ORDRE'] === undefined) c.raw['ORDRE'] = ''; c.raw['ORDRE'] = String(currentOrdre); currentOrdre++; }
+  await dbClear();
+  for(const c of chambres) await dbPut(c);
+  document.getElementById('modalAddChambre').style.display = 'none';
+  updateHomeStats();
+  alert(`Chambre ${newId} ajoutée.`);
+};
+
+(async()=>{
+  try {
+    await openDB();
+    chambres=await dbGetAll();
+    trierChambres();
+    updateHomeStats();
+    if(chambres.length){renderList();showScreen('list');}
+  } catch(e) {
+    alert("Erreur d'initialisation de la base de données : " + e.message);
+  }
+})();
+</script>
+</body>
+</html>
