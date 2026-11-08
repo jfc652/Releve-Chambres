@@ -156,7 +156,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 8.7
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 8.9
   </div>
 </section>
 
@@ -287,7 +287,7 @@ function generateCSV(){
   // Pré-calcul des BPE à transférer
   const bpeRecues = {};
   for (const c of chambres) {
-    if (!c.hasBoite && c.bpeDestination && !c.boiteNonPosee) {
+    if (!c.hasBoite && c.bpeDestination) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
       if (bpeName) {
         if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = [];
@@ -305,7 +305,7 @@ function generateCSV(){
 
     if (!c.hasBoite) {
       bpeFinal = '';
-      if (c.boiteNonPosee) {
+      if (c.boiteNonPosee && !c.bpeDestination) {
         obsBpe = 'BOITE NON POSEE : Manque de place / Saturation / Autre';
       } else if (c.bpeDestination) {
         obsBpe = `TRANSFEREE VERS : ${c.bpeDestination}`;
@@ -396,21 +396,17 @@ function updateHomeStats(){
   document.getElementById('statTodo').textContent=total-done;
   document.getElementById('homeStats').style.display=total?'block':'none';
 
-  const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination && !c.boiteNonPosee);
-  const nonPosees = chambres.filter(c => !c.hasBoite && c.boiteNonPosee);
+  const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination);
   
   const trDiv = document.getElementById('transfertsResume');
   const trList = document.getElementById('transfertsList');
   
-  if (transferts.length > 0 || nonPosees.length > 0) {
+  if (transferts.length > 0) {
     trDiv.style.display = 'block';
     let html = '';
     transferts.forEach(c => {
       const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
       html += `<li>La BPE de <b>${c.id}</b> (${bpe}) est transférée vers <b>${c.bpeDestination}</b></li>`;
-    });
-    nonPosees.forEach(c => {
-      html += `<li>La BPE de <b>${c.id}</b> n'a pas pu être posée (Manque de place).</li>`;
     });
     trList.innerHTML = html;
   } else {
@@ -822,14 +818,25 @@ async function importCSV(file){
 
   await dbClear();chambres=newC;
   for(const c of chambres)await dbPut(c);
+  trierChambres();
   updateHomeStats();
   alert(`${chambres.length} chambre(s) importée(s).`);
+}
+
+// Tri des chambres par ordre numérique
+function trierChambres() {
+  chambres.sort((a, b) => {
+    const ordreA = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '999999');
+    const ordreB = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '999999');
+    return ordreA - ordreB;
+  });
 }
 
 async function exportAll(){
   if(!chambres.length){alert('Rien à exporter.');return;}
   showOverlay(true);
   try{
+    trierChambres();
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     
@@ -887,7 +894,7 @@ document.getElementById('csvInput').onchange=async e=>{
   try{await importCSV(f);}catch(err){alert('Erreur import : '+err.message);}
   finally{showOverlay(false);e.target.value='';}
 };
-document.getElementById('startBtn').onclick=()=>{renderList();showScreen('list');};
+document.getElementById('startBtn').onclick=()=>{triChambres();renderList();showScreen('list');};
 document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('backBtn').onclick=()=>{
   if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');}
@@ -1012,8 +1019,12 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   alert(`Chambre ${newId} ajoutée avec succès.`);
 };
 
+// --- INITIALISATION AU DEMARRAGE ---
 (async()=>{
-  await openDB();chambres=await dbGetAll();updateHomeStats();
+  await openDB();
+  chambres=await dbGetAll();
+  trierChambres(); // On trie dès le chargement
+  updateHomeStats();
   if(chambres.length){renderList();showScreen('list');}
 })();
 </script>
