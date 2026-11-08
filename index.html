@@ -64,15 +64,11 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .mode-btn.active { background:#0055A4; color:#fff; }
 .mode-btn h3 { margin:0 0 4px 0; font-size:16px; }
 .mode-btn p { margin:0; font-size:12px; opacity:0.8; }
-
 .label-row { display:flex; align-items:center; justify-content:space-between; margin-top:12px; margin-bottom:6px;}
 .label-row label { margin:0; }
 .help-icon { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; background:#0055A4; color:#fff; border-radius:50%; font-size:13px; font-weight:bold; cursor:pointer; }
 .help-text { display:none; background:#fff9c4; border-left:4px solid #fbc02d; padding:10px; margin-bottom:8px; font-size:12px; border-radius:4px; color:#333; width:100%;}
 .help-text.show { display:block; }
-details.help-panel { background:#e3f2fd; border-radius:8px; padding:12px; margin-top:12px; }
-details.help-panel summary { font-weight:bold; color:#0055A4; cursor:pointer; }
-details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
 .logo-container { text-align: center; padding: 10px 0; }
 .logo-container img { max-width: 200px; max-height: 80px; object-fit: contain; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
@@ -138,7 +134,7 @@ details.help-panel ul { padding-left:20px; font-size:13px; line-height:1.6; }
     <button id="resetBtn" class="btn btn-danger" style="font-size:14px;">🗑️ Réinitialiser toutes les données</button>
   </div>
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.2 — ORDRE_GEO + tri export
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 10.6 — Tri ORDRE_GEO avant export
   </div>
 </section>
 
@@ -182,12 +178,18 @@ const DB_NAME='releve-chambres-v5', STORE='chambres';
 let db=null, chambres=[], headers=[], currentId=null;
 let modeTravail = 'aiguillage';
 
+/* -------------------- Persistance des headers -------------------- */
+function saveHeaders() { try { localStorage.setItem('releve_headers', JSON.stringify(headers)); } catch(e){} }
+function loadHeaders() {
+  const saved = localStorage.getItem('releve_headers');
+  if (saved) { try { headers = JSON.parse(saved); } catch(e){ headers = []; } }
+}
+
 const PHOTO_CATS_AIGUILLAGE = [
   {id:'MA', label:'Masque A', icon:'🔘'}, {id:'MB', label:'Masque B', icon:'🔘'},
   {id:'MC', label:'Masque C', icon:'🔘'}, {id:'MD', label:'Masque D', icon:'🔘'},
   {id:'VUE_ENSEMBLE', label:'Vue ensemble', icon:'🌐'}
 ];
-
 const PHOTO_CATS_FOA = [
   {id:'MIRE_LG', label:'MIRE LG', icon:'📏'}, {id:'MIRE_L', label:'MIRE L', icon:'📏'},
   {id:'MIRE_P', label:'MIRE P', icon:'📏'}, {id:'ETIQ_BOITE', label:'Étiq Boîte', icon:'🏷️'},
@@ -195,12 +197,9 @@ const PHOTO_CATS_FOA = [
   {id:'BOITE', label:'Boîte', icon:'📦'}, {id:'CABLE', label:'Câble', icon:'🔌'},
   {id:'VUE_DESSUS_CH', label:'Vue dessus', icon:'📐'}
 ];
-
 const DIAMETRES = [32, 45, 60, 80, 100, 150];
 
-/* ------------------------------------------------------------------ *
- * ORDRE_GEO — helpers centralisés
- * ------------------------------------------------------------------ */
+/* -------------------- ORDRE_GEO helpers -------------------- */
 function makeOrdreGeo(ordreVal) {
   const s = String(ordreVal ?? '').trim().replace(/^A/i, '');
   if (!s) return '';
@@ -208,17 +207,21 @@ function makeOrdreGeo(ordreVal) {
 }
 function parseOrdreGeo(v) {
   if (v === null || v === undefined || v === '') return 999999;
-  const m = String(v).toUpperCase().match(/A\s*(-?\d+(?:\.\d+)?)/);
+  // Accepte : "A1", "A01", "A 1", "A1.5", "1", "  A12 "
+  const m = String(v).toUpperCase().replace(/\s/g,'').match(/^A?(-?\d+(?:\.\d+)?)$/);
   if (m) return parseFloat(m[1]);
+  // Fallback : extrait le premier nombre trouvé
   const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? 999999 : n;
 }
 
+/* -------------------- IndexedDB -------------------- */
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e.target.error);});}
 function dbGetAll(){return new Promise((res,rej)=>{const r=db.transaction(STORE,'readonly').objectStore(STORE).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 function dbPut(item){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put(item);t.oncomplete=res;t.onerror=()=>rej(t.error);});}
 function dbClear(){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).clear();t.oncomplete=res;t.onerror=()=>rej(t.error);});}
 
+/* -------------------- CSV parsing -------------------- */
 function parseCSV(text){
   if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const first=text.split(/\r?\n/)[0]||'';
@@ -235,20 +238,32 @@ function parseCSV(text){
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
 /* ------------------------------------------------------------------ *
- * EXPORT CSV — ordre des colonnes du CSV importé + ORDRE_GEO figé
+ * EXPORT CSV — respecte l'ordre des colonnes du CSV source,
+ * insère ORDRE_GEO juste après ORDRE, 1 seule ligne par chambre.
  * ------------------------------------------------------------------ */
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
+  const sourceHeaders = headers.slice();
 
-  let allHeaders = [...headers];
+  const sourceHasGeo = sourceHeaders.some(h => h.toUpperCase().trim() === 'ORDRE_GEO');
+  let allHeaders = [];
+  let geoInserted = false;
+  sourceHeaders.forEach(h => {
+    allHeaders.push(h);
+    if (!sourceHasGeo && h.toUpperCase().trim() === 'ORDRE') {
+      allHeaders.push('ORDRE_GEO');
+      geoInserted = true;
+    }
+  });
+  if (!sourceHasGeo && !geoInserted) allHeaders.push('ORDRE_GEO');
 
-  const extraCols = ['ORDRE_GEO','BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE',
+  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE',
                      ...currentCats.map(c => `Nb_${c.id}`)];
-  const headerUpperSet = new Set(allHeaders.map(h => h.toUpperCase().trim()));
+  const setUpper = new Set(allHeaders.map(h => h.toUpperCase().trim()));
   for (const col of extraCols) {
-    if (!headerUpperSet.has(col.toUpperCase())) {
+    if (!setUpper.has(col.toUpperCase())) {
       allHeaders.push(col);
-      headerUpperSet.add(col.toUpperCase());
+      setUpper.add(col.toUpperCase());
     }
   }
 
@@ -260,7 +275,6 @@ function generateCSV(){
     }
     return null;
   };
-
   const H = {
     ordre:        findHeader(['ORDRE']),
     ordreGeo:     findHeader(['ORDRE_GEO']),
@@ -270,7 +284,7 @@ function generateCSV(){
     proprietaire: findHeader(['PROPRIETAI','PROPRIETAIRE']),
     commune:      findHeader(['COMMUNE']),
     waze:         findHeader(['WAZE']),
-    wkt:          findHeader(['wkt_geom','WKT_GEOM']),
+    wkt:          findHeader(['wkt_geom']),
     bpe:          findHeader(['BPE']),
     masque:       findHeader(['MASQUE']),
     diametre:     findHeader(['DIAMETRE']),
@@ -295,10 +309,7 @@ function generateCSV(){
   for (const c of chambres) {
     if (!c.hasBoite && c.bpeDestination) {
       const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
-      if (bpeName) {
-        if (!bpeRecues[c.bpeDestination]) bpeRecues[c.bpeDestination] = [];
-        bpeRecues[c.bpeDestination].push(bpeName);
-      }
+      if (bpeName) (bpeRecues[c.bpeDestination] = bpeRecues[c.bpeDestination] || []).push(bpeName);
     }
   }
 
@@ -307,23 +318,26 @@ function generateCSV(){
     let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
     let bpeOrigine = bpeFinal;
     let obsBpe = '';
-
     if (!c.hasBoite) {
       bpeFinal = '';
       if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
       else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${c.bpeDestination}`;
-    } else {
-      if (bpeRecues[c.id] && bpeRecues[c.id].length > 0) {
-        bpeFinal = bpeRecues[c.id].join(' + ');
-        obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
-      }
+    } else if (bpeRecues[c.id] && bpeRecues[c.id].length) {
+      bpeFinal = bpeRecues[c.id].join(' + ');
+      obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
     }
 
+    const ordreGeoVal = c.raw[H.ordreGeo] || c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || makeOrdreGeo(c.raw[H.ordre]);
+    const ordreVal    = c.raw[H.ordre] ?? c.raw['ORDRE'] ?? c.raw['ordre'] ?? '';
+
+    const logicalByHeader = new Map();
+    Object.entries(H).forEach(([logical, hName]) => { if (hName) logicalByHeader.set(hName, logical); });
+
     const valFor = (logical) => {
-      switch(logical){
-        case 'ordre':        return c.raw[H.ordre] ?? c.raw['ordre'] ?? '';
-        case 'ordreGeo':     return c.raw[H.ordreGeo] || c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || makeOrdreGeo(c.raw[H.ordre] || c.raw['ordre']);
-        case 'codeCh1':      return c.raw[H.codeCh1] || c.id;
+      switch (logical) {
+        case 'ordre':        return ordreVal;
+        case 'ordreGeo':     return ordreGeoVal;
+        case 'codeCh1':      return c.raw[H.codeCh1] || '';
         case 'codeCh2':      return c.raw[H.codeCh2] || '';
         case 'refChambr':    return c.raw[H.refChambr] || '';
         case 'proprietaire': return c.raw[H.proprietaire] || '';
@@ -336,6 +350,10 @@ function generateCSV(){
         case 'masqueB':      return p.masque_out || '';
         case 'diametreB':    return p.diam_out || '';
         case 'cable':        return p.cable_name || c.raw[H.cable] || '';
+        case 'etiquette2':   return c.raw[H.etiquette2] || '';
+        case 'numVoie':      return c.raw[H.numVoie] || '';
+        case 'distChamb':    return c.raw[H.distChamb] || '';
+        case 'fci':          return c.raw[H.fci] || '';
         case 'bpeOrigine':   return bpeOrigine;
         case 'obsBpe':       return obsBpe;
         case 'commentaire':  return c.notes || '';
@@ -345,23 +363,18 @@ function generateCSV(){
       }
     };
 
-    const logicalByHeader = new Map();
-    Object.entries(H).forEach(([logical, headerName]) => {
-      if (headerName) logicalByHeader.set(headerName, logical);
-    });
-
     const row = allHeaders.map(h => {
       if (h.startsWith('Nb_')) return (c.photos[h.replace('Nb_', '')] || []).length;
       const logical = logicalByHeader.get(h);
       if (logical) return valFor(logical);
       return c.raw[h] || '';
     });
-
     lines.push(row.map(v=>esc(v,d)).join(d));
   }
   return lines.join('\r\n');
 }
 
+/* -------------------- Compression photo -------------------- */
 async function compress(file,maxDim=1920,q=0.85){
   return new Promise((res,rej)=>{
     const img=new Image();
@@ -372,6 +385,7 @@ async function compress(file,maxDim=1920,q=0.85){
   });
 }
 
+/* -------------------- UI -------------------- */
 function showScreen(name){
   document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
   document.getElementById('screen-'+name).classList.remove('hidden');
@@ -379,6 +393,7 @@ function showScreen(name){
   document.getElementById('title').textContent={home:'Relevé Chambres',list:'Chambres',detail:'Détail'}[name];
   window.scrollTo(0,0);
 }
+function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
 
 function updateHomeStats(){
   const total=chambres.length,done=chambres.filter(c=>c.done).length;
@@ -439,13 +454,13 @@ function openDetail(id){
   if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
   if(!c.notes) c.notes = '';
   const cont=document.getElementById('detailContainer');
-  const adresse = c.raw['NUM_VOIE'] || c.raw['adresse'] || 'Non renseignée';
+  const adresse = c.raw['adresse'] || c.raw['NUM_VOIE'] || 'Non renseignée';
   const fci = c.raw['FCI'] || c.raw['fci'] || 'Non renseigné';
   const etiquette2 = c.raw['ETIQUETTE_2'] || c.raw['etiquette_2'] || 'Non renseignée';
   const ordreGeo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || makeOrdreGeo(c.raw['ORDRE']) || '—';
   const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '—';
   const infoEntries = Object.entries(c.raw || {}).filter(([k,v]) => v && !['wkt_geom','WKT_GEOM'].includes(k));
-  const infoHtml = infoEntries.slice(0, 4).filter(([k]) => !['NUM_VOIE','adresse','FCI','CODE_CH1','CODE_CH2','ORDRE_GEO'].includes(k)).map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
+  const infoHtml = infoEntries.slice(0, 4).filter(([k]) => !['adresse','NUM_VOIE','FCI','CODE_CH1','CODE_CH2','ORDRE_GEO'].includes(k)).map(([k,v]) => `<div class="info-item"><b>${escapeHTML(k)}:</b> ${escapeHTML(v)}</div>`).join('');
   const bpeOrigine = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || 'Non renseignée';
   const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
   let navBtns = '';
@@ -459,7 +474,6 @@ function openDetail(id){
   const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${other.id}</option>`).join('');
   let csvCableVal = '';
   for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
-  
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
     const cableVal = p.cable_name || (index === 0 ? csvCableVal : '');
@@ -467,11 +481,9 @@ function openDetail(id){
     const diamInVal = p.diam_in || (index === 0 ? (c.raw['DIAMETRE'] || '') : '');
     const masqueOutVal = p.masque_out || (index === 0 ? (c.raw['MASQUE B'] || c.raw['MASQUE_B'] || '') : '');
     const diamOutVal = p.diam_out || (index === 0 ? (c.raw['DIAMETRE B'] || c.raw['DIAMETRE_B'] || '') : '');
-    
     return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
-  
-  cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;"><b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span> &nbsp;<span class="small">(ORDRE d'origine : ${escapeHTML(ordre)})</span></div><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>N° Voie:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
+  cont.innerHTML=`<div class="card"><div style="font-weight:700;font-size:18px;margin-bottom:8px;">Chambre ${escapeHTML(c.id)}</div><div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;"><b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span> &nbsp;<span class="small">(ORDRE d'origine : ${escapeHTML(ordre)})</span></div><div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>Adresse:</b> ${escapeHTML(adresse)}</div><div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI:</b> ${escapeHTML(fci)}</div><div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2:</b> ${escapeHTML(etiquette2)}</div></div><div class="info-grid">${infoHtml}<div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue:</b> ${escapeHTML(bpeOrigine)}</div></div><div style="margin-top:12px; text-align:center;">${navBtns}</div></div><div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div><div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div><div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div><div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;"><label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label><select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select><div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div></div></div><div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div><div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div><button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider'}</button><button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
 
   const photoGrid = document.getElementById('photoGrid');
   const renderPhotoGrid = () => {
@@ -489,7 +501,7 @@ function openDetail(id){
     photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{ inp.onchange=async()=>{ const files=Array.from(inp.files||[]);if(!files.length)return; const cat = inp.dataset.cat; showOverlay(true); try{ for(const f of files){ const blob=await compress(f); if(!c.photos[cat]) c.photos[cat] = []; c.photos[cat].push({id:crypto.randomUUID(),blob,ts:Date.now()}); } await dbPut(c);openDetail(id); }catch(err){alert('Erreur photo : '+err.message);} finally{showOverlay(false);} }; });
     photoGrid.querySelectorAll('[data-del-cat]').forEach(b=>{ b.onclick=async(e)=>{ e.stopPropagation();e.preventDefault(); const cat=b.dataset.delCat,label=b.dataset.catLabel; if(!confirm(`Supprimer les photos « ${label} » ?`))return; c.photos[cat]=[]; await dbPut(c);openDetail(id); }; });
   };
-  
+
   cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passId = inp.dataset.pass; const field = inp.dataset.field; const passage = c.passages.find(x => x.id === passId); if(passage) { passage[field] = e.target.value; dbPut(c); if(modeTravail === 'aiguillage') renderPhotoGrid(); } }; });
   document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c); openDetail(id); });
   cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c); openDetail(id); } }; });
@@ -502,10 +514,9 @@ function openDetail(id){
   renderPhotoGrid();
   showScreen('detail');
 }
-function showOverlay(s){document.getElementById('overlay').classList.toggle('hidden',!s);}
 
 /* ------------------------------------------------------------------ *
- * IMPORT CSV — création d'ORDRE_GEO + fusion non destructive
+ * IMPORT CSV — clé composite + fusion non destructive
  * ------------------------------------------------------------------ */
 async function importCSV(file){
   try {
@@ -515,9 +526,16 @@ async function importCSV(file){
     if (!text || text.length < 5) throw new Error("Le fichier semble illisible.");
     const rows = parseCSV(text);
     if (rows.length < 2) throw new Error("Le fichier CSV ne contient pas assez de lignes.");
-    if (headers.length === 0) { headers = rows[0].map(h => h.trim()); }
-    const dataRows = rows.slice(1);
 
+    const saved = localStorage.getItem('releve_headers');
+    if (!saved) {
+      headers = rows[0].map(h => h.trim());
+      saveHeaders();
+    } else {
+      try { headers = JSON.parse(saved); } catch(e) { headers = rows[0].map(h => h.trim()); saveHeaders(); }
+    }
+
+    const dataRows = rows.slice(1);
     const ordreIdx   = headers.findIndex(h => /^ORDRE$/i.test(h.trim()));
     const refIdx     = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
     const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
@@ -537,13 +555,10 @@ async function importCSV(file){
       if (r.length < 2) continue;
       const raw = {};
       headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
-
-      const existingGeo = raw['ORDRE_GEO'] || raw['ordre_geo'] || '';
-      if (!String(existingGeo).trim()) {
+      if (!raw['ORDRE_GEO']) {
         const ordreVal = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : '';
         if (ordreVal) raw['ORDRE_GEO'] = makeOrdreGeo(ordreVal);
       }
-
       const id = makeId(raw);
       if (!mapChambres.has(id)) {
         mapChambres.set(id, {
@@ -557,16 +572,14 @@ async function importCSV(file){
     if (mapChambres.size === 0) throw new Error("Aucune chambre valide n'a été trouvée dans le fichier.");
 
     const existingDb = new Map(chambres.map(c => [c.id, c]));
-    const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE'];
+    const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE','CODE_CH1'];
     const newC = Array.from(mapChambres.values()).map(newCh => {
       const oldCh = existingDb.get(newCh.id);
       if (oldCh) {
         for (const key of Object.keys(newCh.raw)) {
           const ku = key.toUpperCase();
           if (ku === 'ORDRE_GEO') {
-            if (!oldCh.raw['ORDRE_GEO'] && newCh.raw['ORDRE_GEO']) {
-              oldCh.raw['ORDRE_GEO'] = newCh.raw['ORDRE_GEO'];
-            }
+            if (!oldCh.raw['ORDRE_GEO'] && newCh.raw['ORDRE_GEO']) oldCh.raw['ORDRE_GEO'] = newCh.raw['ORDRE_GEO'];
             continue;
           }
           if (safeKeys.includes(ku)) oldCh.raw[key] = newCh.raw[key];
@@ -590,9 +603,7 @@ async function importCSV(file){
   }
 }
 
-/* ------------------------------------------------------------------ *
- * TRI — priorité à ORDRE_GEO, fallback ORDRE
- * ------------------------------------------------------------------ */
+/* -------------------- Tri générique (UI) -------------------- */
 function trierChambres() {
   chambres.forEach((c, i) => { c.__srcIndex = i; });
   chambres.sort((a, b) => {
@@ -609,32 +620,46 @@ function trierChambres() {
 }
 
 /* ------------------------------------------------------------------ *
- * TRI STRICT par ORDRE_GEO — appelé avant chaque export
+ * TRI STRICT PAR ORDRE_GEO — appelé avant CHAQUE export.
+ * Priorités : 1) ORDRE_GEO  2) ORDRE  3) ordre d'insertion
  * ------------------------------------------------------------------ */
 function trierParOrdreGeo() {
   chambres.forEach((c, i) => { c.__srcIndex = i; });
+
   chambres.sort((a, b) => {
-    // 1) ORDRE_GEO en priorité (A1, A2, A3…)
+    // 1) ORDRE_GEO (A1, A2, A3, ... A1.5 ...)
     const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']);
     const gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']);
     if (ga !== gb) return ga - gb;
-    // 2) Égalité : fallback ORDRE numérique
+
+    // 2) Fallback : ORDRE numérique
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
     const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
     const va = isNaN(oa) ? 999999 : oa;
     const vb = isNaN(ob) ? 999999 : ob;
     if (va !== vb) return va - vb;
+
     // 3) Dernier recours : ordre d'insertion (tri stable)
     return (a.__srcIndex || 0) - (b.__srcIndex || 0);
   });
+
   chambres.forEach(c => delete c.__srcIndex);
+
+  // Feedback console pour vérifier à chaque export
+  if (chambres.length) {
+    const first = chambres[0].raw['ORDRE_GEO'] || '—';
+    const last  = chambres[chambres.length-1].raw['ORDRE_GEO'] || '—';
+    console.log(`%c[triParOrdreGeo] ${chambres.length} chambres — de ${first} à ${last}`,
+      'background:#0055A4;color:#fff;padding:2px 6px;border-radius:4px;font-weight:bold;');
+  }
 }
 
+/* -------------------- Export ZIP -------------------- */
 async function exportAll(){
   if(!chambres.length){alert('Rien à exporter.');return;}
   showOverlay(true);
   try{
-    // ✅ Tri explicite par ORDRE_GEO avant génération du CSV
+    // ✅ TRI PAR ORDRE_GEO — avant toute génération
     trierParOrdreGeo();
 
     const zip=new JSZip();
@@ -662,27 +687,29 @@ async function exportAll(){
       alert("Le partage direct a été bloqué. Le fichier ZIP a été téléchargé dans vos dossiers.");
     }
 
-    // Log console (F12) pour contrôle
-    const premier = chambres[0]?.raw?.['ORDRE_GEO'] || '?';
-    const dernier = chambres[chambres.length-1]?.raw?.['ORDRE_GEO'] || '?';
-    console.log(`Export trié par ORDRE_GEO : ${premier} → ${dernier} (${chambres.length} chambres)`);
+    // ✅ Confirmation finale visible
+    const first = chambres[0]?.raw?.['ORDRE_GEO'] || '?';
+    const last  = chambres[chambres.length-1]?.raw?.['ORDRE_GEO'] || '?';
+    console.log(`✅ Export terminé — trié par ORDRE_GEO : ${first} → ${last} (${chambres.length} chambres)`);
   }catch(e){alert('Erreur export : '+e.message);}
   finally{showOverlay(false);}
 }
 
+/* -------------------- Bindings UI -------------------- */
 document.getElementById('csvInput').onchange=async e=>{
   const f=e.target.files[0]; if(!f)return;
   await importCSV(f);
-  e.target.value=''; 
+  e.target.value='';
 };
 
 document.getElementById('startBtn').onclick=()=>{trierChambres();renderList();showScreen('list');};
 document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
-document.getElementById('resetBtn').onclick=async()=>{ if(!confirm('Effacer TOUTES les données ?'))return; await dbClear();chambres=[];headers=[];try{localStorage.removeItem('derniereChambre');}catch(e){}updateHomeStats();alert('Données effacées.'); };
+document.getElementById('resetBtn').onclick=async()=>{ if(!confirm('Effacer TOUTES les données ?'))return; await dbClear();chambres=[];headers=[];try{localStorage.removeItem('releve_headers');localStorage.removeItem('derniereChambre');}catch(e){}updateHomeStats();alert('Données effacées.'); };
 
 document.querySelectorAll('.mode-btn').forEach(btn => { btn.onclick = () => { document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); modeTravail = btn.dataset.mode; }; });
 
+/* -------------------- Ajout manuel -------------------- */
 let pendingLat = '', pendingLon = '';
 document.getElementById('addChambreBtn').onclick = () => {
   if(!chambres.length) { alert("Veuillez d'abord importer un CSV."); return; }
@@ -746,13 +773,20 @@ document.getElementById('confirmAddBtn').onclick = async () => {
 (async()=>{
   try {
     await openDB();
+    loadHeaders();
     chambres = await dbGetAll();
 
     let migrated = 0;
     for (const c of chambres) {
-      const geo = c.raw && (c.raw['ORDRE_GEO'] || c.raw['ordre_geo']);
-      if (!geo) {
-        const ordreVal = c.raw && (c.raw['ORDRE'] || c.raw['ordre']);
+      if (c.ordreGeo && !c.raw['ORDRE_GEO']) {
+        c.raw['ORDRE_GEO'] = c.ordreGeo;
+        delete c.ordreGeo;
+        await dbPut(c);
+        migrated++;
+        continue;
+      }
+      if (!c.raw['ORDRE_GEO']) {
+        const ordreVal = c.raw['ORDRE'] || c.raw['ordre'];
         if (ordreVal) {
           c.raw['ORDRE_GEO'] = makeOrdreGeo(ordreVal);
           await dbPut(c);
@@ -770,12 +804,8 @@ document.getElementById('confirmAddBtn').onclick = async () => {
       try { derniere = localStorage.getItem('derniereChambre'); } catch(e){}
       const cible = chambres.find(c => c.id === derniere && !c.done)
                  || chambres.find(c => !c.done);
-      if (cible) {
-        setTimeout(() => openDetail(cible.id), 250);
-      }
-      if (migrated > 0) {
-        console.log(`Migration ORDRE_GEO : ${migrated} chambre(s) mise(s) à jour.`);
-      }
+      if (cible) setTimeout(() => openDetail(cible.id), 250);
+      if (migrated > 0) console.log(`Migration ORDRE_GEO : ${migrated} chambre(s) mise(s) à jour.`);
     }
   } catch(e) {
     alert("Erreur d'initialisation de la base de données : " + e.message);
