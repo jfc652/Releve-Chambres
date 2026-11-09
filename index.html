@@ -145,7 +145,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
   <div class="card" style="margin-top:12px;">
     <h3 style="margin-top:0;font-size:15px;color:#0055A4;">📄 Synoptique PDF</h3>
-    <p class="small">Génère un schéma A3 paysage à partir des chambres importées.</p>
+    <p class="small">Génère un schéma A3 paysage à partir des chambres importées (inclus dans l'export ZIP).</p>
     
     <label style="margin-top:8px;">Nom du projet</label>
     <input type="text" id="synoptiqueNomProjet" placeholder="Ex: AMIENS" value="">
@@ -186,7 +186,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   </div>
   
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 11.4 — Ajustements Synoptique
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 11.5 — Synoptique dans l'export
   </div>
 </section>
 
@@ -906,17 +906,11 @@ function getVal(row, ...keys) {
   return '';
 }
 
-async function genererSynoptiquePDF() {
-  if (!chambres.length) {
-    alert("Aucune chambre dans le projet. Importez un CSV d'abord.");
-    return;
-  }
+function construireSynoptiquePDF() {
+  if (!chambres.length) return null;
   
   const { jsPDF } = window.jspdf || {};
-  if (!jsPDF) {
-    alert("jsPDF n'est pas chargé. Vérifiez votre connexion internet puis rechargez l'appli.");
-    return;
-  }
+  if (!jsPDF) return null;
   
   const nomProjet = document.getElementById('synoptiqueNomProjet').value.trim() || 'PROJET';
   const infoComp  = document.getElementById('synoptiqueInfoComp').value.trim();
@@ -926,396 +920,402 @@ async function genererSynoptiquePDF() {
   const optMasques = document.getElementById('synoptiqueOptMasques').checked;
   const optFCI     = document.getElementById('synoptiqueOptFCI').checked;
   
-  showOverlay(true);
-  try {
-    const donnees = chambres.map(c => {
-      const r = c.raw || {};
-      return {
-        'ORDRE':       getVal(r, 'ORDRE', 'ordre'),
-        'CODE_CH1':    getVal(r, 'CODE_CH1'),
-        'BPE':         getVal(r, 'BPE'),
-        'ETIQUETTE_2': getVal(r, 'ETIQUETTE_2'),
-        'REF_CHAMBR':  getVal(r, 'REF_CHAMBR'),
-        'wkt_geom':    getVal(r, 'wkt_geom', 'WKT_GEOM'),
-        'CABLE':       getVal(r, 'CABLE'),
-        'MASQUE':      getVal(r, 'MASQUE'),
-        'DIAMETRE':    getVal(r, 'DIAMETRE'),
-        'MASQUE B':    getVal(r, 'MASQUE B', 'MASQUE_B'),
-        'DIAMETRE B':  getVal(r, 'DIAMETRE B', 'DIAMETRE_B'),
-        'FCI':         getVal(r, 'FCI'),
-        'COMMUNE':     getVal(r, 'COMMUNE')
-      };
-    });
-    
-    donnees.sort((a, b) => parseFloatSafe(a['ORDRE'], 999) - parseFloatSafe(b['ORDRE'], 999));
-    
-    const nbChambres = donnees.length;
-    const nbBoites = donnees.filter(r => String(r['BPE']).trim() !== '').length;
-    const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0);
-    const cableML = infraML * 1.10 + nbBoites;
-    const stats = { nbChambres, nbBoites, infraML, cableML };
-    
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
-    const W = doc.internal.pageSize.getWidth();
-    const H = doc.internal.pageSize.getHeight();
-    const flipY = y => H - y;
-    
-    const COL = {
-      red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208],
-      purple:[128,0,128], orange:[255,165,0], grey:[128,128,128],
-      whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211]
+  const donnees = chambres.map(c => {
+    const r = c.raw || {};
+    return {
+      'ORDRE':       getVal(r, 'ORDRE', 'ordre'),
+      'CODE_CH1':    getVal(r, 'CODE_CH1'),
+      'BPE':         getVal(r, 'BPE'),
+      'ETIQUETTE_2': getVal(r, 'ETIQUETTE_2'),
+      'REF_CHAMBR':  getVal(r, 'REF_CHAMBR'),
+      'wkt_geom':    getVal(r, 'wkt_geom', 'WKT_GEOM'),
+      'CABLE':       getVal(r, 'CABLE'),
+      'MASQUE':      getVal(r, 'MASQUE'),
+      'DIAMETRE':    getVal(r, 'DIAMETRE'),
+      'MASQUE B':    getVal(r, 'MASQUE B', 'MASQUE_B'),
+      'DIAMETRE B':  getVal(r, 'DIAMETRE B', 'DIAMETRE_B'),
+      'FCI':         getVal(r, 'FCI'),
+      'COMMUNE':     getVal(r, 'COMMUNE')
     };
+  });
+  
+  donnees.sort((a, b) => parseFloatSafe(a['ORDRE'], 999) - parseFloatSafe(b['ORDRE'], 999));
+  
+  const nbChambres = donnees.length;
+  const nbBoites = donnees.filter(r => String(r['BPE']).trim() !== '').length;
+  const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0);
+  const cableML = infraML * 1.10 + nbBoites;
+  const stats = { nbChambres, nbBoites, infraML, cableML };
+  
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const flipY = y => H - y;
+  
+  const COL = {
+    red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208],
+    purple:[128,0,128], orange:[255,165,0], grey:[128,128,128],
+    whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211]
+  };
+  
+  const setDrawColor = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+  const setFillColor = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+  const setTextColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+  
+  const drawRect = (x, yBottom, w, h, style) => doc.rect(x, flipY(yBottom + h), w, h, style);
+  const drawLine = (x1, y1, x2, y2) => doc.line(x1, flipY(y1), x2, flipY(y2));
+  const drawCircle = (cx, cy, r, style) => doc.circle(cx, flipY(cy), r, style);
+  const drawText = (txt, x, y, align) => {
+    const opts = align === 'center' ? { align: 'center' } : align === 'right' ? { align: 'right' } : undefined;
+    doc.text(String(txt), x, flipY(y), opts);
+  };
+  const setFont = (name, size) => {
+    let style = 'normal';
+    if (name.includes('Bold') && name.includes('Oblique')) style = 'bolditalic';
+    else if (name.includes('Bold')) style = 'bold';
+    else if (name.includes('Oblique')) style = 'italic';
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+  };
+  
+  const textWidth = (txt) => doc.getTextWidth(String(txt));
+  const today = new Date().toLocaleDateString('fr-FR');
+  const APP_VERSION_PDF = '11.5';
+  const APP_AUTEUR_PDF = 'JFC';
+  
+  function dessinerEntetePied(numPage, nbPages) {
+    setDrawColor(COL.black); doc.setLineWidth(1);
+    drawRect(40, H - 100, W - 80, 60, 'S');
     
-    // Helpers de dessin
-    const setDrawColor = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
-    const setFillColor = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-    const setTextColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-    
-    const drawRect = (x, yBottom, w, h, style) => doc.rect(x, flipY(yBottom + h), w, h, style);
-    const drawLine = (x1, y1, x2, y2) => doc.line(x1, flipY(y1), x2, flipY(y2));
-    const drawCircle = (cx, cy, r, style) => doc.circle(cx, flipY(cy), r, style);
-    const drawText = (txt, x, y, align) => {
-      const opts = align === 'center' ? { align: 'center' } : align === 'right' ? { align: 'right' } : undefined;
-      doc.text(String(txt), x, flipY(y), opts);
-    };
-    const setFont = (name, size) => {
-      let style = 'normal';
-      if (name.includes('Bold') && name.includes('Oblique')) style = 'bolditalic';
-      else if (name.includes('Bold')) style = 'bold';
-      else if (name.includes('Oblique')) style = 'italic';
-      doc.setFont('helvetica', style);
-      doc.setFontSize(size);
-    };
-    
-    const textWidth = (txt) => doc.getTextWidth(String(txt));
-    const today = new Date().toLocaleDateString('fr-FR');
-    const APP_VERSION_PDF = '11.4';
-    const APP_AUTEUR_PDF = 'JFC';
-    
-    function dessinerEntetePied(numPage, nbPages) {
-      setDrawColor(COL.black); doc.setLineWidth(1);
-      drawRect(40, H - 100, W - 80, 60, 'S');
-      
-      if (logoGauche && logoGauche.dataUrl) {
-        try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
-      }
-      if (logoDroite && logoDroite.dataUrl) {
-        try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
-      }
-      
-      setTextColor(COL.black); setFont('Helvetica-Bold', 14);
-      drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-      
-      setFont('Helvetica', 10);
-      drawText(`Date : ${today} | Version : ${APP_VERSION_PDF}`, W / 2, H - 75, 'center');
-      
-      if (infoComp) {
-        setFont('Helvetica-Oblique', 9);
-        const tw = textWidth(infoComp);
-        setDrawColor([128,128,128]); setFillColor([245,245,245]);
-        drawRect(40, H - 120, tw + 10, 15, 'FD');
-        setTextColor(COL.darkred);
-        drawText(infoComp, 45, H - 116);
-      }
-      
-      setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1);
-      drawRect(40, 30, W - 80, 40, 'S');
-      const col1 = 40 + (W - 80) * 0.20;
-      const col2 = 40 + (W - 80) * 0.40;
-      const col3 = 40 + (W - 80) * 0.60;
-      const col4 = 40 + (W - 80) * 0.80;
-      drawLine(col1, 30, col1, 70);
-      drawLine(col2, 30, col2, 70);
-      drawLine(col3, 30, col3, 70);
-      drawLine(col4, 30, col4, 70);
-      
-      setFont('Helvetica-Bold', 8);
-      drawText("Code Projet", 50, 55);
-      drawText("Réalisé par", col1 + 10, 55);
-      drawText("Date de création", col2 + 10, 55);
-      drawText("Document", col3 + 10, 55);
-      drawText("Folio", col4 + 10, 55);
-      
-      setFont('Helvetica', 9);
-      drawText(nomProjet, 50, 40);
-      drawText(APP_AUTEUR_PDF, col1 + 10, 40);
-      drawText(today, col2 + 10, 40);
-      drawText("Synoptique Infra", col3 + 10, 40);
-      drawText(`Page ${numPage}/${nbPages}`, col4 + 10, 40);
+    if (logoGauche && logoGauche.dataUrl) {
+      try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
+    }
+    if (logoDroite && logoDroite.dataUrl) {
+      try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     }
     
-    function dessinerLegendeStats(x, y) {
-      setFillColor([245,245,245]); setDrawColor([128,128,128]);
-      doc.setLineWidth(1);
-      drawRect(x, y - 90, 550, 90, 'FD');
+    setTextColor(COL.black); setFont('Helvetica-Bold', 14);
+    drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
+    
+    setFont('Helvetica', 10);
+    drawText(`Date : ${today} | Version : ${APP_VERSION_PDF}`, W / 2, H - 75, 'center');
+    
+    if (infoComp) {
+      setFont('Helvetica-Oblique', 9);
+      const tw = textWidth(infoComp);
+      setDrawColor([128,128,128]); setFillColor([245,245,245]);
+      drawRect(40, H - 120, tw + 10, 15, 'FD');
+      setTextColor(COL.darkred);
+      drawText(infoComp, 45, H - 116);
+    }
+    
+    setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1);
+    drawRect(40, 30, W - 80, 40, 'S');
+    const col1 = 40 + (W - 80) * 0.20;
+    const col2 = 40 + (W - 80) * 0.40;
+    const col3 = 40 + (W - 80) * 0.60;
+    const col4 = 40 + (W - 80) * 0.80;
+    drawLine(col1, 30, col1, 70);
+    drawLine(col2, 30, col2, 70);
+    drawLine(col3, 30, col3, 70);
+    drawLine(col4, 30, col4, 70);
+    
+    setFont('Helvetica-Bold', 8);
+    drawText("Code Projet", 50, 55);
+    drawText("Réalisé par", col1 + 10, 55);
+    drawText("Date de création", col2 + 10, 55);
+    drawText("Document", col3 + 10, 55);
+    drawText("Folio", col4 + 10, 55);
+    
+    setFont('Helvetica', 9);
+    drawText(nomProjet, 50, 40);
+    drawText(APP_AUTEUR_PDF, col1 + 10, 40);
+    drawText(today, col2 + 10, 40);
+    drawText("Synoptique Infra", col3 + 10, 40);
+    drawText(`Page ${numPage}/${nbPages}`, col4 + 10, 40);
+  }
+  
+  function dessinerLegendeStats(x, y) {
+    setFillColor([245,245,245]); setDrawColor([128,128,128]);
+    doc.setLineWidth(1);
+    drawRect(x, y - 90, 550, 90, 'FD');
+    
+    setTextColor(COL.black); setFont('Helvetica-Bold', 10);
+    drawText("SITE :", x + 10, y - 15);
+    drawText("BPE :", x + 200, y - 15);
+    drawText("Infrastructures :", x + 400, y - 15);
+    
+    setFont('Helvetica', 8);
+    drawText("NRO (Nœud de raccordement)", x + 10, y - 35);
+    drawText("PEC", x + 10, y - 50);
+    drawText("PDB", x + 10, y - 65);
+    drawText("BPE en passage", x + 10, y - 80);
+    
+    drawText("PBC", x + 200, y - 35);
+    drawText("PEC", x + 200, y - 50);
+    drawText("PDB", x + 200, y - 65);
+    drawText("BPE en passage", x + 200, y - 80);
+    
+    drawText("Orange / FT", x + 400, y - 35);
+    drawText("Existante", x + 400, y - 50);
+    drawText("Galerie disponible", x + 400, y - 65);
+    
+    setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
+    drawRect(x + 130, y - 38, 8, 8, 'FD');
+    
+    doc.setFillColor(64, 224, 208); drawCircle(x + 280, y - 33, 4, 'F');
+    doc.setFillColor(255, 0, 0);   drawCircle(x + 280, y - 48, 4, 'F');
+    doc.setFillColor(0, 0, 255);   drawCircle(x + 280, y - 63, 4, 'F');
+    doc.setFillColor(128, 0, 128); drawCircle(x + 280, y - 78, 4, 'F');
+    
+    setDrawColor(COL.orange); doc.setLineWidth(2);
+    drawLine(x + 490, y - 33, x + 520, y - 33);
+    doc.setLineDashPattern([3, 3], 0);
+    drawLine(x + 490, y - 48, x + 520, y - 48);
+    doc.setLineDashPattern([], 0);
+    setDrawColor(COL.black); doc.setLineWidth(1);
+    drawLine(x + 490, y - 63, x + 520, y - 63);
+    
+    setFillColor([245,245,245]); setDrawColor([128,128,128]);
+    drawRect(x + 570, y - 90, 200, 90, 'FD');
+    setTextColor(COL.black); setFont('Helvetica-Bold', 10);
+    drawText("RÉCAPITULATIF", x + 580, y - 15);
+    setFont('Helvetica', 8);
+    drawText(`Nombre de chambres : ${stats.nbChambres}`, x + 580, y - 30);
+    drawText(`Nombre de boîtes : ${stats.nbBoites}`, x + 580, y - 42);
+    drawText(`Infrastructure (ml) : ${stats.infraML.toFixed(1)}`, x + 580, y - 54);
+    drawText(`Câble (ml + 10%) : ${stats.cableML.toFixed(1)}`, x + 580, y - 66);
+  }
+  
+  function dessinerZonesFCI(positions) {
+    const groupes = {};
+    for (const p of positions) {
+      const fci = String(p.row.FCI || '').trim();
+      if (fci && fci.toLowerCase() !== 'nan' && fci.toLowerCase() !== 'none') {
+        if (!groupes[fci]) groupes[fci] = [];
+        groupes[fci].push(p);
+      }
+    }
+    
+    for (const fci in groupes) {
+      const pts = groupes[fci];
+      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+      let xMin = Math.min(...xs), xMax = Math.max(...xs);
+      let yMin = Math.min(...ys), yMax = Math.max(...ys);
+      if (xMax - xMin < 20) { xMin -= 10; xMax += 10; }
+      if (yMax - yMin < 20) { yMin -= 10; yMax += 10; }
+      const pad = 15;
+      const [r, g, b] = couleurFCI(fci);
       
-      setTextColor(COL.black); setFont('Helvetica-Bold', 10);
-      drawText("SITE :", x + 10, y - 15);
-      drawText("BPE :", x + 200, y - 15);
-      drawText("Infrastructures :", x + 400, y - 15);
+      const fR = Math.round((0.88 + r * 0.12) * 255);
+      const fG = Math.round((0.88 + g * 0.12) * 255);
+      const fB = Math.round((0.88 + b * 0.12) * 255);
+      doc.setFillColor(fR, fG, fB);
+      doc.setDrawColor(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
+      doc.setLineWidth(1.2);
+      doc.setLineDashPattern([5, 3], 0);
+      drawRect(xMin - pad, yMin - pad, (xMax - xMin) + 2 * pad, (yMax - yMin) + 2 * pad, 'FD');
+      doc.setLineDashPattern([], 0);
       
-      setFont('Helvetica', 8);
-      drawText("NRO (Nœud de raccordement)", x + 10, y - 35);
-      drawText("PEC", x + 10, y - 50);
-      drawText("PDB", x + 10, y - 65);
-      drawText("BPE en passage", x + 10, y - 80);
+      let commune = '';
+      for (const p of pts) { commune = String(p.row.COMMUNE || '').trim(); if (commune) break; }
+      const label = commune ? `${commune}  [${fci}]` : `[${fci}]`;
       
-      drawText("PBC", x + 200, y - 35);
-      drawText("PEC", x + 200, y - 50);
-      drawText("PDB", x + 200, y - 65);
-      drawText("BPE en passage", x + 200, y - 80);
-      
-      drawText("Orange / FT", x + 400, y - 35);
-      drawText("Existante", x + 400, y - 50);
-      drawText("Galerie disponible", x + 400, y - 65);
-      
+      setTextColor([Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255)]);
+      setFont('Helvetica-Bold', 9);
+      drawText(label, xMin - pad + 5, yMax + pad + 12);
+      setTextColor(COL.black);
+    }
+  }
+  
+  function dessinerRenvoiSortie(x, y, longueur, pageSuivante) {
+    setDrawColor(COL.red); setFillColor(COL.red);
+    doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
+    drawLine(x, y - 8, x, y - 18);
+    doc.setLineDashPattern([], 0);
+    doc.setLineWidth(1.2);
+    doc.triangle(x, flipY(y - 22), x - 3, flipY(y - 18), x + 3, flipY(y - 18), 'F');
+    setFont('Helvetica-Bold', 6);
+    drawText(`Suite P.${pageSuivante}`, x, y - 28, 'center');
+    drawText(`(${longueur} m)`, x, y - 35, 'center');
+  }
+  function dessinerRenvoiEntree(x, y, longueur, pagePrecedente) {
+    setDrawColor(COL.red); setFillColor(COL.red);
+    doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
+    drawLine(x, y + 8, x, y + 16);
+    doc.setLineDashPattern([], 0);
+    doc.setLineWidth(1.2);
+    doc.triangle(x, flipY(y + 5), x - 3, flipY(y + 9), x + 3, flipY(y + 9), 'F');
+    setFont('Helvetica-Bold', 6);
+    drawText(`Suite P.${pagePrecedente}`, x, y + 20, 'center');
+    drawText(`(${longueur} m)`, x, y + 26, 'center');
+  }
+  
+  function couleurPoint(ref, bpe) {
+    const refU = String(ref).toUpperCase();
+    const bpeU = String(bpe).toUpperCase();
+    if (bpeU.includes('PBC') || refU.includes('PBC')) return COL.turquoise;
+    if (refU.includes('PEC')) return COL.red;
+    if (refU.includes('PDB')) return COL.blue;
+    if (bpeU) return COL.purple;
+    return COL.black;
+  }
+  
+  function dessinerPoint(cx, cy, row, globalI) {
+    const ch = row.CODE_CH1 || '';
+    const bpe = row.BPE || '';
+    const ref = row.REF_CHAMBR || '';
+    const wkt = row.wkt_geom || '';
+    const nomCable = row.CABLE || '';
+    const mH = row.MASQUE || '';
+    const dH = row.DIAMETRE || '';
+    const mB = row['MASQUE B'] || '';
+    const dB = row['DIAMETRE B'] || '';
+    const [xg, yg] = extraireXY(wkt);
+    
+    if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ch) === '-1' || String(ref).toUpperCase() === 'POP')) {
       setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
-      drawRect(x + 130, y - 38, 8, 8, 'FD');
-      
-      doc.setFillColor(64, 224, 208); drawCircle(x + 280, y - 33, 4, 'F');
-      doc.setFillColor(255, 0, 0);   drawCircle(x + 280, y - 48, 4, 'F');
-      doc.setFillColor(0, 0, 255);   drawCircle(x + 280, y - 63, 4, 'F');
-      doc.setFillColor(128, 0, 128); drawCircle(x + 280, y - 78, 4, 'F');
-      
-      setDrawColor(COL.orange); doc.setLineWidth(2);
-      drawLine(x + 490, y - 33, x + 520, y - 33);
-      doc.setLineDashPattern([3, 3], 0);
-      drawLine(x + 490, y - 48, x + 520, y - 48);
-      doc.setLineDashPattern([], 0);
-      setDrawColor(COL.black); doc.setLineWidth(1);
-      drawLine(x + 490, y - 63, x + 520, y - 63);
-      
-      setFillColor([245,245,245]); setDrawColor([128,128,128]);
-      drawRect(x + 570, y - 90, 200, 90, 'FD');
-      setTextColor(COL.black); setFont('Helvetica-Bold', 10);
-      drawText("RÉCAPITULATIF", x + 580, y - 15);
-      setFont('Helvetica', 8);
-      drawText(`Nombre de chambres : ${stats.nbChambres}`, x + 580, y - 30);
-      drawText(`Nombre de boîtes : ${stats.nbBoites}`, x + 580, y - 42);
-      drawText(`Infrastructure (ml) : ${stats.infraML.toFixed(1)}`, x + 580, y - 54);
-      drawText(`Câble (ml + 10%) : ${stats.cableML.toFixed(1)}`, x + 580, y - 66);
-    }
-    
-    function dessinerZonesFCI(positions) {
-      const groupes = {};
-      for (const p of positions) {
-        const fci = String(p.row.FCI || '').trim();
-        if (fci && fci.toLowerCase() !== 'nan' && fci.toLowerCase() !== 'none') {
-          if (!groupes[fci]) groupes[fci] = [];
-          groupes[fci].push(p);
-        }
-      }
-      
-      for (const fci in groupes) {
-        const pts = groupes[fci];
-        const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-        let xMin = Math.min(...xs), xMax = Math.max(...xs);
-        let yMin = Math.min(...ys), yMax = Math.max(...ys);
-        if (xMax - xMin < 20) { xMin -= 10; xMax += 10; }
-        if (yMax - yMin < 20) { yMin -= 10; yMax += 10; }
-        const pad = 15;
-        const [r, g, b] = couleurFCI(fci);
-        
-        const fR = Math.round((0.88 + r * 0.12) * 255);
-        const fG = Math.round((0.88 + g * 0.12) * 255);
-        const fB = Math.round((0.88 + b * 0.12) * 255);
-        doc.setFillColor(fR, fG, fB);
-        doc.setDrawColor(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
-        doc.setLineWidth(1.2);
-        doc.setLineDashPattern([5, 3], 0);
-        drawRect(xMin - pad, yMin - pad, (xMax - xMin) + 2 * pad, (yMax - yMin) + 2 * pad, 'FD');
-        doc.setLineDashPattern([], 0);
-        
-        let commune = '';
-        for (const p of pts) { commune = String(p.row.COMMUNE || '').trim(); if (commune) break; }
-        const label = commune ? `${commune}  [${fci}]` : `[${fci}]`;
-        
-        // Positionnement du titre AU-DESSUS du cadre
-        setTextColor([Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255)]);
-        setFont('Helvetica-Bold', 9);
-        drawText(label, xMin - pad + 5, yMax + pad + 12);
-        setTextColor(COL.black);
-      }
-    }
-    
-    function dessinerRenvoiSortie(x, y, longueur, pageSuivante) {
-      setDrawColor(COL.red); setFillColor(COL.red);
-      doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
-      drawLine(x, y - 8, x, y - 18);
-      doc.setLineDashPattern([], 0);
-      doc.setLineWidth(1.2);
-      doc.triangle(x, flipY(y - 22), x - 3, flipY(y - 18), x + 3, flipY(y - 18), 'F');
-      setFont('Helvetica-Bold', 6);
-      drawText(`Suite P.${pageSuivante}`, x, y - 28, 'center');
-      drawText(`(${longueur} m)`, x, y - 35, 'center');
-    }
-    function dessinerRenvoiEntree(x, y, longueur, pagePrecedente) {
-      setDrawColor(COL.red); setFillColor(COL.red);
-      doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
-      drawLine(x, y + 8, x, y + 16);
-      doc.setLineDashPattern([], 0);
-      doc.setLineWidth(1.2);
-      doc.triangle(x, flipY(y + 5), x - 3, flipY(y + 9), x + 3, flipY(y + 9), 'F');
-      setFont('Helvetica-Bold', 6);
-      drawText(`Suite P.${pagePrecedente}`, x, y + 20, 'center');
-      drawText(`(${longueur} m)`, x, y + 26, 'center');
-    }
-    
-    function couleurPoint(ref, bpe) {
-      const refU = String(ref).toUpperCase();
-      const bpeU = String(bpe).toUpperCase();
-      if (bpeU.includes('PBC') || refU.includes('PBC')) return COL.turquoise;
-      if (refU.includes('PEC')) return COL.red;
-      if (refU.includes('PDB')) return COL.blue;
-      if (bpeU) return COL.purple;
-      return COL.black;
-    }
-    
-    function dessinerPoint(cx, cy, row, globalI) {
-      const ch = row.CODE_CH1 || '';
-      const bpe = row.BPE || '';
-      const ref = row.REF_CHAMBR || '';
-      const wkt = row.wkt_geom || '';
-      const nomCable = row.CABLE || '';
-      const mH = row.MASQUE || '';
-      const dH = row.DIAMETRE || '';
-      const mB = row['MASQUE B'] || '';
-      const dB = row['DIAMETRE B'] || '';
-      const [xg, yg] = extraireXY(wkt);
-      
-      if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ch) === '-1' || String(ref).toUpperCase() === 'POP')) {
+      drawRect(cx - 4, cy - 4, 8, 8, 'FD');
+      setTextColor(COL.black); setFont('Helvetica-Bold', 7);
+      drawText("NRO / POP", cx, cy + 8, 'center');
+    } else {
+      if (globalI === 0) {
         setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
         drawRect(cx - 4, cy - 4, 8, 8, 'FD');
-        setTextColor(COL.black); setFont('Helvetica-Bold', 7);
-        drawText("NRO / POP", cx, cy + 8, 'center');
       } else {
-        if (globalI === 0) {
-          setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
-          drawRect(cx - 4, cy - 4, 8, 8, 'FD');
-        } else {
-          const c = couleurPoint(ref, bpe);
-          setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5);
-          drawCircle(cx, cy, 4, 'FD');
-        }
-        setTextColor(COL.black);
-        if (ref) {
-          setFont('Helvetica-Oblique', 5); setTextColor(COL.grey);
-          drawText(ref, cx, cy + 16, 'center');
-          setTextColor(COL.black);
-        }
-        setFont('Helvetica-Bold', 7);
-        drawText(`CH ${ch}`, cx, cy + 8, 'center');
+        const c = couleurPoint(ref, bpe);
+        setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5);
+        drawCircle(cx, cy, 4, 'FD');
       }
-      
-      if (optBPE && bpe) {
-        setTextColor(COL.navy); setFont('Helvetica', 5);
-        drawText(bpe, cx, cy - 8, 'center');
+      setTextColor(COL.black);
+      if (ref) {
+        setFont('Helvetica-Oblique', 5); setTextColor(COL.grey);
+        drawText(ref, cx, cy + 16, 'center');
         setTextColor(COL.black);
       }
-      if (optGPS && xg !== null && yg !== null) {
-        setTextColor(COL.darkviolet); setFont('Helvetica', 4);
-        drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center');
-        setTextColor(COL.black);
-      }
-      if (optCables && nomCable) {
-        const offset = (optGPS && xg !== null) ? -19 : -14;
-        setTextColor(COL.blue); setFont('Helvetica', 4);
-        drawText(nomCable, cx, cy + offset, 'center');
-        setTextColor(COL.black);
-      }
-      if (optMasques) {
-        setTextColor(COL.red); setFont('Helvetica-Bold', 5);
-        if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right');
-        if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2);
-        setTextColor(COL.black);
-      }
+      setFont('Helvetica-Bold', 7);
+      drawText(`CH ${ch}`, cx, cy + 8, 'center');
     }
     
-    function calculerPositions(donneesPage, debutGlobal, startXp, startYp, WidthP, espX, espY, ptsParLigne) {
-      const positions = [];
-      let cx = startXp, cy = startYp, dir = 1, cpt = 0;
-      for (let i = 0; i < donneesPage.length; i++) {
-        if (cpt >= ptsParLigne) {
-          dir *= -1; cpt = 0;
-          cy -= espY;
-          cx = dir === 1 ? startXp : WidthP - startXp;
-        }
-        positions.push({ x: cx, y: cy, row: donneesPage[i], globalI: debutGlobal + i });
-        cx += espX * dir;
-        cpt++;
+    if (optBPE && bpe) {
+      setTextColor(COL.navy); setFont('Helvetica', 5);
+      drawText(bpe, cx, cy - 8, 'center');
+      setTextColor(COL.black);
+    }
+    if (optGPS && xg !== null && yg !== null) {
+      setTextColor(COL.darkviolet); setFont('Helvetica', 4);
+      drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center');
+      setTextColor(COL.black);
+    }
+    if (optCables && nomCable) {
+      const offset = (optGPS && xg !== null) ? -19 : -14;
+      setTextColor(COL.blue); setFont('Helvetica', 4);
+      drawText(nomCable, cx, cy + offset, 'center');
+      setTextColor(COL.black);
+    }
+    if (optMasques) {
+      setTextColor(COL.red); setFont('Helvetica-Bold', 5);
+      if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right');
+      if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2);
+      setTextColor(COL.black);
+    }
+  }
+  
+  function calculerPositions(donneesPage, debutGlobal, startXp, startYp, WidthP, espX, espY, ptsParLigne) {
+    const positions = [];
+    let cx = startXp, cy = startYp, dir = 1, cpt = 0;
+    for (let i = 0; i < donneesPage.length; i++) {
+      if (cpt >= ptsParLigne) {
+        dir *= -1; cpt = 0;
+        cy -= espY;
+        cx = dir === 1 ? startXp : WidthP - startXp;
       }
-      return positions;
+      positions.push({ x: cx, y: cy, row: donneesPage[i], globalI: debutGlobal + i });
+      cx += espX * dir;
+      cpt++;
+    }
+    return positions;
+  }
+  
+  const pointsParLigne = 10;
+  const espacementY = 70;
+  const espacementX = (W - 100) / pointsParLigne;
+  const startX = 70;
+  const startY = H - 160;
+  const hauteurDispo = H - 160 - 170;
+  const nbLignesParPage = Math.max(1, Math.floor(hauteurDispo / espacementY));
+  const pointsParPage = pointsParLigne * nbLignesParPage;
+  const nbPages = Math.max(1, Math.ceil(donnees.length / pointsParPage));
+  
+  for (let numPage = 1; numPage <= nbPages; numPage++) {
+    const debut = (numPage - 1) * pointsParPage;
+    const fin = Math.min(debut + pointsParPage, donnees.length);
+    
+    const positions = calculerPositions(
+      donnees.slice(debut, fin), debut, startX, startY,
+      W, espacementX, espacementY, pointsParLigne
+    );
+    
+    if (numPage > 1) doc.addPage('a3', 'landscape');
+    
+    dessinerEntetePied(numPage, nbPages);
+    dessinerLegendeStats(40, 170);
+    
+    if (optFCI) dessinerZonesFCI(positions);
+    
+    if (numPage > 1 && positions.length) {
+      const prevL = positions[0].row.ETIQUETTE_2 || '0';
+      if (parseFloatSafe(prevL) > 0) dessinerRenvoiEntree(positions[0].x, positions[0].y, prevL, numPage - 1);
     }
     
-    const pointsParLigne = 10;
-    const espacementY = 70;
-    const espacementX = (W - 100) / pointsParLigne;
-    const startX = 70;
-    const startY = H - 160;
-    const hauteurDispo = H - 160 - 170;
-    const nbLignesParPage = Math.max(1, Math.floor(hauteurDispo / espacementY));
-    const pointsParPage = pointsParLigne * nbLignesParPage;
-    const nbPages = Math.max(1, Math.ceil(donnees.length / pointsParPage));
-    
-    for (let numPage = 1; numPage <= nbPages; numPage++) {
-      const debut = (numPage - 1) * pointsParPage;
-      const fin = Math.min(debut + pointsParPage, donnees.length);
-      
-      const positions = calculerPositions(
-        donnees.slice(debut, fin), debut, startX, startY,
-        W, espacementX, espacementY, pointsParLigne
-      );
-      
-      if (numPage > 1) doc.addPage('a3', 'landscape');
-      
-      dessinerEntetePied(numPage, nbPages);
-      dessinerLegendeStats(40, 170);
-      
-      if (optFCI) dessinerZonesFCI(positions);
-      
-      if (numPage > 1 && positions.length) {
-        const prevL = positions[0].row.ETIQUETTE_2 || '0';
-        if (parseFloatSafe(prevL) > 0) dessinerRenvoiEntree(positions[0].x, positions[0].y, prevL, numPage - 1);
-      }
-      
-      for (let idx = 0; idx < positions.length; idx++) {
-        const p = positions[idx];
-        if (idx > 0) {
-          const prev = positions[idx - 1];
-          const prevL = prev.row.ETIQUETTE_2 || '0';
-          const isLastGlobal = (p.globalI === donnees.length - 1);
-          const skip = isLastGlobal && ['0','0.0','','None'].includes(String(prevL).trim());
-          if (!skip) {
-            setDrawColor(COL.orange); doc.setLineWidth(1.5);
-            const debutNouvelleLigne = (idx % pointsParLigne === 0);
-            if (debutNouvelleLigne) {
-              const midY = p.y + espacementY / 2;
-              drawLine(prev.x, prev.y, prev.x, midY);
-              drawLine(prev.x, midY, p.x, midY);
-              drawLine(p.x, midY, p.x, p.y);
-            } else {
-              drawLine(prev.x, prev.y, p.x, p.y);
-            }
-            setTextColor(COL.black); setFont('Helvetica-Bold', 6);
-            const midX = (prev.x + p.x) / 2;
-            const midY2 = (prev.y + p.y) / 2;
-            drawText(`${prevL}m`, midX, midY2 + 4, 'center');
+    for (let idx = 0; idx < positions.length; idx++) {
+      const p = positions[idx];
+      if (idx > 0) {
+        const prev = positions[idx - 1];
+        const prevL = prev.row.ETIQUETTE_2 || '0';
+        const isLastGlobal = (p.globalI === donnees.length - 1);
+        const skip = isLastGlobal && ['0','0.0','','None'].includes(String(prevL).trim());
+        if (!skip) {
+          setDrawColor(COL.orange); doc.setLineWidth(1.5);
+          const debutNouvelleLigne = (idx % pointsParLigne === 0);
+          if (debutNouvelleLigne) {
+            const midY = p.y + espacementY / 2;
+            drawLine(prev.x, prev.y, prev.x, midY);
+            drawLine(prev.x, midY, p.x, midY);
+            drawLine(p.x, midY, p.x, p.y);
+          } else {
+            drawLine(prev.x, prev.y, p.x, p.y);
           }
+          setTextColor(COL.black); setFont('Helvetica-Bold', 6);
+          const midX = (prev.x + p.x) / 2;
+          const midY2 = (prev.y + p.y) / 2;
+          drawText(`${prevL}m`, midX, midY2 + 4, 'center');
         }
-        dessinerPoint(p.x, p.y, p.row, p.globalI);
       }
-      
-      if (numPage < nbPages && positions.length && fin < donnees.length) {
-        const last = positions[positions.length - 1];
-        const nextL = donnees[fin].ETIQUETTE_2 || '0';
-        if (parseFloatSafe(nextL) > 0) dessinerRenvoiSortie(last.x, last.y, nextL, numPage + 1);
-      }
+      dessinerPoint(p.x, p.y, p.row, p.globalI);
     }
     
-    const fname = `Synoptique_${nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`;
-    doc.save(fname);
-    
-    alert(`✅ Synoptique généré : ${fname}\n\n${donnees.length} chambres, ${nbPages} page(s).`);
+    if (numPage < nbPages && positions.length && fin < donnees.length) {
+      const last = positions[positions.length - 1];
+      const nextL = donnees[fin].ETIQUETTE_2 || '0';
+      if (parseFloatSafe(nextL) > 0) dessinerRenvoiSortie(last.x, last.y, nextL, numPage + 1);
+    }
+  }
+  
+  return { doc, nomProjet, nbPages, nbChambres: donnees.length };
+}
+
+async function genererSynoptiquePDF() {
+  showOverlay(true);
+  try {
+    const res = construireSynoptiquePDF();
+    if (!res) {
+      alert("Aucune chambre ou jsPDF non disponible. Vérifiez la connexion internet.");
+      return;
+    }
+    const fname = `Synoptique_${res.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`;
+    res.doc.save(fname);
+    alert(`✅ Synoptique généré : ${fname}\n\n${res.nbChambres} chambres, ${res.nbPages} page(s).`);
   } catch (e) {
     console.error(e);
     alert("Erreur lors de la génération du synoptique :\n" + e.message);
@@ -1510,7 +1510,7 @@ function trierParOrdreGeo() {
   chambres.forEach(c => delete c.__srcIndex);
 }
 
-/* -------------------- Export ZIP -------------------- */
+/* -------------------- Export ZIP (avec Synoptique) -------------------- */
 async function exportAll(){
   if(!chambres.length){alert('Rien à exporter.');return;}
   showOverlay(true);
@@ -1518,6 +1518,19 @@ async function exportAll(){
     trierParOrdreGeo();
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
+    
+    // Ajout du Synoptique PDF
+    try {
+      const pdfRes = construireSynoptiquePDF();
+      if (pdfRes) {
+        const pdfBlob = pdfRes.doc.output('blob');
+        const pdfName = `Synoptique_${pdfRes.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`;
+        zip.file(pdfName, pdfBlob);
+      }
+    } catch(e) {
+      console.warn("Synoptique non généré pour l'export :", e);
+    }
+
     const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
     const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
     for(const c of chambres){
@@ -1532,7 +1545,7 @@ async function exportAll(){
     const fname = 'TOP_SAT_SERVICES_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
     const file = new File([blob], fname, { type: 'application/zip' });
     try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relevé Chambres - TOP SAT SERVICES', text: 'Relevé terrain' }); }
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relevé Chambres - TOP SAT SERVICES', text: 'Relevé terrain (incl. Synoptique)' }); }
       else { throw new Error("Partage non supporté"); }
     } catch (err) {
       const url = URL.createObjectURL(blob);
