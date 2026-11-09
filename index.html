@@ -186,7 +186,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   </div>
   
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 11.3 — Synoptique PDF
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 11.4 — Ajustements Synoptique
   </div>
 </section>
 
@@ -966,6 +966,11 @@ async function genererSynoptiquePDF() {
       whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211]
     };
     
+    // Helpers de dessin
+    const setDrawColor = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+    const setFillColor = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+    const setTextColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+    
     const drawRect = (x, yBottom, w, h, style) => doc.rect(x, flipY(yBottom + h), w, h, style);
     const drawLine = (x1, y1, x2, y2) => doc.line(x1, flipY(y1), x2, flipY(y2));
     const drawCircle = (cx, cy, r, style) => doc.circle(cx, flipY(cy), r, style);
@@ -981,16 +986,14 @@ async function genererSynoptiquePDF() {
       doc.setFont('helvetica', style);
       doc.setFontSize(size);
     };
-    const setFill = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
     
     const textWidth = (txt) => doc.getTextWidth(String(txt));
-    
     const today = new Date().toLocaleDateString('fr-FR');
-    const APP_VERSION_PDF = '11.3';
+    const APP_VERSION_PDF = '11.4';
     const APP_AUTEUR_PDF = 'JFC';
     
     function dessinerEntetePied(numPage, nbPages) {
-      doc.setDrawColor(0, 0, 0); doc.setLineWidth(1);
+      setDrawColor(COL.black); doc.setLineWidth(1);
       drawRect(40, H - 100, W - 80, 60, 'S');
       
       if (logoGauche && logoGauche.dataUrl) {
@@ -1000,7 +1003,7 @@ async function genererSynoptiquePDF() {
         try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
       }
       
-      setFill(COL.black); setFont('Helvetica-Bold', 14);
+      setTextColor(COL.black); setFont('Helvetica-Bold', 14);
       drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
       
       setFont('Helvetica', 10);
@@ -1009,13 +1012,13 @@ async function genererSynoptiquePDF() {
       if (infoComp) {
         setFont('Helvetica-Oblique', 9);
         const tw = textWidth(infoComp);
-        doc.setStrokeColor(128, 128, 128); doc.setFillColor(245, 245, 245);
+        setDrawColor([128,128,128]); setFillColor([245,245,245]);
         drawRect(40, H - 120, tw + 10, 15, 'FD');
-        setFill(COL.darkred);
+        setTextColor(COL.darkred);
         drawText(infoComp, 45, H - 116);
       }
       
-      doc.setDrawColor(0, 0, 0); doc.setFillColor(0, 0, 0); doc.setLineWidth(1);
+      setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1);
       drawRect(40, 30, W - 80, 40, 'S');
       const col1 = 40 + (W - 80) * 0.20;
       const col2 = 40 + (W - 80) * 0.40;
@@ -1042,11 +1045,11 @@ async function genererSynoptiquePDF() {
     }
     
     function dessinerLegendeStats(x, y) {
-      doc.setFillColor(245, 245, 245); doc.setDrawColor(128, 128, 128);
+      setFillColor([245,245,245]); setDrawColor([128,128,128]);
       doc.setLineWidth(1);
       drawRect(x, y - 90, 550, 90, 'FD');
       
-      setFill(COL.black); setFont('Helvetica-Bold', 10);
+      setTextColor(COL.black); setFont('Helvetica-Bold', 10);
       drawText("SITE :", x + 10, y - 15);
       drawText("BPE :", x + 200, y - 15);
       drawText("Infrastructures :", x + 400, y - 15);
@@ -1066,7 +1069,7 @@ async function genererSynoptiquePDF() {
       drawText("Existante", x + 400, y - 50);
       drawText("Galerie disponible", x + 400, y - 65);
       
-      setFill(COL.red); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5);
+      setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
       drawRect(x + 130, y - 38, 8, 8, 'FD');
       
       doc.setFillColor(64, 224, 208); drawCircle(x + 280, y - 33, 4, 'F');
@@ -1074,17 +1077,17 @@ async function genererSynoptiquePDF() {
       doc.setFillColor(0, 0, 255);   drawCircle(x + 280, y - 63, 4, 'F');
       doc.setFillColor(128, 0, 128); drawCircle(x + 280, y - 78, 4, 'F');
       
-      doc.setDrawColor(255, 165, 0); doc.setLineWidth(2);
+      setDrawColor(COL.orange); doc.setLineWidth(2);
       drawLine(x + 490, y - 33, x + 520, y - 33);
       doc.setLineDashPattern([3, 3], 0);
       drawLine(x + 490, y - 48, x + 520, y - 48);
       doc.setLineDashPattern([], 0);
-      doc.setDrawColor(0, 0, 0); doc.setLineWidth(1);
+      setDrawColor(COL.black); doc.setLineWidth(1);
       drawLine(x + 490, y - 63, x + 520, y - 63);
       
-      doc.setFillColor(245, 245, 245); doc.setDrawColor(128, 128, 128);
+      setFillColor([245,245,245]); setDrawColor([128,128,128]);
       drawRect(x + 570, y - 90, 200, 90, 'FD');
-      setFill(COL.black); setFont('Helvetica-Bold', 10);
+      setTextColor(COL.black); setFont('Helvetica-Bold', 10);
       drawText("RÉCAPITULATIF", x + 580, y - 15);
       setFont('Helvetica', 8);
       drawText(`Nombre de chambres : ${stats.nbChambres}`, x + 580, y - 30);
@@ -1126,15 +1129,17 @@ async function genererSynoptiquePDF() {
         let commune = '';
         for (const p of pts) { commune = String(p.row.COMMUNE || '').trim(); if (commune) break; }
         const label = commune ? `${commune}  [${fci}]` : `[${fci}]`;
-        doc.setFillColor(Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255));
+        
+        // Positionnement du titre AU-DESSUS du cadre
+        setTextColor([Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255)]);
         setFont('Helvetica-Bold', 9);
-        drawText(label, xMin - pad + 5, yMax + pad - 10);
-        setFill(COL.black);
+        drawText(label, xMin - pad + 5, yMax + pad + 12);
+        setTextColor(COL.black);
       }
     }
     
     function dessinerRenvoiSortie(x, y, longueur, pageSuivante) {
-      doc.setDrawColor(255, 0, 0); doc.setFillColor(255, 0, 0);
+      setDrawColor(COL.red); setFillColor(COL.red);
       doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
       drawLine(x, y - 8, x, y - 18);
       doc.setLineDashPattern([], 0);
@@ -1145,7 +1150,7 @@ async function genererSynoptiquePDF() {
       drawText(`(${longueur} m)`, x, y - 35, 'center');
     }
     function dessinerRenvoiEntree(x, y, longueur, pagePrecedente) {
-      doc.setDrawColor(255, 0, 0); doc.setFillColor(255, 0, 0);
+      setDrawColor(COL.red); setFillColor(COL.red);
       doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
       drawLine(x, y + 8, x, y + 16);
       doc.setLineDashPattern([], 0);
@@ -1179,50 +1184,50 @@ async function genererSynoptiquePDF() {
       const [xg, yg] = extraireXY(wkt);
       
       if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ch) === '-1' || String(ref).toUpperCase() === 'POP')) {
-        doc.setFillColor(255, 0, 0); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5);
+        setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
         drawRect(cx - 4, cy - 4, 8, 8, 'FD');
-        setFill(COL.black); setFont('Helvetica-Bold', 7);
+        setTextColor(COL.black); setFont('Helvetica-Bold', 7);
         drawText("NRO / POP", cx, cy + 8, 'center');
       } else {
         if (globalI === 0) {
-          doc.setFillColor(255, 0, 0); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5);
+          setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
           drawRect(cx - 4, cy - 4, 8, 8, 'FD');
         } else {
           const c = couleurPoint(ref, bpe);
-          doc.setFillColor(c[0], c[1], c[2]); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5);
+          setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5);
           drawCircle(cx, cy, 4, 'FD');
         }
-        setFill(COL.black);
+        setTextColor(COL.black);
         if (ref) {
-          setFont('Helvetica-Oblique', 5); setFill(COL.grey);
+          setFont('Helvetica-Oblique', 5); setTextColor(COL.grey);
           drawText(ref, cx, cy + 16, 'center');
-          setFill(COL.black);
+          setTextColor(COL.black);
         }
         setFont('Helvetica-Bold', 7);
         drawText(`CH ${ch}`, cx, cy + 8, 'center');
       }
       
       if (optBPE && bpe) {
-        setFill(COL.navy); setFont('Helvetica', 5);
+        setTextColor(COL.navy); setFont('Helvetica', 5);
         drawText(bpe, cx, cy - 8, 'center');
-        setFill(COL.black);
+        setTextColor(COL.black);
       }
       if (optGPS && xg !== null && yg !== null) {
-        setFill(COL.darkviolet); setFont('Helvetica', 4);
+        setTextColor(COL.darkviolet); setFont('Helvetica', 4);
         drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center');
-        setFill(COL.black);
+        setTextColor(COL.black);
       }
       if (optCables && nomCable) {
         const offset = (optGPS && xg !== null) ? -19 : -14;
-        setFill(COL.blue); setFont('Helvetica', 4);
+        setTextColor(COL.blue); setFont('Helvetica', 4);
         drawText(nomCable, cx, cy + offset, 'center');
-        setFill(COL.black);
+        setTextColor(COL.black);
       }
       if (optMasques) {
-        setFill(COL.red); setFont('Helvetica-Bold', 5);
+        setTextColor(COL.red); setFont('Helvetica-Bold', 5);
         if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right');
         if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2);
-        setFill(COL.black);
+        setTextColor(COL.black);
       }
     }
     
@@ -1281,7 +1286,7 @@ async function genererSynoptiquePDF() {
           const isLastGlobal = (p.globalI === donnees.length - 1);
           const skip = isLastGlobal && ['0','0.0','','None'].includes(String(prevL).trim());
           if (!skip) {
-            doc.setDrawColor(255, 165, 0); doc.setLineWidth(1.5);
+            setDrawColor(COL.orange); doc.setLineWidth(1.5);
             const debutNouvelleLigne = (idx % pointsParLigne === 0);
             if (debutNouvelleLigne) {
               const midY = p.y + espacementY / 2;
@@ -1291,7 +1296,7 @@ async function genererSynoptiquePDF() {
             } else {
               drawLine(prev.x, prev.y, p.x, p.y);
             }
-            setFill(COL.black); setFont('Helvetica-Bold', 6);
+            setTextColor(COL.black); setFont('Helvetica-Bold', 6);
             const midX = (prev.x + p.x) / 2;
             const midY2 = (prev.y + p.y) / 2;
             drawText(`${prevL}m`, midX, midY2 + 4, 'center');
