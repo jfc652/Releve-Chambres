@@ -204,7 +204,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   </div>
   
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.2
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.3
   </div>
 </section>
 
@@ -694,9 +694,9 @@ function openDetail(id){
     ? `<span class="info-item clickable" style="grid-column: span 2; background:#e8f5e9;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}','_blank')">📍 ${escapeHTML(c.lat)}, ${escapeHTML(c.lon)}</span>`
     : `<span class="info-item" style="grid-column: span 2; background:#ffebee;">📍 Non renseigné</span>`;
   
-  // Correction ici : Affichage conditionnel des cassettes et câbles
+  // Regroupement des conditions d'affichage
+  const showBoxSettings = hasBpe || c.forceShowSoudure;
   const showCassettes = hasBpe || c.forceShowSoudure;
-  const showCables = hasBpe || c.forceShowSoudure;
 
   cont.innerHTML=`
   <div class="card">
@@ -724,23 +724,23 @@ function openDetail(id){
       <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue :</b> ${escapeHTML(bpeOrigine || 'Non renseignée')}</div>
       ${gpsDisplay}
     </div>
-
+    
+    ${showBoxSettings ? `
     <div style="margin-top:12px; background:#e8eaf6; padding:10px; border-radius:8px; border:1px solid #c5cae9;">
       <label for="capaciteSelect" style="margin-top:0; color:#283593;">🔌 Capacité du câble (FO)</label>
       <select id="capaciteSelect" style="margin-top:5px; border-color:#9fa8da;">
         ${[12, 24, 36, 48, 72, 96, 144, 288].map(cap => `<option value="${cap}" ${c.capacite == cap ? 'selected' : ''}>${cap} FO (${Math.ceil(cap/12)} cassettes)</option>`).join('')}
       </select>
     </div>
+    ` : ''}
     <div style="margin-top:12px; text-align:center;">${navBtns}</div>
   </div>
   
-  ${showCables ? `
   <div class="card">
     <label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label>
     <div id="passages-container">${passagesHtml}</div>
     ${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}
   </div>
-  ` : ''}
   
   <div class="card">
     <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
@@ -774,7 +774,7 @@ function openDetail(id){
     <div class="photo-row" id="cassettesGrid"></div>
   </div>
 
-  ${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? `
+  ${showBoxSettings ? `
   <div class="card" id="souduresConfigCard">
     <div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div>
     <p class="small">Cochez "Droit" pour souder les 12 fibres du tube sur le même tube. Décochez pour gérer les mélanges (passage, attente, tube différent).</p>
@@ -845,14 +845,14 @@ function openDetail(id){
     grid.querySelectorAll('.fib-status').forEach(sel => { sel.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].status = e.target.value; await dbPut(c); renderSouduresConfig(); }; });
     grid.querySelectorAll('.fib-dest-tube, .fib-dest-fib').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); const val = parseInt(e.target.value) || 1; if (inp.classList.contains('fib-dest-tube')) c.splicingData[t].fibers[f].destTube = val; else c.splicingData[t].fibers[f].destFib = val; await dbPut(c); }; });
   };
-  if ((hasBpe && c.hasBoite) || c.forceShowSoudure) renderSouduresConfig();
+  if (showBoxSettings) renderSouduresConfig();
 
   const toggleSoudureBtn = document.getElementById('toggleSoudureBtn');
   if (toggleSoudureBtn) {
     toggleSoudureBtn.onclick = async () => { c.forceShowSoudure = !c.forceShowSoudure; await dbPut(c); openDetail(id); };
   }
 
-  document.getElementById('capaciteSelect').onchange = async (e) => { c.capacite = parseInt(e.target.value, 10); await dbPut(c); openDetail(id); };
+  document.getElementById('capaciteSelect')?.addEventListener('change', async (e) => { c.capacite = parseInt(e.target.value, 10); await dbPut(c); openDetail(id); });
   cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passId = inp.dataset.pass; const field = inp.dataset.field; const passage = c.passages.find(x => x.id === passId); if(passage) { passage[field] = e.target.value; dbPut(c); if(modeTravail === 'aiguillage') renderPhotoGrid(); } }; });
   document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c); openDetail(id); });
   cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c); openDetail(id); } }; });
@@ -1121,7 +1121,7 @@ async function construireSynoptiquePDF() {
     drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
     
     setFont('Helvetica', 10);
-    drawText(`Date : ${today} | Version : 13.2`, W / 2, H - 75, 'center');
+    drawText(`Date : ${today} | Version : 13.3`, W / 2, H - 75, 'center');
     
     if (infoComp) {
       setFont('Helvetica-Oblique', 9);
@@ -1510,14 +1510,18 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       if (logoG && logoG.dataUrl) try { doc.addImage(logoG.dataUrl, logoG.format, 30, 85, 50, 25); } catch(e){}
       if (logoD && logoD.dataUrl) try { doc.addImage(logoD.dataUrl, logoD.format, pageW - 80, 85, 50, 25); } catch(e){}
 
-      // QR CODE CLIQUABLE
+      // QR CODE ET LIEN CLIQUABLE (Méthode Canvas robuste)
       if (bpe && bpe.trim() !== '') {
         try { 
           let qrData = wazeUrl;
           if (!qrData && c.lat && c.lon) qrData = `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}`;
           if (!qrData) qrData = `BPE:${nomBoite} - Code:${codeSite}`;
           
-          const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 200 }); 
+          // Création d'un canvas temporaire pour générer le QR code
+          const qrCanvas = document.createElement('canvas');
+          await QRCode.toCanvas(qrCanvas, qrData, { margin: 1, width: 200 });
+          const qrDataUrl = qrCanvas.toDataURL('image/png');
+          
           doc.addImage(qrDataUrl, 'PNG', pageW - 95, 20, 65, 65); 
           doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont('helvetica', 'bold'); 
           doc.text("Localisation", pageW - 62.5, 90, { align: 'center' }); 
