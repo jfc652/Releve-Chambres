@@ -82,14 +82,6 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .splice-table th, .splice-table td { border: 1px solid #ccc; padding: 4px; text-align: center; }
 .splice-table select, .splice-table input { padding: 4px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
 .splice-table input:disabled { background: #e0e0e0; color: #888; }
-
-/* Boutons d'upload stylisés */
-.file-input-wrapper { display: flex; gap: 8px; align-items: stretch; margin-top: 6px; }
-.file-input-label { flex: 1; display: flex; align-items: center; justify-content: center; background: #eef3f8; border: 1px dashed #0055A4; color: #0055A4; border-radius: 8px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; margin: 0; }
-.file-input-label:active { background: #d0e3f5; }
-.file-input-wrapper input[type=file] { display: none; }
-.file-input-clear { display: flex; align-items: center; justify-content: center; width: 44px; background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; border-radius: 8px; cursor: pointer; font-size: 18px; }
-.file-input-clear:active { background: #ffcdd2; }
 </style>
 </head>
 <body>
@@ -170,18 +162,16 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <input type="text" id="synoptiqueInfoComp" placeholder="Ex: Zone Nord">
     
     <label>Logo gauche (client)</label>
-    <div class="file-input-wrapper">
-      <label for="synoptiqueLogoGauche" class="file-input-label">📁 Choisir Logo</label>
-      <input type="file" id="synoptiqueLogoGauche" accept="image/*">
-      <button type="button" id="synoptiqueClearLogoGauche" class="file-input-clear">🗑️</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="file" id="synoptiqueLogoGauche" accept="image/*" style="flex:1;">
+      <button type="button" id="synoptiqueClearLogoGauche" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:12px;">🗑️</button>
     </div>
     <div id="synoptiqueLogoGaucheStatus" class="small" style="margin-top:4px;"></div>
     
     <label>Logo droite (société)</label>
-    <div class="file-input-wrapper">
-      <label for="synoptiqueLogoDroite" class="file-input-label">📁 Choisir Logo</label>
-      <input type="file" id="synoptiqueLogoDroite" accept="image/*">
-      <button type="button" id="synoptiqueClearLogoDroite" class="file-input-clear">🗑️</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="file" id="synoptiqueLogoDroite" accept="image/*" style="flex:1;">
+      <button type="button" id="synoptiqueClearLogoDroite" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:12px;">🗑️</button>
     </div>
     <div id="synoptiqueLogoDroiteStatus" class="small" style="margin-top:4px;"></div>
     
@@ -204,7 +194,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   </div>
   
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 12.1
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 12.2
   </div>
 </section>
 
@@ -681,12 +671,13 @@ function openDetail(id){
   for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
   
   const passagesHtml = c.passages.map((p, index) => {
+    const isFoa = modeTravail === 'foa';
     const cableVal = p.cable_name || (index === 0 ? csvCableVal : '');
     const masqueInVal = p.masque_in || (index === 0 ? (c.raw['MASQUE'] || '') : '');
     const diamInVal = p.diam_in || (index === 0 ? (c.raw['DIAMETRE'] || '') : '');
     const masqueOutVal = p.masque_out || (index === 0 ? (c.raw['MASQUE B'] || c.raw['MASQUE_B'] || '') : '');
     const diamOutVal = p.diam_out || (index === 0 ? (c.raw['DIAMETRE B'] || c.raw['DIAMETRE_B'] || '') : '');
-    return `<div class="passage-card" data-passage-id="${p.id}">${c.passages.length > 1 ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
+    return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
   
   const gpsDisplay = (c.lat && c.lon) 
@@ -732,13 +723,13 @@ function openDetail(id){
   <div class="card">
     <label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label>
     <div id="passages-container">${passagesHtml}</div>
-    <button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>
+    ${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}
   </div>
   
   <div class="card">
     <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
     <div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div>
-    <div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">Boîte posée</label></div>
+    <div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div>
     
     <button id="toggleSoudureBtn" class="btn btn-secondary" style="margin-top:10px; font-size:13px; padding:10px; background:${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '#ffcdd2' : '#c8e6c9'}; color:#333;">
       ${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '❌ Masquer la configuration des soudures' : "🔗 Forcer l'affichage des soudures"}
@@ -869,8 +860,12 @@ function openDetail(id){
  * MODAL ÉDITION
  * ------------------------------------------------------------------ */
 function openEditChambre(id) {
-  const c = chambres.find(x => x.id === id); if (!c) return;
-  editingId = id; editPendingLat = c.lat || ''; editPendingLon = c.lon || '';
+  const c = chambres.find(x => x.id === id);
+  if (!c) return;
+  editingId = id;
+  editPendingLat = c.lat || '';
+  editPendingLon = c.lon || '';
+  
   document.getElementById('editCodeCh1').value    = getRawValue(c, ['CODE_CH1'], '');
   document.getElementById('editCodeCh2').value    = getRawValue(c, ['CODE_CH2'], '');
   document.getElementById('editProprietaire').value = getRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], '');
@@ -881,46 +876,146 @@ function openEditChambre(id) {
   document.getElementById('editLon').value        = c.lon || '';
   document.getElementById('editNotes').value      = c.notes || '';
   document.getElementById('editGpsStatus').textContent = '';
+  
   document.getElementById('modalEditChambre').style.display = 'flex';
 }
+
 function closeEditChambre() {
-  editingId = null; editPendingLat = ''; editPendingLon = '';
+  editingId = null;
+  editPendingLat = '';
+  editPendingLon = '';
   document.getElementById('modalEditChambre').style.display = 'none';
 }
+
 async function confirmEditChambre() {
-  if (!editingId) return; const c = chambres.find(x => x.id === editingId); if (!c) return;
+  if (!editingId) return;
+  const c = chambres.find(x => x.id === editingId);
+  if (!c) return;
+  
   const newCodeCh1 = document.getElementById('editCodeCh1').value.trim();
   if (!newCodeCh1) { alert("Le CODE_CH1 ne peut pas être vide."); return; }
+  
+  const duplicate = chambres.find(x => x.id !== editingId && getDisplayName(x) === newCodeCh1);
+  if (duplicate) {
+    if (!confirm(`Une autre chambre porte déjà le CODE_CH1 "${newCodeCh1}".\nContinuer quand même ?`)) return;
+  }
+  
   setRawValue(c, ['CODE_CH1'], newCodeCh1, 'CODE_CH1');
   setRawValue(c, ['CODE_CH2'], document.getElementById('editCodeCh2').value.trim(), 'CODE_CH2');
   setRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], document.getElementById('editProprietaire').value.trim(), 'PROPRIETAI');
   setRawValue(c, ['COMMUNE'], document.getElementById('editCommune').value.trim(), 'COMMUNE');
   setRawValue(c, ['REF_CHAMBR'], document.getElementById('editRefChambr').value.trim(), 'REF_CHAMBR');
   setRawValue(c, ['NUM_VOIE', 'adresse'], document.getElementById('editNumVoie').value.trim(), 'NUM_VOIE');
-  c.lat = editPendingLat || ''; c.lon = editPendingLon || ''; c.notes = document.getElementById('editNotes').value.trim();
-  await dbPut(c); closeEditChambre(); updateHomeStats(); openDetail(editingId);
+  
+  c.lat = editPendingLat || '';
+  c.lon = editPendingLon || '';
+  c.notes = document.getElementById('editNotes').value.trim();
+  
+  await dbPut(c);
+  closeEditChambre();
+  updateHomeStats();
+  openDetail(editingId);
+}
+
+/* ------------------------------------------------------------------ *
+ * MODAL AJOUT — Référence
+ * ------------------------------------------------------------------ */
+function updateReferenceInfo() {
+  const afterId = document.getElementById('insertAfterSelect').value;
+  const ref = chambres.find(c => c.id === afterId);
+  const content = document.getElementById('referenceInfoContent');
+  if (!ref) { content.innerHTML = '<span class="small">Aucune chambre sélectionnée</span>'; return; }
+  
+  const codeCh2 = getRawValue(ref, ['CODE_CH2'], '—');
+  const proprietaire = getRawValue(ref, ['PROPRIETAI', 'PROPRIETAIRE'], '—');
+  const commune = getRawValue(ref, ['COMMUNE'], '—');
+  const refChambr = getRawValue(ref, ['REF_CHAMBR'], '—');
+  const numVoie = getRawValue(ref, ['NUM_VOIE', 'adresse'], '—');
+  const gps = (ref.lat && ref.lon) ? `${ref.lat}, ${ref.lon}` : '—';
+  
+  content.innerHTML = `
+    <div><b>CODE_CH1 :</b> ${escapeHTML(getDisplayName(ref))}</div>
+    <div><b>CODE_CH2 :</b> ${escapeHTML(codeCh2)}</div>
+    <div><b>PROPRIETAI :</b> ${escapeHTML(proprietaire)}</div>
+    <div><b>COMMUNE :</b> ${escapeHTML(commune)}</div>
+    <div><b>REF_CHAMBR :</b> ${escapeHTML(refChambr)}</div>
+    <div><b>N° Voie :</b> ${escapeHTML(numVoie)}</div>
+    <div><b>GPS :</b> ${escapeHTML(gps)}</div>
+  `;
 }
 
 /* ------------------------------------------------------------------ *
  * SYNOPTIQUE PDF & SOUDURES
  * ------------------------------------------------------------------ */
-function saveLogoStorage() { try { localStorage.setItem('synoptique_logo_gauche', JSON.stringify(logoGauche)); localStorage.setItem('synoptique_logo_droite', JSON.stringify(logoDroite)); } catch(e){} }
-function loadLogoStorage() { try { const lg = localStorage.getItem('synoptique_logo_gauche'); if (lg) logoGauche = JSON.parse(lg); const ld = localStorage.getItem('synoptique_logo_droite'); if (ld) logoDroite = JSON.parse(ld); } catch(e){} updateLogoStatus(); }
+function saveLogoStorage() {
+  try {
+    localStorage.setItem('synoptique_logo_gauche', JSON.stringify(logoGauche));
+    localStorage.setItem('synoptique_logo_droite', JSON.stringify(logoDroite));
+  } catch(e){}
+}
+function loadLogoStorage() {
+  try {
+    const lg = localStorage.getItem('synoptique_logo_gauche');
+    if (lg) logoGauche = JSON.parse(lg);
+    const ld = localStorage.getItem('synoptique_logo_droite');
+    if (ld) logoDroite = JSON.parse(ld);
+  } catch(e){}
+  updateLogoStatus();
+}
 function updateLogoStatus() {
   const sg = document.getElementById('synoptiqueLogoGaucheStatus');
   const sd = document.getElementById('synoptiqueLogoDroiteStatus');
-  if (sg) { if (logoGauche && logoGauche.dataUrl) sg.innerHTML = `<img src="${logoGauche.dataUrl}" style="max-height:40px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;"> <span style="color:#2e7d32;">✓ chargé</span>`; else sg.innerHTML = '<span style="color:#888;">Aucun logo (optionnel)</span>'; }
-  if (sd) { if (logoDroite && logoDroite.dataUrl) sd.innerHTML = `<img src="${logoDroite.dataUrl}" style="max-height:40px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;"> <span style="color:#2e7d32;">✓ chargé</span>`; else sd.innerHTML = '<span style="color:#888;">Aucun logo (optionnel)</span>'; }
+  if (sg) {
+    if (logoGauche && logoGauche.dataUrl) {
+      sg.innerHTML = `<img src="${logoGauche.dataUrl}" style="max-height:40px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;"> <span style="color:#2e7d32;">✓ chargé</span>`;
+    } else {
+      sg.innerHTML = '<span style="color:#888;">Aucun logo (optionnel)</span>';
+    }
+  }
+  if (sd) {
+    if (logoDroite && logoDroite.dataUrl) {
+      sd.innerHTML = `<img src="${logoDroite.dataUrl}" style="max-height:40px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;"> <span style="color:#2e7d32;">✓ chargé</span>`;
+    } else {
+      sd.innerHTML = '<span style="color:#888;">Aucun logo (optionnel)</span>';
+    }
+  }
 }
 
-function parseFloatSafe(v, def = 0) { if (v === null || v === undefined) return def; const s = String(v).trim().replace(',', '.'); if (s === '') return def; const n = parseFloat(s); return isNaN(n) ? def : n; }
-function extraireXY(wkt) { if (!wkt) return [null, null]; const m = String(wkt).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/); if (m) return [parseFloatSafe(m[1]), parseFloatSafe(m[2])]; return [null, null]; }
-function hashFCI(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
-function couleurFCI(fci) { const palette = [[0.20, 0.55, 0.95], [0.25, 0.75, 0.40], [0.95, 0.55, 0.20], [0.65, 0.35, 0.90], [0.90, 0.75, 0.15], [0.20, 0.85, 0.85], [0.90, 0.35, 0.55], [0.45, 0.85, 0.30]]; return palette[hashFCI(String(fci)) % palette.length]; }
-function getVal(row, ...keys) { for (const k of keys) { if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k]; } return ''; }
+function parseFloatSafe(v, def = 0) {
+  if (v === null || v === undefined) return def;
+  const s = String(v).trim().replace(',', '.');
+  if (s === '') return def;
+  const n = parseFloat(s);
+  return isNaN(n) ? def : n;
+}
+function extraireXY(wkt) {
+  if (!wkt) return [null, null];
+  const m = String(wkt).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
+  if (m) return [parseFloatSafe(m[1]), parseFloatSafe(m[2])];
+  return [null, null];
+}
+function hashFCI(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+function couleurFCI(fci) {
+  const palette = [
+    [0.20, 0.55, 0.95], [0.25, 0.75, 0.40], [0.95, 0.55, 0.20], [0.65, 0.35, 0.90],
+    [0.90, 0.75, 0.15], [0.20, 0.85, 0.85], [0.90, 0.35, 0.55], [0.45, 0.85, 0.30]
+  ];
+  return palette[hashFCI(String(fci)) % palette.length];
+}
+function getVal(row, ...keys) {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+  }
+  return '';
+}
 
 async function construireSynoptiquePDF() {
   if (!chambres.length) return null;
+  
   const { jsPDF } = window.jspdf || {};
   if (!jsPDF) return null;
   
@@ -935,14 +1030,25 @@ async function construireSynoptiquePDF() {
   const donnees = chambres.map(c => {
     const r = c.raw || {};
     return {
-      'ORDRE': getVal(r, 'ORDRE'), 'CODE_CH1': getVal(r, 'CODE_CH1'), 'BPE': getVal(r, 'BPE'),
-      'ETIQUETTE_2': getVal(r, 'ETIQUETTE_2'), 'REF_CHAMBR': getVal(r, 'REF_CHAMBR'), 'wkt_geom': getVal(r, 'wkt_geom', 'WKT_GEOM'),
-      'CABLE': getVal(r, 'CABLE'), 'MASQUE': getVal(r, 'MASQUE'), 'DIAMETRE': getVal(r, 'DIAMETRE'), 'MASQUE B': getVal(r, 'MASQUE B', 'MASQUE_B'), 'DIAMETRE B': getVal(r, 'DIAMETRE B', 'DIAMETRE_B'),
-      'FCI': getVal(r, 'FCI'), 'COMMUNE': getVal(r, 'COMMUNE'), 'CAPACITE': c.capacite || 48
+      'ORDRE':       getVal(r, 'ORDRE', 'ordre'),
+      'CODE_CH1':    getVal(r, 'CODE_CH1'),
+      'BPE':         getVal(r, 'BPE'),
+      'ETIQUETTE_2': getVal(r, 'ETIQUETTE_2'),
+      'REF_CHAMBR':  getVal(r, 'REF_CHAMBR'),
+      'wkt_geom':    getVal(r, 'wkt_geom', 'WKT_GEOM'),
+      'CABLE':       getVal(r, 'CABLE'),
+      'MASQUE':      getVal(r, 'MASQUE'),
+      'DIAMETRE':    getVal(r, 'DIAMETRE'),
+      'MASQUE B':    getVal(r, 'MASQUE B', 'MASQUE_B'),
+      'DIAMETRE B':  getVal(r, 'DIAMETRE B', 'DIAMETRE_B'),
+      'FCI':         getVal(r, 'FCI'),
+      'COMMUNE':     getVal(r, 'COMMUNE'),
+      'CAPACITE':    c.capacite || 48
     };
   });
   
   donnees.sort((a, b) => parseFloatSafe(a['ORDRE'], 999) - parseFloatSafe(b['ORDRE'], 999));
+  
   const nbChambres = donnees.length;
   const nbBoites = donnees.filter(r => String(r['BPE']).trim() !== '').length;
   const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0);
@@ -950,144 +1056,368 @@ async function construireSynoptiquePDF() {
   const stats = { nbChambres, nbBoites, infraML, cableML };
   
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
-  const W = doc.internal.pageSize.getWidth(); const H = doc.internal.pageSize.getHeight(); const flipY = y => H - y;
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const flipY = y => H - y;
   
-  const COL = { red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208], purple:[128,0,128], orange:[255,165,0], grey:[128,128,128], whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211] };
+  const COL = {
+    red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208],
+    purple:[128,0,128], orange:[255,165,0], grey:[128,128,128],
+    whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211]
+  };
+  
   const setDrawColor = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
   const setFillColor = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
   const setTextColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+  
   const drawRect = (x, yBottom, w, h, style) => doc.rect(x, flipY(yBottom + h), w, h, style);
   const drawLine = (x1, y1, x2, y2) => doc.line(x1, flipY(y1), x2, flipY(y2));
   const drawCircle = (cx, cy, r, style) => doc.circle(cx, flipY(cy), r, style);
-  const drawText = (txt, x, y, align) => { const opts = align === 'center' ? { align: 'center' } : align === 'right' ? { align: 'right' } : undefined; doc.text(String(txt), x, flipY(y), opts); };
-  const setFont = (name, size) => { let style = 'normal'; if (name.includes('Bold') && name.includes('Oblique')) style = 'bolditalic'; else if (name.includes('Bold')) style = 'bold'; else if (name.includes('Oblique')) style = 'italic'; doc.setFont('helvetica', style); doc.setFontSize(size); };
+  const drawText = (txt, x, y, align) => {
+    const opts = align === 'center' ? { align: 'center' } : align === 'right' ? { align: 'right' } : undefined;
+    doc.text(String(txt), x, flipY(y), opts);
+  };
+  const setFont = (name, size) => {
+    let style = 'normal';
+    if (name.includes('Bold') && name.includes('Oblique')) style = 'bolditalic';
+    else if (name.includes('Bold')) style = 'bold';
+    else if (name.includes('Oblique')) style = 'italic';
+    doc.setFont('helvetica', style);
+    doc.setFontSize(size);
+  };
   
   const textWidth = (txt) => doc.getTextWidth(String(txt));
   const today = new Date().toLocaleDateString('fr-FR');
   
   function dessinerEntetePied(numPage, nbPages) {
-    setDrawColor(COL.black); doc.setLineWidth(1); drawRect(40, H - 100, W - 80, 60, 'S');
-    if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
-    if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
-    setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 12.1`, W / 2, H - 75, 'center');
-    if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = textWidth(infoComp); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
+    setDrawColor(COL.black); doc.setLineWidth(1);
+    drawRect(40, H - 100, W - 80, 60, 'S');
     
-    setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
-    const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
-    drawLine(col1, 30, col1, 70); drawLine(col2, 30, col2, 70); drawLine(col3, 30, col3, 70); drawLine(col4, 30, col4, 70);
-    setFont('Helvetica-Bold', 8); drawText("Code Projet", 50, 55); drawText("Réalisé par", col1 + 10, 55); drawText("Date de création", col2 + 10, 55); drawText("Document", col3 + 10, 55); drawText("Folio", col4 + 10, 55);
-    setFont('Helvetica', 9); drawText(nomProjet, 50, 40); drawText('JFC', col1 + 10, 40); drawText(today, col2 + 10, 40); drawText("Synoptique Infra", col3 + 10, 40); drawText(`Page ${numPage}/${nbPages}`, col4 + 10, 40);
+    if (logoGauche && logoGauche.dataUrl) {
+      try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
+    }
+    if (logoDroite && logoDroite.dataUrl) {
+      try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
+    }
+    
+    setTextColor(COL.black); setFont('Helvetica-Bold', 14);
+    drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
+    
+    setFont('Helvetica', 10);
+    drawText(`Date : ${today} | Version : 12.2`, W / 2, H - 75, 'center');
+    
+    if (infoComp) {
+      setFont('Helvetica-Oblique', 9);
+      const tw = textWidth(infoComp);
+      setDrawColor([128,128,128]); setFillColor([245,245,245]);
+      drawRect(40, H - 120, tw + 10, 15, 'FD');
+      setTextColor(COL.darkred);
+      drawText(infoComp, 45, H - 116);
+    }
+    
+    setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1);
+    drawRect(40, 30, W - 80, 40, 'S');
+    const col1 = 40 + (W - 80) * 0.20;
+    const col2 = 40 + (W - 80) * 0.40;
+    const col3 = 40 + (W - 80) * 0.60;
+    const col4 = 40 + (W - 80) * 0.80;
+    drawLine(col1, 30, col1, 70);
+    drawLine(col2, 30, col2, 70);
+    drawLine(col3, 30, col3, 70);
+    drawLine(col4, 30, col4, 70);
+    
+    setFont('Helvetica-Bold', 8);
+    drawText("Code Projet", 50, 55);
+    drawText("Réalisé par", col1 + 10, 55);
+    drawText("Date de création", col2 + 10, 55);
+    drawText("Document", col3 + 10, 55);
+    drawText("Folio", col4 + 10, 55);
+    
+    setFont('Helvetica', 9);
+    drawText(nomProjet, 50, 40);
+    drawText('JFC', col1 + 10, 40);
+    drawText(today, col2 + 10, 40);
+    drawText("Synoptique Infra", col3 + 10, 40);
+    drawText(`Page ${numPage}/${nbPages}`, col4 + 10, 40);
   }
   
   function dessinerLegendeStats(x, y) {
-    setFillColor([245,245,245]); setDrawColor([128,128,128]); doc.setLineWidth(1); drawRect(x, y - 90, 550, 90, 'FD');
-    setTextColor(COL.black); setFont('Helvetica-Bold', 10); drawText("SITE :", x + 10, y - 15); drawText("BPE :", x + 200, y - 15); drawText("Infrastructures :", x + 400, y - 15);
-    setFont('Helvetica', 8); drawText("NRO (Nœud de raccordement)", x + 10, y - 35); drawText("PEC", x + 10, y - 50); drawText("PDB", x + 10, y - 65); drawText("BPE en passage", x + 10, y - 80);
-    drawText("PBC", x + 200, y - 35); drawText("PEC", x + 200, y - 50); drawText("PDB", x + 200, y - 65); drawText("BPE en passage", x + 200, y - 80);
-    drawText("Orange / FT", x + 400, y - 35); drawText("Existante", x + 400, y - 50); drawText("Galerie disponible", x + 400, y - 65);
-    setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(x + 130, y - 38, 8, 8, 'FD');
-    doc.setFillColor(64, 224, 208); drawCircle(x + 280, y - 33, 4, 'F'); doc.setFillColor(255, 0, 0); drawCircle(x + 280, y - 48, 4, 'F'); doc.setFillColor(0, 0, 255); drawCircle(x + 280, y - 63, 4, 'F'); doc.setFillColor(128, 0, 128); drawCircle(x + 280, y - 78, 4, 'F');
-    setDrawColor(COL.orange); doc.setLineWidth(2); drawLine(x + 490, y - 33, x + 520, y - 33); doc.setLineDashPattern([3, 3], 0); drawLine(x + 490, y - 48, x + 520, y - 48); doc.setLineDashPattern([], 0); setDrawColor(COL.black); doc.setLineWidth(1); drawLine(x + 490, y - 63, x + 520, y - 63);
-    setFillColor([245,245,245]); setDrawColor([128,128,128]); drawRect(x + 570, y - 90, 200, 90, 'FD'); setTextColor(COL.black); setFont('Helvetica-Bold', 10); drawText("RÉCAPITULATIF", x + 580, y - 15);
-    setFont('Helvetica', 8); drawText(`Nombre de chambres : ${stats.nbChambres}`, x + 580, y - 30); drawText(`Nombre de boîtes : ${stats.nbBoites}`, x + 580, y - 42); drawText(`Infrastructure (ml) : ${stats.infraML.toFixed(1)}`, x + 580, y - 54); drawText(`Câble (ml + 10%) : ${stats.cableML.toFixed(1)}`, x + 580, y - 66);
+    setFillColor([245,245,245]); setDrawColor([128,128,128]);
+    doc.setLineWidth(1);
+    drawRect(x, y - 90, 550, 90, 'FD');
+    
+    setTextColor(COL.black); setFont('Helvetica-Bold', 10);
+    drawText("SITE :", x + 10, y - 15);
+    drawText("BPE :", x + 200, y - 15);
+    drawText("Infrastructures :", x + 400, y - 15);
+    
+    setFont('Helvetica', 8);
+    drawText("NRO (Nœud de raccordement)", x + 10, y - 35);
+    drawText("PEC", x + 10, y - 50);
+    drawText("PDB", x + 10, y - 65);
+    drawText("BPE en passage", x + 10, y - 80);
+    
+    drawText("PBC", x + 200, y - 35);
+    drawText("PEC", x + 200, y - 50);
+    drawText("PDB", x + 200, y - 65);
+    drawText("BPE en passage", x + 200, y - 80);
+    
+    drawText("Orange / FT", x + 400, y - 35);
+    drawText("Existante", x + 400, y - 50);
+    drawText("Galerie disponible", x + 400, y - 65);
+    
+    setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
+    drawRect(x + 130, y - 38, 8, 8, 'FD');
+    
+    doc.setFillColor(64, 224, 208); drawCircle(x + 280, y - 33, 4, 'F');
+    doc.setFillColor(255, 0, 0);   drawCircle(x + 280, y - 48, 4, 'F');
+    doc.setFillColor(0, 0, 255);   drawCircle(x + 280, y - 63, 4, 'F');
+    doc.setFillColor(128, 0, 128); drawCircle(x + 280, y - 78, 4, 'F');
+    
+    setDrawColor(COL.orange); doc.setLineWidth(2);
+    drawLine(x + 490, y - 33, x + 520, y - 33);
+    doc.setLineDashPattern([3, 3], 0);
+    drawLine(x + 490, y - 48, x + 520, y - 48);
+    doc.setLineDashPattern([], 0);
+    setDrawColor(COL.black); doc.setLineWidth(1);
+    drawLine(x + 490, y - 63, x + 520, y - 63);
+    
+    setFillColor([245,245,245]); setDrawColor([128,128,128]);
+    drawRect(x + 570, y - 90, 200, 90, 'FD');
+    setTextColor(COL.black); setFont('Helvetica-Bold', 10);
+    drawText("RÉCAPITULATIF", x + 580, y - 15);
+    setFont('Helvetica', 8);
+    drawText(`Nombre de chambres : ${stats.nbChambres}`, x + 580, y - 30);
+    drawText(`Nombre de boîtes : ${stats.nbBoites}`, x + 580, y - 42);
+    drawText(`Infrastructure (ml) : ${stats.infraML.toFixed(1)}`, x + 580, y - 54);
+    drawText(`Câble (ml + 10%) : ${stats.cableML.toFixed(1)}`, x + 580, y - 66);
   }
   
   function dessinerZonesFCI(positions) {
     const groupes = {};
     for (const p of positions) {
       const fci = String(p.row.FCI || '').trim();
-      if (fci && fci.toLowerCase() !== 'nan' && fci.toLowerCase() !== 'none') { if (!groupes[fci]) groupes[fci] = []; groupes[fci].push(p); }
+      if (fci && fci.toLowerCase() !== 'nan' && fci.toLowerCase() !== 'none') {
+        if (!groupes[fci]) groupes[fci] = [];
+        groupes[fci].push(p);
+      }
     }
+    
     for (const fci in groupes) {
-      const pts = groupes[fci]; const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-      let xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
-      if (xMax - xMin < 20) { xMin -= 10; xMax += 10; } if (yMax - yMin < 20) { yMin -= 10; yMax += 10; }
-      const pad = 15; const [r, g, b] = couleurFCI(fci);
-      doc.setFillColor(Math.round((0.88 + r * 0.12) * 255), Math.round((0.88 + g * 0.12) * 255), Math.round((0.88 + b * 0.12) * 255));
-      doc.setDrawColor(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)); doc.setLineWidth(1.2); doc.setLineDashPattern([5, 3], 0);
-      drawRect(xMin - pad, yMin - pad, (xMax - xMin) + 2 * pad, (yMax - yMin) + 2 * pad, 'FD'); doc.setLineDashPattern([], 0);
-      let commune = ''; for (const p of pts) { commune = String(p.row.COMMUNE || '').trim(); if (commune) break; }
+      const pts = groupes[fci];
+      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+      let xMin = Math.min(...xs), xMax = Math.max(...xs);
+      let yMin = Math.min(...ys), yMax = Math.max(...ys);
+      if (xMax - xMin < 20) { xMin -= 10; xMax += 10; }
+      if (yMax - yMin < 20) { yMin -= 10; yMax += 10; }
+      const pad = 15;
+      const [r, g, b] = couleurFCI(fci);
+      
+      const fR = Math.round((0.88 + r * 0.12) * 255);
+      const fG = Math.round((0.88 + g * 0.12) * 255);
+      const fB = Math.round((0.88 + b * 0.12) * 255);
+      doc.setFillColor(fR, fG, fB);
+      doc.setDrawColor(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
+      doc.setLineWidth(1.2);
+      doc.setLineDashPattern([5, 3], 0);
+      drawRect(xMin - pad, yMin - pad, (xMax - xMin) + 2 * pad, (yMax - yMin) + 2 * pad, 'FD');
+      doc.setLineDashPattern([], 0);
+      
+      let commune = '';
+      for (const p of pts) { commune = String(p.row.COMMUNE || '').trim(); if (commune) break; }
       const label = commune ? `${commune}  [${fci}]` : `[${fci}]`;
-      setTextColor([Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255)]); setFont('Helvetica-Bold', 9); drawText(label, xMin - pad + 5, yMax + pad + 12); setTextColor(COL.black);
+      
+      setTextColor([Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255)]);
+      setFont('Helvetica-Bold', 9);
+      drawText(label, xMin - pad + 5, yMax + pad + 12);
+      setTextColor(COL.black);
     }
+  }
+  
+  function dessinerRenvoiSortie(x, y, longueur, pageSuivante) {
+    setDrawColor(COL.red); setFillColor(COL.red);
+    doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
+    drawLine(x, y - 8, x, y - 18);
+    doc.setLineDashPattern([], 0);
+    doc.setLineWidth(1.2);
+    doc.triangle(x, flipY(y - 22), x - 3, flipY(y - 18), x + 3, flipY(y - 18), 'F');
+    setFont('Helvetica-Bold', 6);
+    drawText(`Suite P.${pageSuivante}`, x, y - 28, 'center');
+    drawText(`(${longueur} m)`, x, y - 35, 'center');
+  }
+  function dessinerRenvoiEntree(x, y, longueur, pagePrecedente) {
+    setDrawColor(COL.red); setFillColor(COL.red);
+    doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
+    drawLine(x, y + 8, x, y + 16);
+    doc.setLineDashPattern([], 0);
+    doc.setLineWidth(1.2);
+    doc.triangle(x, flipY(y + 5), x - 3, flipY(y + 9), x + 3, flipY(y + 9), 'F');
+    setFont('Helvetica-Bold', 6);
+    drawText(`Suite P.${pagePrecedente}`, x, y + 20, 'center');
+    drawText(`(${longueur} m)`, x, y + 26, 'center');
   }
   
   function couleurPoint(ref, bpe) {
-    const refU = String(ref).toUpperCase(), bpeU = String(bpe).toUpperCase();
+    const refU = String(ref).toUpperCase();
+    const bpeU = String(bpe).toUpperCase();
     if (bpeU.includes('PBC') || refU.includes('PBC')) return COL.turquoise;
-    if (refU.includes('PEC')) return COL.red; if (refU.includes('PDB')) return COL.blue; if (bpeU) return COL.purple; return COL.black;
+    if (refU.includes('PEC')) return COL.red;
+    if (refU.includes('PDB')) return COL.blue;
+    if (bpeU) return COL.purple;
+    return COL.black;
   }
   
   function dessinerPoint(cx, cy, row, globalI) {
-    const ch = row.CODE_CH1 || '', bpe = row.BPE || '', ref = row.REF_CHAMBR || '', wkt = row.wkt_geom || '', nomCable = row.CABLE || '', mH = row.MASQUE || '', dH = row.DIAMETRE || '', mB = row['MASQUE B'] || '', dB = row['DIAMETRE B'] || '';
+    const ch = row.CODE_CH1 || '';
+    const bpe = row.BPE || '';
+    const ref = row.REF_CHAMBR || '';
+    const wkt = row.wkt_geom || '';
+    const nomCable = row.CABLE || '';
+    const mH = row.MASQUE || '';
+    const dH = row.DIAMETRE || '';
+    const mB = row['MASQUE B'] || '';
+    const dB = row['DIAMETRE B'] || '';
     const [xg, yg] = extraireXY(wkt);
-    if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ref).toUpperCase() === 'POP')) {
-      setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); setTextColor(COL.black); setFont('Helvetica-Bold', 7); drawText("NRO / POP", cx, cy + 8, 'center');
+    
+    if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ch) === '-1' || String(ref).toUpperCase() === 'POP')) {
+      setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
+      drawRect(cx - 4, cy - 4, 8, 8, 'FD');
+      setTextColor(COL.black); setFont('Helvetica-Bold', 7);
+      drawText("NRO / POP", cx, cy + 8, 'center');
     } else {
-      if (globalI === 0) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); }
-      else { const c = couleurPoint(ref, bpe); setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5); drawCircle(cx, cy, 4, 'FD'); }
-      setTextColor(COL.black); if (ref) { setFont('Helvetica-Oblique', 5); setTextColor(COL.grey); drawText(ref, cx, cy + 16, 'center'); setTextColor(COL.black); }
-      setFont('Helvetica-Bold', 7); drawText(`CH ${ch}`, cx, cy + 8, 'center');
+      if (globalI === 0) {
+        setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5);
+        drawRect(cx - 4, cy - 4, 8, 8, 'FD');
+      } else {
+        const c = couleurPoint(ref, bpe);
+        setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5);
+        drawCircle(cx, cy, 4, 'FD');
+      }
+      setTextColor(COL.black);
+      if (ref) {
+        setFont('Helvetica-Oblique', 5); setTextColor(COL.grey);
+        drawText(ref, cx, cy + 16, 'center');
+        setTextColor(COL.black);
+      }
+      setFont('Helvetica-Bold', 7);
+      drawText(`CH ${ch}`, cx, cy + 8, 'center');
     }
-    if (optBPE && bpe) { setTextColor(COL.navy); setFont('Helvetica', 5); drawText(bpe, cx, cy - 8, 'center'); setTextColor(COL.black); }
-    if (optGPS && xg !== null && yg !== null) { setTextColor(COL.darkviolet); setFont('Helvetica', 4); drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center'); setTextColor(COL.black); }
-    if (optCables && nomCable) { const offset = (optGPS && xg !== null) ? -19 : -14; setTextColor(COL.blue); setFont('Helvetica', 4); drawText(nomCable, cx, cy + offset, 'center'); setTextColor(COL.black); }
-    if (optMasques) { setTextColor(COL.red); setFont('Helvetica-Bold', 5); if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right'); if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2); setTextColor(COL.black); }
+    
+    if (optBPE && bpe) {
+      setTextColor(COL.navy); setFont('Helvetica', 5);
+      drawText(bpe, cx, cy - 8, 'center');
+      setTextColor(COL.black);
+    }
+    if (optGPS && xg !== null && yg !== null) {
+      setTextColor(COL.darkviolet); setFont('Helvetica', 4);
+      drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center');
+      setTextColor(COL.black);
+    }
+    if (optCables && nomCable) {
+      const offset = (optGPS && xg !== null) ? -19 : -14;
+      setTextColor(COL.blue); setFont('Helvetica', 4);
+      drawText(nomCable, cx, cy + offset, 'center');
+      setTextColor(COL.black);
+    }
+    if (optMasques) {
+      setTextColor(COL.red); setFont('Helvetica-Bold', 5);
+      if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right');
+      if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2);
+      setTextColor(COL.black);
+    }
   }
   
   function calculerPositions(donneesPage, debutGlobal, startXp, startYp, WidthP, espX, espY, ptsParLigne) {
-    const positions = []; let cx = startXp, cy = startYp, dir = 1, cpt = 0;
+    const positions = [];
+    let cx = startXp, cy = startYp, dir = 1, cpt = 0;
     for (let i = 0; i < donneesPage.length; i++) {
-      if (cpt >= ptsParLigne) { dir *= -1; cpt = 0; cy -= espY; cx = dir === 1 ? startXp : WidthP - startXp; }
-      positions.push({ x: cx, y: cy, row: donneesPage[i], globalI: debutGlobal + i }); cx += espX * dir; cpt++;
+      if (cpt >= ptsParLigne) {
+        dir *= -1; cpt = 0;
+        cy -= espY;
+        cx = dir === 1 ? startXp : WidthP - startXp;
+      }
+      positions.push({ x: cx, y: cy, row: donneesPage[i], globalI: debutGlobal + i });
+      cx += espX * dir;
+      cpt++;
     }
     return positions;
   }
   
-  const pointsParLigne = 10, espacementY = 70, espacementX = (W - 100) / pointsParLigne, startX = 70, startY = H - 160;
-  const hauteurDispo = H - 160 - 170, nbLignesParPage = Math.max(1, Math.floor(hauteurDispo / espacementY)), pointsParPage = pointsParLigne * nbLignesParPage;
+  const pointsParLigne = 10;
+  const espacementY = 70;
+  const espacementX = (W - 100) / pointsParLigne;
+  const startX = 70;
+  const startY = H - 160;
+  const hauteurDispo = H - 160 - 170;
+  const nbLignesParPage = Math.max(1, Math.floor(hauteurDispo / espacementY));
+  const pointsParPage = pointsParLigne * nbLignesParPage;
   const nbPages = Math.max(1, Math.ceil(donnees.length / pointsParPage));
   
   for (let numPage = 1; numPage <= nbPages; numPage++) {
-    const debut = (numPage - 1) * pointsParPage, fin = Math.min(debut + pointsParPage, donnees.length);
-    const positions = calculerPositions(donnees.slice(debut, fin), debut, startX, startY, W, espacementX, espacementY, pointsParLigne);
+    const debut = (numPage - 1) * pointsParPage;
+    const fin = Math.min(debut + pointsParPage, donnees.length);
+    
+    const positions = calculerPositions(
+      donnees.slice(debut, fin), debut, startX, startY,
+      W, espacementX, espacementY, pointsParLigne
+    );
+    
     if (numPage > 1) doc.addPage('a3', 'landscape');
-    dessinerEntetePied(numPage, nbPages); dessinerLegendeStats(40, 170);
+    
+    dessinerEntetePied(numPage, nbPages);
+    dessinerLegendeStats(40, 170);
+    
     if (optFCI) dessinerZonesFCI(positions);
+    
+    if (numPage > 1 && positions.length) {
+      const prevL = positions[0].row.ETIQUETTE_2 || '0';
+      if (parseFloatSafe(prevL) > 0) dessinerRenvoiEntree(positions[0].x, positions[0].y, prevL, numPage - 1);
+    }
+    
     for (let idx = 0; idx < positions.length; idx++) {
       const p = positions[idx];
       if (idx > 0) {
-        const prev = positions[idx - 1]; const prevL = prev.row.ETIQUETTE_2 || '0'; const isLastGlobal = (p.globalI === donnees.length - 1); const skip = isLastGlobal && ['0','0.0','','None'].includes(String(prevL).trim());
+        const prev = positions[idx - 1];
+        const prevL = prev.row.ETIQUETTE_2 || '0';
+        const isLastGlobal = (p.globalI === donnees.length - 1);
+        const skip = isLastGlobal && ['0','0.0','','None'].includes(String(prevL).trim());
         if (!skip) {
-          setDrawColor(COL.orange); doc.setLineWidth(1.5); const debutNouvelleLigne = (idx % pointsParLigne === 0);
-          if (debutNouvelleLigne) { const midY = p.y + espacementY / 2; drawLine(prev.x, prev.y, prev.x, midY); drawLine(prev.x, midY, p.x, midY); drawLine(p.x, midY, p.x, p.y); } else { drawLine(prev.x, prev.y, p.x, p.y); }
-          setTextColor(COL.black); setFont('Helvetica-Bold', 6); const midX = (prev.x + p.x) / 2, midY2 = (prev.y + p.y) / 2; drawText(`${prevL}m`, midX, midY2 + 4, 'center');
+          setDrawColor(COL.orange); doc.setLineWidth(1.5);
+          const debutNouvelleLigne = (idx % pointsParLigne === 0);
+          if (debutNouvelleLigne) {
+            const midY = p.y + espacementY / 2;
+            drawLine(prev.x, prev.y, prev.x, midY);
+            drawLine(prev.x, midY, p.x, midY);
+            drawLine(p.x, midY, p.x, p.y);
+          } else {
+            drawLine(prev.x, prev.y, p.x, p.y);
+          }
+          setTextColor(COL.black); setFont('Helvetica-Bold', 6);
+          const midX = (prev.x + p.x) / 2;
+          const midY2 = (prev.y + p.y) / 2;
+          drawText(`${prevL}m`, midX, midY2 + 4, 'center');
         }
       }
       dessinerPoint(p.x, p.y, p.row, p.globalI);
+    }
+    
+    if (numPage < nbPages && positions.length && fin < donnees.length) {
+      const last = positions[positions.length - 1];
+      const nextL = donnees[fin].ETIQUETTE_2 || '0';
+      if (parseFloatSafe(nextL) > 0) dessinerRenvoiSortie(last.x, last.y, nextL, numPage + 1);
     }
   }
   
   // --- AJOUT DES PAGES DE SOUDURE ---
   await ajouterPagesSoudure(doc, chambres, logoGauche, logoDroite);
-  
+
   return { doc, nomProjet, nbPages: doc.internal.getNumberOfPages(), nbChambres: donnees.length };
 }
 
+// Ajoute les pages de soudure avec le visuel de la capture
 async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
   const getTextColor = (rgb) => { const luminosite = (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]); return luminosite > 128 ? [0, 0, 0] : [255, 255, 255]; };
-
-  // Helper to truncate text to fit a given width
-  const truncateText = (text, maxWidth, docInstance) => {
-    if (!text) return '';
-    let t = String(text);
-    if (docInstance.getTextWidth(t) <= maxWidth) return t;
-    while (t.length > 0 && docInstance.getTextWidth(t + '...') > maxWidth) {
-      t = t.slice(0, -1);
-    }
-    return t + '...';
-  };
+  const truncateText = (text, maxWidth, docInstance) => { if (!text) return ''; let t = String(text); if (docInstance.getTextWidth(t) <= maxWidth) return t; while (t.length > 0 && docInstance.getTextWidth(t + '...') > maxWidth) t = t.slice(0, -1); return t + '...'; };
 
   for (const c of chambres) {
     const r = c.raw || {}; const bpe = getVal(r, 'BPE') || '';
@@ -1118,12 +1448,10 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       if (logoG && logoG.dataUrl) try { doc.addImage(logoG.dataUrl, logoG.format, 30, 80, 50, 25); } catch(e){}
       if (logoD && logoD.dataUrl) try { doc.addImage(logoD.dataUrl, logoD.format, pageW - 80, 80, 50, 25); } catch(e){}
 
-      // QR CODE (généré à partir de WAZE, sinon GPS, sinon BPE)
-      try {
+      try { 
         let qrData = wazeUrl;
         if (!qrData && c.lat && c.lon) qrData = `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}`;
         if (!qrData) qrData = `BPE:${nomBoite} - Code:${codeSite}`;
-        
         const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 200 }); 
         doc.addImage(qrDataUrl, 'PNG', pageW - 100, 20, 70, 70); 
         doc.setFontSize(8); doc.setTextColor(100, 100, 100); doc.setFont('helvetica', 'bold'); 
@@ -1139,12 +1467,7 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       doc.setFillColor(230, 230, 230); doc.rect(startX, startY, tableWidth, rowHeight, 'F'); doc.setDrawColor(0); doc.setLineWidth(0.5);
       
       let currentX = startX; doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-      for (let i = 0; i < colNames.length; i++) { 
-        doc.rect(currentX, startY, colWidths[i], rowHeight); 
-        let txt = colNames[i].replace(' (Bague)', ''); 
-        doc.text(txt, currentX + colWidths[i]/2, startY + 14, { align: 'center' }); 
-        currentX += colWidths[i]; 
-      }
+      for (let i = 0; i < colNames.length; i++) { doc.rect(currentX, startY, colWidths[i], rowHeight); let txt = colNames[i].replace(' (Bague)', ''); doc.text(txt, currentX + colWidths[i]/2, startY + 14, { align: 'center' }); currentX += colWidths[i]; }
 
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
       const tubeData = c.splicingData && c.splicingData[t] ? c.splicingData[t] : { droit: true, fibers: [] };
@@ -1162,18 +1485,9 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
         }
 
         currentX = startX; doc.setTextColor(0, 0, 0);
-        
-        // Écriture sur CHAQUE ligne avec troncature
-        doc.setFontSize(8); 
-        doc.text(truncateText(nomBoite, colWidths[0]-5, doc), currentX + colWidths[0]/2, rowY + 14, { align: 'center' }); 
-        currentX += colWidths[0];
-        
-        doc.setFontSize(9); 
-        doc.text(truncateText(cableIn, colWidths[1]-5, doc), currentX + 5, rowY + 14); 
-        currentX += colWidths[1];
-        
+        doc.setFontSize(8); doc.text(truncateText(nomBoite, colWidths[0]-5, doc), currentX + colWidths[0]/2, rowY + 14, { align: 'center' }); currentX += colWidths[0];
+        doc.setFontSize(9); doc.text(truncateText(cableIn, colWidths[1]-5, doc), currentX + 5, rowY + 14); currentX += colWidths[1];
         currentX += colWidths[2];
-        
         doc.setTextColor(textColor[0], textColor[1], textColor[2]); doc.setFont('helvetica', 'bold'); doc.text(`F${f+1}`, currentX + colWidths[3]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0); currentX += colWidths[3];
         
         let typeStr = '---*---'; if (fibData.status === 'attente') typeStr = '---×---'; else if (fibData.status === 'passage') typeStr = '---=>---';
@@ -1181,13 +1495,7 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
         
         if (fibData.status === 'soude') { const destRgb = couleursHex[couleursNoms[fibData.destFib - 1]]; const destTextColor = getTextColor(destRgb); doc.setFont('helvetica', 'bold'); doc.setTextColor(destTextColor[0], destTextColor[1], destTextColor[2]); doc.text(`F${fibData.destFib}`, currentX + colWidths[5]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0); }
         currentX += colWidths[5]; currentX += colWidths[6];
-        
-        // Écriture sur CHAQUE ligne avec troncature
-        if (fibData.status === 'soude') {
-          doc.text(truncateText(cableOut, colWidths[7]-5, doc), currentX + 5, rowY + 14); 
-        }
-        currentX += colWidths[7];
-        
+        if (fibData.status === 'soude') doc.text(truncateText(cableOut, colWidths[7]-5, doc), currentX + 5, rowY + 14); currentX += colWidths[7];
         if (fibData.status === 'soude') doc.text(truncateText(destination, colWidths[8]-5, doc), currentX + 5, rowY + 14);
       }
       
@@ -1195,12 +1503,12 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       const tubeHeight = 12 * rowHeight; const tubeStartY = startY + rowHeight;
       const tubeX = startX + colWidths[0] + colWidths[1]; const tColor = couleursHex[couleursNoms[t-1] || 'Bleu']; const tTextColor = getTextColor(tColor);
       doc.setFillColor(tColor[0], tColor[1], tColor[2]); doc.rect(tubeX, tubeStartY, colWidths[2], tubeHeight, 'F'); doc.setDrawColor(0); doc.rect(tubeX, tubeStartY, colWidths[2], tubeHeight); 
-      doc.setTextColor(tTextColor[0], tTextColor[1], tTextColor[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(`T${t}`, tubeX + colWidths[2]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
+      doc.setTextColor(tTextColor[0], tTextColor[1], tTextColor[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(`T${t}`, tubeX + colWidths[2]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
       
       const destTube = tubeData.droit ? t : (tubeData.fibers.find(f => f.status === 'soude')?.destTube || t);
       const tubeDestX = startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] + colWidths[5]; const tDestColor = couleursHex[couleursNoms[destTube-1] || 'Bleu']; const tDestTextColor = getTextColor(tDestColor);
       doc.setFillColor(tDestColor[0], tDestColor[1], tDestColor[2]); doc.rect(tubeDestX, tubeStartY, colWidths[6], tubeHeight, 'F'); doc.setDrawColor(0); doc.rect(tubeDestX, tubeStartY, colWidths[6], tubeHeight);
-      doc.setTextColor(tDestTextColor[0], tDestTextColor[1], tDestTextColor[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.text(`T${destTube}`, tubeDestX + colWidths[6]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
+      doc.setTextColor(tDestTextColor[0], tDestTextColor[1], tDestTextColor[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text(`T${destTube}`, tubeDestX + colWidths[6]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
       doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
 
       // PHOTO
@@ -1213,17 +1521,13 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
     }
   }
 
-  // --- AJOUT DU PIED DE PAGE (Page X / Y) SUR TOUTES LES PAGES DE SOUDURE ---
+  // Pied de page pour les soudures
   const totalPages = doc.internal.getNumberOfPages();
-  // On suppose que les pages de soudure commencent après le synoptique (qui est en A3).
-  // Si on veut juste numéroter les pages de soudure, on peut détecter le format ou juste ajouter à la fin.
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    // On vérifie si c'est une page A4 paysage (les soudure) pour ne pas écraser le pied de page du synoptique (A3)
     const pageWidth = doc.internal.pageSize.getWidth();
-    if (pageWidth < 800) { // A4 paysage fait ~842 pt, A3 fait ~1191 pt
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
+    if (pageWidth < 800) { // A4 paysage
+      doc.setFontSize(8); doc.setTextColor(100, 100, 100);
       doc.text(`Page ${i} / ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
     }
   }
@@ -1233,17 +1537,33 @@ async function genererSynoptiquePDF() {
   showOverlay(true);
   try {
     const res = await construireSynoptiquePDF();
-    if (!res) { alert("Erreur : vérifiez que des chambres sont chargées."); return; }
+    if (!res) { alert("Aucune chambre ou jsPDF non disponible."); return; }
     const fname = `Dossier_Complet_TOP_SAT_${res.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`;
-    res.doc.save(fname); alert(`✅ Dossier généré avec succès.`);
-  } catch (e) { console.error(e); alert("Erreur lors de la génération :\n" + e.message); } finally { showOverlay(false); }
+    res.doc.save(fname);
+    alert(`✅ Dossier généré avec succès !\n\n- ${res.nbChambres} chambres\n- Synoptique + Fiches de soudure.`);
+  } catch (e) {
+    console.error(e);
+    alert("Erreur lors de la génération :\n" + e.message);
+  } finally {
+    showOverlay(false);
+  }
 }
 
 function bindSynoptiqueUI() {
   const inputG = document.getElementById('synoptiqueLogoGauche');
-  if (inputG) inputG.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoGauche = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; reader.readAsDataURL(f); };
+  if (inputG) inputG.onchange = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoGauche = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; };
+    reader.readAsDataURL(f);
+  };
   const inputD = document.getElementById('synoptiqueLogoDroite');
-  if (inputD) inputD.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoDroite = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; reader.readAsDataURL(f); };
+  if (inputD) inputD.onchange = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoDroite = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; };
+    reader.readAsDataURL(f);
+  };
   document.getElementById('synoptiqueClearLogoGauche').onclick = () => { if (!confirm('Effacer le logo gauche ?')) return; logoGauche = null; saveLogoStorage(); updateLogoStatus(); };
   document.getElementById('synoptiqueClearLogoDroite').onclick = () => { if (!confirm('Effacer le logo droite ?')) return; logoDroite = null; saveLogoStorage(); updateLogoStatus(); };
   document.getElementById('genererSynoptiqueBtn').onclick = genererSynoptiquePDF;
@@ -1256,6 +1576,7 @@ function bindSynoptiqueUI() {
 async function nouveauProjet() {
   if (!confirm("⚠️ ATTENTION\n\nCette action va effacer TOUTES les données du projet en cours :\n- Toutes les chambres\n- Toutes les photos\n- Toutes les notes et commentaires\n- Toutes les positions GPS\n\nCette action est IRRÉVERSIBLE.\n\nContinuer ?")) return;
   if (!confirm("Dernière confirmation : êtes-vous VRAIMENT sûr de vouloir tout effacer ?")) return;
+  
   showOverlay(true);
   try {
     await dbClear(); chambres = []; headers = [];
@@ -1348,6 +1669,7 @@ function trierChambres() {
   });
   chambres.forEach(c => delete c.__srcIndex);
 }
+
 function trierParOrdreGeo() {
   chambres.forEach((c, i) => { c.__srcIndex = i; });
   chambres.sort((a, b) => {
@@ -1369,7 +1691,7 @@ async function exportAll(){
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
     
-    try { const pdfRes = await construireSynoptiquePDF(); if (pdfRes) { const pdfBlob = pdfRes.doc.output('blob'); const pdfName = `Dossier_Complet_${pdfRes.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; zip.file(pdfName, pdfBlob); } } catch(e) { console.warn("Synoptique non généré pour l'export :", e); }
+    try { const pdfRes = await construireSynoptiquePDF(); if (pdfRes) { const pdfBlob = pdfRes.doc.output('blob'); const pdfName = `Dossier_Complet_${pdfRes.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; zip.file(pdfName, pdfBlob); } } catch(e) { console.warn("PDF non généré pour l'export :", e); }
 
     const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
     const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
