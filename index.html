@@ -49,6 +49,10 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .stat-label { font-size:12px; color:#666; margin-top:2px; }
 .passage-card { border: 2px solid #e0e0e0; border-radius: 12px; margin-bottom: 12px; padding: 16px; background: #fafafa; position:relative; }
 .passage-card h4 { margin: 0 0 10px 0; font-size: 15px; color: #0055A4; }
+.passage-card.foa { background: #fff; border-color: #0055A4; }
+.row-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.row-inputs input, .row-inputs select { padding: 8px; font-size: 14px; }
+.delete-passage { position:absolute; top:10px; right:10px; background:none; border:none; font-size:20px; color:#c62828; cursor:pointer;}
 .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:13px; margin-top:8px; }
 .info-item { background:#f0f4f8; padding:8px; border-radius:6px; }
 .info-item.clickable { cursor:pointer; text-decoration:underline; color:#0055A4; }
@@ -64,6 +68,8 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .label-row { display:flex; align-items:center; justify-content:space-between; margin-top:12px; margin-bottom:6px;}
 .label-row label { margin:0; }
 .help-icon { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; background:#0055A4; color:#fff; border-radius:50%; font-size:13px; font-weight:bold; cursor:pointer; }
+.help-text { display:none; background:#fff9c4; border-left:4px solid #fbc02d; padding:10px; margin-bottom:8px; font-size:12px; border-radius:4px; color:#333; width:100%;}
+.help-text.show { display:block; }
 .logo-container { text-align: center; padding: 10px 0; }
 .logo-container img { max-width: 200px; max-height: 80px; object-fit: contain; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
@@ -97,39 +103,39 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
 <section id="screen-home">
   <div class="logo-container">
-    <!-- Logo remplacé par un SVG propre pour éviter le bug de la base64 tronquée -->
-    <svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
-      <rect width="200" height="60" fill="#0055A4" rx="8"/>
-      <text x="100" y="25" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#fff" text-anchor="middle">TOP SAT</text>
-      <text x="100" y="45" font-family="Arial, sans-serif" font-size="12" font-weight="normal" fill="#fff" text-anchor="middle">SERVICES</text>
-    </svg>
+    <img src="data:image/png;base64,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" alt="TOP SAT SERVICES">
   </div>
 
   <div class="card">
     <h2 style="margin-top:0;font-size:17px;">🎯 Type de travail</h2>
+    <p class="small">Le mode de travail est indépendant du projet : vous pouvez changer à tout moment sans perdre vos données.</p>
     <div class="mode-selector">
       <button class="mode-btn" id="modeAiguillage" data-mode="aiguillage">
         <h3>🔧 Aiguillage (Étude)</h3>
-        <p>Masques, alvéoles, vue d'ensemble.</p>
+        <p>Masques, alvéoles, vue d'ensemble. Pas de mires ni de boîtes.</p>
       </button>
       <button class="mode-btn" id="modeFoa" data-mode="foa">
         <h3>📋 FOA (Occupation Alvéoles)</h3>
-        <p>Mires, câbles, boîtes.</p>
+        <p>Mires, câbles, boîtes. Masques pré-remplis (modifiables si besoin).</p>
       </button>
     </div>
   </div>
 
   <div class="card">
     <h2 style="margin-top:0;font-size:17px;">📂 Importer le CSV</h2>
+    <p class="small">Fichier des chambres à relever (séparateur ; ou ,).</p>
+    
     <div id="importUnlocked">
       <label for="csvInput" class="btn">Choisir un fichier CSV</label>
       <input type="file" id="csvInput" accept=".csv,text/csv" class="hidden">
     </div>
+    
     <div id="importLocked" style="display:none;">
       <div style="background:#fff3e0;border:2px dashed #ffb74d;border-radius:8px;padding:14px;text-align:center;">
         <div style="font-size:24px;margin-bottom:6px;">🔒</div>
-        <b style="color:#e65100;">Projet en cours</b>
-        <button id="newProjectBtnInline" class="btn btn-danger" style="margin-top:12px;font-size:14px;">🆕 Nouveau projet</button>
+        <b style="color:#e65100;">Projet en cours — Import verrouillé</b>
+        <p class="small" style="margin:8px 0 0 0;">L'import CSV est désactivé pour éviter d'écraser votre projet actuel par erreur.</p>
+        <button id="newProjectBtnInline" class="btn btn-danger" style="margin-top:12px;font-size:14px;">🆕 Démarrer un nouveau projet</button>
       </div>
     </div>
   </div>
@@ -142,19 +148,28 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
       <div class="stat"><div class="stat-num" id="statPhotos">0</div><div class="stat-label">Photos</div></div>
       <div class="stat"><div class="stat-num" id="statTodo">0</div><div class="stat-label">À faire</div></div>
     </div>
-    <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px;">➕ Ajouter une chambre</button>
+    
+    <div id="transfertsResume" style="margin-top:16px; padding:10px; background:#fff3e0; border-radius:8px; font-size:14px; display:none;">
+      <b>⚠️ Transferts de BPE en cours :</b>
+      <ul id="transfertsList" style="margin:5px 0 0 20px; padding:0;"></ul>
+    </div>
+
+    <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px; background:#e0e0e0; color:#333; border:1px solid #ccc;">➕ Ajouter une nouvelle chambre</button>
     <button id="startBtn" class="btn" style="margin-top:8px;">Commencer le relevé →</button>
-    <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366;">📱 Exporter (ZIP + PDF)</button>
+    <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
 
   <div class="card" style="margin-top:12px;">
-    <h3 style="margin-top:0;font-size:15px;color:#0055A4;">📄 Dossier PDF (Synoptique + Soudures)</h3>
-    <label>Nom du projet</label>
+    <h3 style="margin-top:0;font-size:15px;color:#0055A4;">📄 Synoptique PDF</h3>
+    <p class="small">Génère un schéma A3 paysage à partir des chambres importées (inclus dans l'export ZIP).</p>
+    
+    <label style="margin-top:8px;">Nom du projet</label>
     <input type="text" id="synoptiqueNomProjet" placeholder="Ex: AMIENS" value="">
-    <label>Info complémentaire</label>
+    
+    <label>Info complémentaire (affichée en rouge)</label>
     <input type="text" id="synoptiqueInfoComp" placeholder="Ex: Zone Nord">
     
-    <label>Logo gauche</label>
+    <label>Logo gauche (client)</label>
     <div class="file-input-wrapper">
       <label for="synoptiqueLogoGauche" class="file-input-label">📁 Choisir Logo</label>
       <input type="file" id="synoptiqueLogoGauche" accept="image/*">
@@ -162,7 +177,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     </div>
     <div id="synoptiqueLogoGaucheStatus" class="small" style="margin-top:4px;"></div>
     
-    <label>Logo droite</label>
+    <label>Logo droite (société)</label>
     <div class="file-input-wrapper">
       <label for="synoptiqueLogoDroite" class="file-input-label">📁 Choisir Logo</label>
       <input type="file" id="synoptiqueLogoDroite" accept="image/*">
@@ -170,11 +185,26 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     </div>
     <div id="synoptiqueLogoDroiteStatus" class="small" style="margin-top:4px;"></div>
     
-    <button id="genererSynoptiqueBtn" class="btn" style="margin-top:12px;background:#6a1b9a;">📄 Générer le PDF complet</button>
+    <div style="background:#f0f4f8;padding:10px;border-radius:6px;margin-top:12px;">
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px;">Afficher sur le schéma :</div>
+      <label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 0 0;font-weight:normal;"><input type="checkbox" id="synoptiqueOptCables" checked style="width:auto;margin:0;"> Câbles</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 0 0;font-weight:normal;"><input type="checkbox" id="synoptiqueOptGPS" checked style="width:auto;margin:0;"> GPS</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 0 0;font-weight:normal;"><input type="checkbox" id="synoptiqueOptBPE" checked style="width:auto;margin:0;"> BPE</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;margin:0 12px 0 0;font-weight:normal;"><input type="checkbox" id="synoptiqueOptMasques" checked style="width:auto;margin:0;"> Masques</label>
+      <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:normal;"><input type="checkbox" id="synoptiqueOptFCI" checked style="width:auto;margin:0;"> Zones FCI</label>
+    </div>
+    
+    <button id="genererSynoptiqueBtn" class="btn" style="margin-top:12px;background:#6a1b9a;">📄 Générer le PDF complet (Synoptique + Soudures)</button>
   </div>
 
   <div class="card" style="margin-top:12px;">
+    <h3 style="margin-top:0;font-size:15px;color:#c62828;">⚠️ Zone sensible</h3>
+    <p class="small">Le bouton ci-dessous efface TOUTES les données (chambres, photos, notes, GPS) et démarre un nouveau projet vierge. Irréversible.</p>
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
+  </div>
+  
+  <div class="footer-credits">
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 12.0
   </div>
 </section>
 
@@ -186,13 +216,22 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 <div id="modalAddChambre" class="modal-overlay">
   <div class="modal-content">
     <h3 style="margin-top:0;">Ajouter une chambre</h3>
-    <label>Après quelle chambre ?</label>
+    <p class="small">La chambre sera insérée juste après celle choisie.</p>
+    
+    <label>Après quelle chambre ? (référence)</label>
     <select id="insertAfterSelect"></select>
+    
+    <div id="referenceInfo" style="margin-top:10px;background:#e3f2fd;padding:10px;border-radius:8px;font-size:13px;border-left:4px solid #1976d2;">
+      <b style="color:#0d47a1;">📍 Informations de la chambre de référence</b>
+      <div id="referenceInfoContent" style="margin-top:6px;line-height:1.7;"></div>
+      <button type="button" id="copyRefBtn" class="btn btn-secondary" style="margin-top:8px;padding:8px;font-size:12px;background:#bbdefb;color:#0d47a1;">📋 Copier ces infos dans le formulaire</button>
+    </div>
+    
     <label>Nouveau N° (CODE_CH1) *</label>
-    <input type="text" id="newId" placeholder="Numéro">
+    <input type="text" id="newId" placeholder="Numéro (ex: FT1)">
     <label>CODE_CH2</label>
     <input type="text" id="newCodeCh2">
-    <label>PROPRIETAI</label>
+    <label>PROPRIETAI (FT/FREE)</label>
     <input type="text" id="newProprietaire">
     <label>COMMUNE</label>
     <input type="text" id="newCommune">
@@ -202,7 +241,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
     <input type="text" id="newNumVoie">
     <label>Commentaire</label>
     <input type="text" id="newComment">
-    <button id="gpsBtn" class="btn btn-secondary" style="margin-top:12px;">📍 Prendre position GPS</button>
+    <button id="gpsBtn" class="btn btn-secondary" style="margin-top:12px; background:#e3f2fd; color:#0055A4;">📍 Prendre ma position GPS</button>
     <div id="gpsStatus" class="small" style="text-align:center; margin-top:5px;"></div>
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button id="cancelAddBtn" class="btn btn-secondary">Annuler</button>
@@ -213,19 +252,40 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 
 <div id="modalEditChambre" class="modal-overlay">
   <div class="modal-content">
-    <h3 style="margin-top:0;">✏️ Modifier la chambre</h3>
-    <label>CODE_CH1</label><input type="text" id="editCodeCh1">
-    <label>CODE_CH2</label><input type="text" id="editCodeCh2">
-    <label>PROPRIETAI</label><input type="text" id="editProprietaire">
-    <label>COMMUNE</label><input type="text" id="editCommune">
-    <label>REF_CHAMBR</label><input type="text" id="editRefChambr">
-    <label>N° Voie</label><input type="text" id="editNumVoie">
-    <label>Latitude</label><input type="text" id="editLat" readonly style="background:#f0f0f0;">
-    <label>Longitude</label><input type="text" id="editLon" readonly style="background:#f0f0f0;">
-    <button id="editGpsBtn" class="btn btn-secondary" style="margin-top:8px;">📍 Utiliser GPS</button>
-    <button id="editClearGpsBtn" class="btn btn-secondary" style="margin-top:8px; color:#c62828;">🗑️ Effacer GPS</button>
+    <h3 style="margin-top:0;">✏️ Modifier les informations</h3>
+    <p class="small">Mettez à jour les informations administratives et la position GPS.</p>
+    
+    <label>CODE_CH1 (Nom affiché)</label>
+    <input type="text" id="editCodeCh1" placeholder="Numéro de chambre">
+    
+    <label>CODE_CH2</label>
+    <input type="text" id="editCodeCh2" placeholder="Ex: 91161">
+    
+    <label>PROPRIETAI</label>
+    <input type="text" id="editProprietaire" placeholder="FT / FREE">
+    
+    <label>COMMUNE</label>
+    <input type="text" id="editCommune" placeholder="Ex: CHILLY-MAZARIN">
+    
+    <label>REF_CHAMBR</label>
+    <input type="text" id="editRefChambr" placeholder="Ex: D4">
+    
+    <label>N° de voie / Adresse</label>
+    <input type="text" id="editNumVoie" placeholder="Ex: 17">
+    
+    <label>Latitude</label>
+    <input type="text" id="editLat" placeholder="Ex: 48.700000" readonly style="background:#f0f0f0;">
+    
+    <label>Longitude</label>
+    <input type="text" id="editLon" placeholder="Ex: 2.300000" readonly style="background:#f0f0f0;">
+    
+    <button id="editGpsBtn" class="btn btn-secondary" style="margin-top:8px; background:#e3f2fd; color:#0055A4;">📍 Utiliser ma position GPS actuelle</button>
+    <button id="editClearGpsBtn" class="btn btn-secondary" style="margin-top:8px; background:#ffebee; color:#c62828; font-size:13px;">🗑️ Effacer les coordonnées GPS</button>
     <div id="editGpsStatus" class="small" style="text-align:center; margin-top:5px;"></div>
-    <label>Commentaire</label><textarea id="editNotes" rows="2"></textarea>
+    
+    <label>Commentaire</label>
+    <textarea id="editNotes" rows="2" placeholder="..."></textarea>
+    
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button id="cancelEditBtn" class="btn btn-secondary">Annuler</button>
       <button id="confirmEditBtn" class="btn btn-success">Enregistrer</button>
@@ -240,26 +300,63 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 const DB_NAME='releve-chambres-v5', STORE='chambres';
-let db=null, chambres=[], headers=[];
+const MODE_KEY = 'releve_mode_travail';
+let db=null, chambres=[], headers=[], currentId=null;
 let modeTravail = 'aiguillage';
-let editingId = null, editPendingLat = '', editPendingLon = '';
-let logoGauche = null, logoDroite = null;
-let pendingLat = '', pendingLon = '';
+let editingId = null;
+let editPendingLat = '', editPendingLon = '';
+let logoGauche = null;
+let logoDroite = null;
 
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
 const couleursHex = { 'Rouge': [255, 0, 0], 'Bleu': [0, 0, 255], 'Vert': [0, 128, 0], 'Jaune': [255, 255, 0], 'Violet': [128, 0, 128], 'Blanc': [255, 255, 255], 'Orange': [255, 165, 0], 'Gris': [128, 128, 128], 'Marron': [139, 69, 19], 'Noir': [0, 0, 0], 'Turquoise': [64, 224, 208], 'Rose': [255, 192, 203] };
 
-const PHOTO_CATS_AIGUILLAGE = [{id:'MA', label:'Masque A', icon:'🔘'}, {id:'MB', label:'Masque B', icon:'🔘'}, {id:'MC', label:'Masque C', icon:'🔘'}, {id:'MD', label:'Masque D', icon:'🔘'}, {id:'VUE_ENSEMBLE', label:'Vue ensemble', icon:'🌐'}];
-const PHOTO_CATS_FOA = [{id:'MIRE_LG', label:'MIRE LG', icon:'📏'}, {id:'MIRE_L', label:'MIRE L', icon:'📏'}, {id:'MIRE_P', label:'MIRE P', icon:'📏'}, {id:'ETIQ_BOITE', label:'Étiq Boîte', icon:'🏷️'}, {id:'ETIQ_CABLE', label:'Étiq Câble', icon:'🏷️'}, {id:'VUE_ENSEMBLE', label:'Vue ens.', icon:'🌐'}, {id:'BOITE', label:'Boîte', icon:'📦'}, {id:'CABLE', label:'Câble', icon:'🔌'}, {id:'VUE_DESSUS_CH', label:'Vue dessus', icon:'📐'}];
+/* -------------------- Persistance -------------------- */
+function saveHeaders() { try { localStorage.setItem('releve_headers', JSON.stringify(headers)); } catch(e){} }
+function loadHeaders() {
+  const saved = localStorage.getItem('releve_headers');
+  if (saved) { try { headers = JSON.parse(saved); } catch(e){ headers = []; } }
+}
+function saveMode() { try { localStorage.setItem(MODE_KEY, modeTravail); } catch(e){} }
+function loadMode() {
+  try {
+    const saved = localStorage.getItem(MODE_KEY);
+    if (saved === 'aiguillage' || saved === 'foa') modeTravail = saved;
+  } catch(e){}
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === modeTravail));
+}
 
+const PHOTO_CATS_AIGUILLAGE = [
+  {id:'MA', label:'Masque A', icon:'🔘'}, {id:'MB', label:'Masque B', icon:'🔘'},
+  {id:'MC', label:'Masque C', icon:'🔘'}, {id:'MD', label:'Masque D', icon:'🔘'},
+  {id:'VUE_ENSEMBLE', label:'Vue ensemble', icon:'🌐'}
+];
+const PHOTO_CATS_FOA = [
+  {id:'MIRE_LG', label:'MIRE LG', icon:'📏'}, {id:'MIRE_L', label:'MIRE L', icon:'📏'},
+  {id:'MIRE_P', label:'MIRE P', icon:'📏'}, {id:'ETIQ_BOITE', label:'Étiq Boîte', icon:'🏷️'},
+  {id:'ETIQ_CABLE', label:'Étiq Câble', icon:'🏷️'}, {id:'VUE_ENSEMBLE', label:'Vue ens.', icon:'🌐'},
+  {id:'BOITE', label:'Boîte', icon:'📦'}, {id:'CABLE', label:'Câble', icon:'🔌'},
+  {id:'VUE_DESSUS_CH', label:'Vue dessus', icon:'📐'}
+];
+const DIAMETRES = [32, 45, 60, 80, 100, 150];
+
+/* -------------------- Helpers raw -------------------- */
 function findRawKey(raw, aliases) {
   if (!raw) return null;
   const norm = s => String(s).toUpperCase().replace(/[_\s]/g, '');
   for (const a of aliases) {
     const target = norm(a);
-    for (const k of Object.keys(raw)) { if (norm(k) === target) return k; }
+    for (const k of Object.keys(raw)) {
+      if (norm(k) === target) return k;
+    }
   }
   return null;
+}
+function setRawValue(c, aliases, value, defaultKey) {
+  if (!c.raw) c.raw = {};
+  const existing = findRawKey(c.raw, aliases);
+  const key = existing || defaultKey || aliases[0];
+  c.raw[key] = value;
 }
 function getRawValue(c, aliases, fallback) {
   if (!c || !c.raw) return fallback ?? '';
@@ -269,13 +366,19 @@ function getRawValue(c, aliases, fallback) {
 }
 function getDisplayName(c) {
   if (!c) return '?';
-  return getRawValue(c, ['CODE_CH1'], '') || c.id || '?';
+  return getRawValue(c, ['CODE_CH1', 'code_ch1', 'Code_ch1'], '') || c.id || '?';
 }
 function getDisplayNameById(id) {
   const c = chambres.find(x => x.id === id);
   return getDisplayName(c) || id;
 }
-function makeOrdreGeo(ordreVal) { const s = String(ordreVal ?? '').trim().replace(/^A/i, ''); return s ? 'A' + s : ''; }
+
+/* -------------------- ORDRE_GEO helpers -------------------- */
+function makeOrdreGeo(ordreVal) {
+  const s = String(ordreVal ?? '').trim().replace(/^A/i, '');
+  if (!s) return '';
+  return 'A' + s;
+}
 function parseOrdreGeo(v) {
   if (v === null || v === undefined || v === '') return 999999;
   const m = String(v).toUpperCase().replace(/\s/g,'').match(/^A?(-?\d+(?:\.\d+)?)$/);
@@ -283,15 +386,14 @@ function parseOrdreGeo(v) {
   const n = parseFloat(String(v).replace(/[^0-9.\-]/g, ''));
   return isNaN(n) ? 999999 : n;
 }
-function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function parseFloatSafe(v, def = 0) { if (v === null || v === undefined) return def; const s = String(v).trim().replace(',', '.'); if (s === '') return def; const n = parseFloat(s); return isNaN(n) ? def : n; }
-function getVal(row, ...keys) { for (const k of keys) { if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k]; } return ''; }
 
+/* -------------------- IndexedDB -------------------- */
 function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=e=>{const d=e.target.result;if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE,{keyPath:'id'});};r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e.target.error);});}
 function dbGetAll(){return new Promise((res,rej)=>{const r=db.transaction(STORE,'readonly').objectStore(STORE).getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 function dbPut(item){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put(item);t.oncomplete=res;t.onerror=()=>rej(t.error);});}
 function dbClear(){return new Promise((res,rej)=>{const t=db.transaction(STORE,'readwrite');t.objectStore(STORE).clear();t.oncomplete=res;t.onerror=()=>rej(t.error);});}
 
+/* -------------------- CSV parsing -------------------- */
 function parseCSV(text){
   if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   const first=text.split(/\r?\n/)[0]||'';
@@ -307,48 +409,130 @@ function parseCSV(text){
 }
 function esc(v,d){const s=String(v??'');return (s.includes(d)||s.includes('"')||s.includes('\n'))?'"'+s.replace(/"/g,'""')+'"':s;}
 
+/* ------------------------------------------------------------------ *
+ * EXPORT CSV
+ * ------------------------------------------------------------------ */
 function generateCSV(){
   const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
   const sourceHeaders = headers.slice();
-  let allHeaders = [...sourceHeaders];
-  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE', ...currentCats.map(c => `Nb_${c.id}`), 'CAPACITE'];
+
+  const sourceHasGeo = sourceHeaders.some(h => h.toUpperCase().trim() === 'ORDRE_GEO');
+  let allHeaders = [];
+  let geoInserted = false;
+  sourceHeaders.forEach(h => {
+    allHeaders.push(h);
+    if (!sourceHasGeo && h.toUpperCase().trim() === 'ORDRE') {
+      allHeaders.push('ORDRE_GEO');
+      geoInserted = true;
+    }
+  });
+  if (!sourceHasGeo && !geoInserted) allHeaders.push('ORDRE_GEO');
+
+  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE',
+                     ...currentCats.map(c => `Nb_${c.id}`), 'CAPACITE'];
   const setUpper = new Set(allHeaders.map(h => h.toUpperCase().trim()));
-  for (const col of extraCols) { if (!setUpper.has(col.toUpperCase())) { allHeaders.push(col); setUpper.add(col.toUpperCase()); } }
+  for (const col of extraCols) {
+    if (!setUpper.has(col.toUpperCase())) {
+      allHeaders.push(col);
+      setUpper.add(col.toUpperCase());
+    }
+  }
 
   const norm = s => s.toUpperCase().replace(/[_\s]/g,'');
-  const findHeader = (aliases) => { for (const a of aliases) { const found = allHeaders.find(h => norm(h) === norm(a)); if (found) return found; } return null; };
+  const findHeader = (aliases) => {
+    for (const a of aliases) {
+      const found = allHeaders.find(h => norm(h) === norm(a));
+      if (found) return found;
+    }
+    return null;
+  };
   const H = {
-    ordre: findHeader(['ORDRE']), ordreGeo: findHeader(['ORDRE_GEO']), codeCh1: findHeader(['CODE_CH1']), codeCh2: findHeader(['CODE_CH2']),
-    refChambr: findHeader(['REF_CHAMBR']), proprietaire: findHeader(['PROPRIETAI']), commune: findHeader(['COMMUNE']), waze: findHeader(['WAZE']),
-    wkt: findHeader(['wkt_geom']), bpe: findHeader(['BPE']), capacite: findHeader(['CAPACITE']), cable: findHeader(['CABLE']), etiquette2: findHeader(['ETIQUETTE_2']),
-    numVoie: findHeader(['NUM_VOIE']), fci: findHeader(['FCI']), bpeOrigine: findHeader(['BPE_Origine']), obsBpe: findHeader(['Observation_BPE']), commentaire: findHeader(['Commentaire_Terrain']),
-    latitude: findHeader(['LATITUDE']), longitude: findHeader(['LONGITUDE'])
+    ordre:        findHeader(['ORDRE']),
+    ordreGeo:     findHeader(['ORDRE_GEO']),
+    codeCh1:      findHeader(['CODE_CH1']),
+    codeCh2:      findHeader(['CODE_CH2']),
+    refChambr:    findHeader(['REF_CHAMBR']),
+    proprietaire: findHeader(['PROPRIETAI','PROPRIETAIRE']),
+    commune:      findHeader(['COMMUNE']),
+    waze:         findHeader(['WAZE']),
+    wkt:          findHeader(['wkt_geom']),
+    bpe:          findHeader(['BPE']),
+    capacite:     findHeader(['CAPACITE']),
+    masque:       findHeader(['MASQUE']),
+    diametre:     findHeader(['DIAMETRE']),
+    masqueB:      findHeader(['MASQUE B','MASQUE_B']),
+    diametreB:    findHeader(['DIAMETRE B','DIAMETRE_B']),
+    cable:        findHeader(['CABLE']),
+    etiquette2:   findHeader(['ETIQUETTE_2']),
+    numVoie:      findHeader(['NUM_VOIE']),
+    distChamb:    findHeader(['DIST_CHAMB']),
+    fci:          findHeader(['FCI']),
+    bpeOrigine:   findHeader(['BPE_Origine']),
+    obsBpe:       findHeader(['Observation_BPE']),
+    commentaire:  findHeader(['Commentaire_Terrain']),
+    latitude:     findHeader(['LATITUDE']),
+    longitude:    findHeader(['LONGITUDE'])
   };
 
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
+
   const bpeRecues = {};
-  for (const c of chambres) { if (!c.hasBoite && c.bpeDestination) { const bpeName = c.raw['BPE'] || ''; if (bpeName) (bpeRecues[c.bpeDestination] = bpeRecues[c.bpeDestination] || []).push(bpeName); } }
+  for (const c of chambres) {
+    if (!c.hasBoite && c.bpeDestination) {
+      const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
+      if (bpeName) (bpeRecues[c.bpeDestination] = bpeRecues[c.bpeDestination] || []).push(bpeName);
+    }
+  }
 
   for(const c of chambres){
     const p = (c.passages && c.passages[0]) ? c.passages[0] : {};
-    let bpeFinal = c.raw['BPE'] || ''; let bpeOrigine = bpeFinal; let obsBpe = '';
-    if (!c.hasBoite) { bpeFinal = ''; if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE'; else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${getDisplayNameById(c.bpeDestination)}`; } 
-    else if (bpeRecues[c.id] && bpeRecues[c.id].length) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
+    let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
+    let bpeOrigine = bpeFinal;
+    let obsBpe = '';
+    if (!c.hasBoite) {
+      bpeFinal = '';
+      if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
+      else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${getDisplayNameById(c.bpeDestination)}`;
+    } else if (bpeRecues[c.id] && bpeRecues[c.id].length) {
+      bpeFinal = bpeRecues[c.id].join(' + ');
+      obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
+    }
 
-    const ordreGeoVal = c.raw[H.ordreGeo] || makeOrdreGeo(c.raw[H.ordre]);
-    const ordreVal    = c.raw[H.ordre] ?? '';
+    const ordreGeoVal = c.raw[H.ordreGeo] || c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || makeOrdreGeo(c.raw[H.ordre]);
+    const ordreVal    = c.raw[H.ordre] ?? c.raw['ORDRE'] ?? c.raw['ordre'] ?? '';
+
     const logicalByHeader = new Map();
     Object.entries(H).forEach(([logical, hName]) => { if (hName) logicalByHeader.set(hName, logical); });
 
     const valFor = (logical) => {
       switch (logical) {
-        case 'ordre': return ordreVal; case 'ordreGeo': return ordreGeoVal; case 'codeCh1': return c.raw[H.codeCh1] || ''; case 'codeCh2': return c.raw[H.codeCh2] || '';
-        case 'refChambr': return c.raw[H.refChambr] || ''; case 'proprietaire': return c.raw[H.proprietaire] || ''; case 'commune': return c.raw[H.commune] || '';
-        case 'waze': return c.raw[H.waze] || ''; case 'wkt': return c.raw[H.wkt] || ''; case 'bpe': return bpeFinal; case 'capacite': return c.capacite || c.raw[H.capacite] || '';
-        case 'cable': return p.cable_name || c.raw[H.cable] || ''; case 'etiquette2': return c.raw[H.etiquette2] || ''; case 'numVoie': return c.raw[H.numVoie] || '';
-        case 'fci': return c.raw[H.fci] || ''; case 'bpeOrigine': return bpeOrigine; case 'obsBpe': return obsBpe; case 'commentaire': return c.notes || '';
-        case 'latitude': return c.lat || ''; case 'longitude': return c.lon || ''; default: return '';
+        case 'ordre':        return ordreVal;
+        case 'ordreGeo':     return ordreGeoVal;
+        case 'codeCh1':      return c.raw[H.codeCh1] || '';
+        case 'codeCh2':      return c.raw[H.codeCh2] || '';
+        case 'refChambr':    return c.raw[H.refChambr] || '';
+        case 'proprietaire': return c.raw[H.proprietaire] || '';
+        case 'commune':      return c.raw[H.commune] || '';
+        case 'waze':         return c.raw[H.waze] || '';
+        case 'wkt':          return c.raw[H.wkt] || '';
+        case 'bpe':          return bpeFinal;
+        case 'capacite':     return c.capacite || c.raw[H.capacite] || '';
+        case 'masque':       return p.masque_in || '';
+        case 'diametre':     return p.diam_in || '';
+        case 'masqueB':      return p.masque_out || '';
+        case 'diametreB':    return p.diam_out || '';
+        case 'cable':        return p.cable_name || c.raw[H.cable] || '';
+        case 'etiquette2':   return c.raw[H.etiquette2] || '';
+        case 'numVoie':      return c.raw[H.numVoie] || '';
+        case 'distChamb':    return c.raw[H.distChamb] || '';
+        case 'fci':          return c.raw[H.fci] || '';
+        case 'bpeOrigine':   return bpeOrigine;
+        case 'obsBpe':       return obsBpe;
+        case 'commentaire':  return c.notes || '';
+        case 'latitude':     return c.lat || '';
+        case 'longitude':    return c.lon || '';
+        default:             return '';
       }
     };
 
@@ -363,11 +547,19 @@ function generateCSV(){
   return lines.join('\r\n');
 }
 
+/* -------------------- Compression photo -------------------- */
 async function compress(file,maxDim=1920,q=0.85){
-  return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>{let{width:w,height:h}=img;const s=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s); const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h); cv.toBlob(b=>{URL.revokeObjectURL(img.src);b?res(b):rej(new Error('compress'));},'image/jpeg',q);}; img.onerror=rej;img.src=URL.createObjectURL(file); });
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{let{width:w,height:h}=img;const s=Math.min(1,maxDim/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);
+      cv.toBlob(b=>{URL.revokeObjectURL(img.src);b?res(b):rej(new Error('compress'));},'image/jpeg',q);};
+    img.onerror=rej;img.src=URL.createObjectURL(file);
+  });
 }
 const blobToDataURL = (blob) => new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => resolve(e.target.result); reader.readAsDataURL(blob); });
 
+/* -------------------- UI -------------------- */
 function showScreen(name){
   document.querySelectorAll('main > section').forEach(s=>s.classList.add('hidden'));
   document.getElementById('screen-'+name).classList.remove('hidden');
@@ -379,46 +571,70 @@ function showOverlay(s){document.getElementById('overlay').classList.toggle('hid
 
 function updateHomeStats(){
   const total=chambres.length,done=chambres.filter(c=>c.done).length;
-  let photos=0; for(const c of chambres) { for(const k in c.photos) photos+=(c.photos[k]||[]).length; }
-  document.getElementById('statTotal').textContent=total; document.getElementById('statDone').textContent=done;
-  document.getElementById('statPhotos').textContent=photos; document.getElementById('statTodo').textContent=total-done;
+  let photos=0;
+  for(const c of chambres) { for(const k in c.photos) photos+=(c.photos[k]||[]).length; }
+  document.getElementById('statTotal').textContent=total;
+  document.getElementById('statDone').textContent=done;
+  document.getElementById('statPhotos').textContent=photos;
+  document.getElementById('statTodo').textContent=total-done;
   document.getElementById('homeStats').style.display=total?'block':'none';
+  const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination);
+  const trDiv = document.getElementById('transfertsResume');
+  const trList = document.getElementById('transfertsList');
+  if (transferts.length > 0) {
+    trDiv.style.display = 'block';
+    let html = '';
+    transferts.forEach(c => {
+      const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
+      html += `<li>La BPE de <b>${escapeHTML(getDisplayName(c))}</b> (${escapeHTML(bpe)}) est transférée vers <b>${escapeHTML(getDisplayNameById(c.bpeDestination))}</b></li>`;
+    });
+    trList.innerHTML = html;
+  } else { trDiv.style.display = 'none'; }
 }
+
 function updateImportLock() {
   const locked = chambres.length > 0;
   document.getElementById('importUnlocked').style.display = locked ? 'none' : 'block';
   document.getElementById('importLocked').style.display = locked ? 'block' : 'none';
 }
 
+function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
 function renderList(){
   const cont=document.getElementById('listContainer');
-  if(!chambres.length){cont.innerHTML='<div class="empty">Aucune chambre.</div>';return;}
+  if(!chambres.length){cont.innerHTML='<div class="empty">Aucune chambre. Importez un CSV.</div>';return;}
   cont.innerHTML='';
   for(const c of chambres){
-    const div=document.createElement('div'); div.className='list-item';
-    const commune = getRawValue(c, ['COMMUNE'], ''); const ref = getRawValue(c, ['REF_CHAMBR'], ''); const geo = c.raw['ORDRE_GEO'] || '';
+    const div=document.createElement('div');
+    div.className='list-item';
+    const commune = getRawValue(c, ['COMMUNE'], '');
+    const ref = getRawValue(c, ['REF_CHAMBR'], '');
+    const geo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || '';
     const sub = [geo ? `📌 ${geo}` : '', commune, ref].filter(Boolean).join(' • ');
     div.innerHTML=`<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}</div><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div><span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
-    div.onclick=()=>openDetail(c.id); cont.appendChild(div);
+    div.onclick=()=>openDetail(c.id);
+    cont.appendChild(div);
   }
 }
 
 function photoSlot(catObj, arr){
-  const cat = catObj.id; arr=arr||[]; const count=arr.length; const last=arr[count-1];
+  const cat = catObj.id;
+  arr=arr||[];const count=arr.length;const last=arr[count-1];
   let inner=`<div class="icon">${catObj.icon}</div><div>${catObj.label}</div>`;
   if(last){const u=URL.createObjectURL(last.blob);inner=`<img src="${u}">`;}
   return `<div class="photo-btn">${count?`<span class="badge">${count}</span>`:''}${count?`<button type="button" class="photo-del" data-del-cat="${cat}" data-cat-label="${catObj.label}">×</button>`:''}<label>${inner}<input type="file" accept="image/*" capture="environment" multiple data-cat="${cat}"></label></div>`;
 }
 
 function openDetail(id){
-  const c=chambres.find(x=>x.id===id); if(!c) return;
+  currentId=id;const c=chambres.find(x=>x.id===id);if(!c)return;
   try { localStorage.setItem('derniereChambre', id); } catch(e){}
   if(!c.photos)c.photos={};
   PHOTO_CATS_AIGUILLAGE.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
   PHOTO_CATS_FOA.forEach(p => { if(!c.photos[p.id]) c.photos[p.id] = []; });
-  if(!c.passages) c.passages = [{id: crypto.randomUUID(), cable_name:''}];
+  if(!c.passages) c.passages = [{id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}];
   if(c.hasBoite === undefined) c.hasBoite = true;
   if(!c.bpeDestination) c.bpeDestination = '';
+  if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
   if(!c.notes) c.notes = '';
   
   const bpeOrigine = getRawValue(c, ['BPE', 'bpe'], '');
@@ -434,68 +650,127 @@ function openDetail(id){
 
   const cont=document.getElementById('detailContainer');
   const displayName = getDisplayName(c);
-  const numVoie = getRawValue(c, ['NUM_VOIE'], ''); const codeCh2 = getRawValue(c, ['CODE_CH2'], ''); const commune = getRawValue(c, ['COMMUNE'], ''); const refChambr= getRawValue(c, ['REF_CHAMBR'], ''); const proprietaire = getRawValue(c, ['PROPRIETAI'], '');
-  const ordreGeo = c.raw['ORDRE_GEO'] || makeOrdreGeo(c.raw['ORDRE']) || '—'; const ordre = c.raw['ORDRE'] || '—'; const wazeUrlCsv = c.raw['WAZE'] || '';
+  
+  const numVoie  = getRawValue(c, ['NUM_VOIE', 'adresse'], '');
+  const codeCh2  = getRawValue(c, ['CODE_CH2'], '');
+  const commune  = getRawValue(c, ['COMMUNE'], '');
+  const refChambr= getRawValue(c, ['REF_CHAMBR'], '');
+  const proprietaire = getRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], '');
+  const fci      = getRawValue(c, ['FCI'], '');
+  const etiquette2 = getRawValue(c, ['ETIQUETTE_2'], '');
+  
+  const ordreGeo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || makeOrdreGeo(c.raw['ORDRE']) || '—';
+  const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '—';
+  const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
   
   let navBtns = '';
-  if (wazeUrlCsv && wazeUrlCsv.includes('waze.com')) { const match = wazeUrlCsv.match(/ll=([\d.-]+),([\d.-]+)/); let mapsUrl = match ? `https://www.google.com/maps/search/?api=1&query=${match[1]},${match[2]}` : wazeUrlCsv.replace('https://www.waze.com/ul?ll=', 'https://www.google.com/maps/search/?api=1&query=').replace('&navigate=yes', ''); navBtns = `<a href="${wazeUrlCsv}" target="_blank" class="btn btn-waze">🚗 Waze</a><a href="${mapsUrl}" target="_blank" class="btn btn-maps">📍 Maps</a>`; } 
-  else if (c.lat && c.lon) { navBtns = `<a href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}" target="_blank" class="btn btn-maps">📍 Voir sur Maps</a>`; }
+  if (wazeUrlCsv && wazeUrlCsv.includes('waze.com')) {
+    const match = wazeUrlCsv.match(/ll=([\d.-]+),([\d.-]+)/);
+    let mapsUrl = match ? `https://www.google.com/maps/search/?api=1&query=${match[1]},${match[2]}` : wazeUrlCsv.replace('https://www.waze.com/ul?ll=', 'https://www.google.com/maps/search/?api=1&query=').replace('&navigate=yes', '');
+    navBtns = `<a href="${wazeUrlCsv}" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a><a href="${mapsUrl}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>`;
+  } else if (wazeUrlCsv) {
+    navBtns = `<a href="https://waze.com/ul?q=${encodeURIComponent(wazeUrlCsv)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wazeUrlCsv)}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>`;
+  } else if (c.lat && c.lon) {
+    navBtns = `<a href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}" target="_blank" class="btn btn-maps">📍 Voir sur Google Maps</a>`;
+  } else {
+    navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de coordonnées GPS ni de lien Waze</div>`;
+  }
   
   const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${escapeHTML(getDisplayName(other))}</option>`).join('');
-  let csvCableVal = c.raw['CABLE'] || '';
+  let csvCableVal = '';
+  for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
+  
   const passagesHtml = c.passages.map((p, index) => {
+    const isFoa = modeTravail === 'foa';
     const cableVal = p.cable_name || (index === 0 ? csvCableVal : '');
-    return `<div class="passage-card" data-passage-id="${p.id}"><h4>Liaison ${index + 1}</h4><input type="text" placeholder="Nom du câble" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"></div>`;
+    const masqueInVal = p.masque_in || (index === 0 ? (c.raw['MASQUE'] || '') : '');
+    const diamInVal = p.diam_in || (index === 0 ? (c.raw['DIAMETRE'] || '') : '');
+    const masqueOutVal = p.masque_out || (index === 0 ? (c.raw['MASQUE B'] || c.raw['MASQUE_B'] || '') : '');
+    const diamOutVal = p.diam_out || (index === 0 ? (c.raw['DIAMETRE B'] || c.raw['DIAMETRE_B'] || '') : '');
+    return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
-
-  const gpsDisplay = (c.lat && c.lon) ? `<span class="info-item clickable" style="grid-column: span 2; background:#e8f5e9;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}','_blank')">📍 ${escapeHTML(c.lat)}, ${escapeHTML(c.lon)}</span>` : `<span class="info-item" style="grid-column: span 2; background:#ffebee;">📍 Non renseigné</span>`;
-
+  
+  const gpsDisplay = (c.lat && c.lon) 
+    ? `<span class="info-item clickable" style="grid-column: span 2; background:#e8f5e9;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}','_blank')">📍 ${escapeHTML(c.lat)}, ${escapeHTML(c.lon)}</span>`
+    : `<span class="info-item" style="grid-column: span 2; background:#ffebee;">📍 Non renseigné</span>`;
+  
   cont.innerHTML=`
   <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-weight:700;font-size:18px;">Chambre ${escapeHTML(displayName)}</div><button id="editInfoBtn" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:13px;background:#e3f2fd;color:#0055A4;">✏️ Modifier</button></div>
-    <div class="info-grid" style="margin-bottom:12px;"><div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;"><b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span> <span class="small">(ORDRE : ${escapeHTML(ordre)})</span></div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:18px;">Chambre ${escapeHTML(displayName)}</div>
+      <button id="editInfoBtn" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:13px;background:#e3f2fd;color:#0055A4;border:1px solid #90caf9;">✏️ Modifier</button>
+    </div>
+    <div class="info-grid" style="margin-bottom:12px;">
+      <div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;">
+        <b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span> 
+        <span class="small">(ORDRE d'origine : ${escapeHTML(ordre)})</span>
+      </div>
+    </div>
+    
+    <h4 style="margin:12px 0 6px 0;font-size:14px;color:#0055A4;">📋 Informations administratives</h4>
     <div class="info-grid">
       <div class="info-item"><b>CODE_CH1 :</b> ${escapeHTML(displayName)}</div>
-      <div class="info-item"><b>CODE_CH2 :</b> ${escapeHTML(codeCh2) || '—'}</div>
-      <div class="info-item"><b>PROPRIETAI :</b> ${escapeHTML(proprietaire) || '—'}</div>
-      <div class="info-item"><b>REF_CHAMBR :</b> ${escapeHTML(refChambr) || '—'}</div>
-      <div class="info-item" style="grid-column: span 2;"><b>COMMUNE :</b> ${escapeHTML(commune) || '—'}</div>
-      <div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>N° Voie :</b> ${escapeHTML(numVoie) || '—'}</div>
+      <div class="info-item"><b>CODE_CH2 :</b> ${escapeHTML(codeCh2) || '<span class="small">—</span>'}</div>
+      <div class="info-item"><b>PROPRIETAI :</b> ${escapeHTML(proprietaire) || '<span class="small">—</span>'}</div>
+      <div class="info-item"><b>REF_CHAMBR :</b> ${escapeHTML(refChambr) || '<span class="small">—</span>'}</div>
+      <div class="info-item" style="grid-column: span 2;"><b>COMMUNE :</b> ${escapeHTML(commune) || '<span class="small">—</span>'}</div>
+      <div class="info-item" style="grid-column: span 2; background:#e3f2fd;"><b>N° Voie :</b> ${escapeHTML(numVoie) || '<span class="small">—</span>'}</div>
+      ${fci ? `<div class="info-item" style="grid-column: span 2; background:#f3e5f5;"><b>FCI :</b> ${escapeHTML(fci)}</div>` : ''}
+      ${etiquette2 ? `<div class="info-item" style="grid-column: span 2; background:#e8f5e9;"><b>Étiquette 2 :</b> ${escapeHTML(etiquette2)}</div>` : ''}
+      <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue :</b> ${escapeHTML(bpeOrigine)}</div>
       ${gpsDisplay}
     </div>
+
     <div style="margin-top:12px; background:#e8eaf6; padding:10px; border-radius:8px; border:1px solid #c5cae9;">
       <label for="capaciteSelect" style="margin-top:0; color:#283593;">🔌 Capacité du câble (FO)</label>
-      <select id="capaciteSelect" style="margin-top:5px; border-color:#9fa8da;">${[12, 24, 36, 48, 72, 96, 144, 288].map(cap => `<option value="${cap}" ${c.capacite == cap ? 'selected' : ''}>${cap} FO (${Math.ceil(cap/12)} cassettes)</option>`).join('')}</select>
+      <select id="capaciteSelect" style="margin-top:5px; border-color:#9fa8da;">
+        ${[12, 24, 36, 48, 72, 96, 144, 288].map(cap => `<option value="${cap}" ${c.capacite == cap ? 'selected' : ''}>${cap} FO (${Math.ceil(cap/12)} cassettes)</option>`).join('')}
+      </select>
     </div>
     <div style="margin-top:12px; text-align:center;">${navBtns}</div>
   </div>
-
-  <div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div></div>
   
   <div class="card">
-    <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label></div>
-    <div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">Boîte posée</label></div>
+    <label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label>
+    <div id="passages-container">${passagesHtml}</div>
+    ${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}
+  </div>
+  
+  <div class="card">
+    <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
+    <div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div>
+    <div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div>
     
     <button id="toggleSoudureBtn" class="btn btn-secondary" style="margin-top:10px; font-size:13px; padding:10px; background:${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '#ffcdd2' : '#c8e6c9'}; color:#333;">
       ${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '❌ Masquer la configuration des soudures' : "🔗 Forcer l'affichage des soudures"}
     </button>
 
     <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
-      <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers ?</label>
+      <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label>
       <select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select>
+      <div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div>
     </div>
   </div>
   
-  <div class="card"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label><textarea id="notesInput" rows="3">${escapeHTML(c.notes)}</textarea></div>
+  <div class="card">
+    <div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div>
+    <textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea>
+  </div>
   
-  <div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div>
+  <div class="card">
+    <label style="margin-top:0; font-size:16px;">📷 Photos requises</label>
+    <div class="photo-row" id="photoGrid"></div>
+  </div>
 
-  <div class="card" id="cassettesCard" style="display: ${c.hasBoite ? 'block' : 'none'};"><div class="label-row"><label style="margin-top:0; font-size:16px;">🗃️ Photos des Cassettes (BPE)</label></div><div class="photo-row" id="cassettesGrid"></div></div>
+  <div class="card" id="cassettesCard" style="display: ${c.hasBoite ? 'block' : 'none'};">
+    <div class="label-row"><label style="margin-top:0; font-size:16px;">🗃️ Photos des Cassettes (BPE)</label></div>
+    <div class="photo-row" id="cassettesGrid"></div>
+  </div>
 
   ${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? `
   <div class="card" id="souduresConfigCard">
     <div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div>
-    <p class="small">Cochez "Droit" pour souder les 12 fibres sur le même tube.</p>
+    <p class="small">Cochez "Droit" pour souder les 12 fibres du tube sur le même tube. Décochez pour gérer les mélanges (passage, attente, tube différent).</p>
     <div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div>
   </div>
   ` : ''}
@@ -508,24 +783,42 @@ function openDetail(id){
   const photoGrid = document.getElementById('photoGrid');
   const renderPhotoGrid = () => {
     const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
-    photoGrid.innerHTML = currentCats.map(cat => `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`).join('');
+    let activeMasks = new Set();
+    if(modeTravail === 'aiguillage') { cont.querySelectorAll('input[data-field="masque_in"], input[data-field="masque_out"]').forEach(inp => { const val = inp.value.trim().toUpperCase(); if(val) { const letter = val.charAt(0); if(['A','B','C','D'].includes(letter)) activeMasks.add(letter); } }); }
+    const hasBoite = document.getElementById('boiteToggle').checked;
+    photoGrid.innerHTML = currentCats.map(cat => {
+      let visible = true;
+      if(modeTravail === 'aiguillage') { if(['MA','MB','MC','MD'].includes(cat.id)) { const letter = cat.id.charAt(1); if (activeMasks.size > 0) visible = activeMasks.has(letter); } }
+      else { if(!hasBoite) { if(['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(cat.id)) { visible = false; } } }
+      if(!visible) return '';
+      return `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`;
+    }).join('');
     photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{ inp.onchange=async()=>{ const files=Array.from(inp.files||[]);if(!files.length)return; const cat = inp.dataset.cat; showOverlay(true); try{ for(const f of files){ const blob=await compress(f); if(!c.photos[cat]) c.photos[cat] = []; c.photos[cat].push({id:crypto.randomUUID(),blob,ts:Date.now()}); } await dbPut(c);openDetail(id); }catch(err){alert('Erreur photo : '+err.message);} finally{showOverlay(false);} }; });
-    photoGrid.querySelectorAll('[data-del-cat]').forEach(b=>{ b.onclick=async(e)=>{ e.stopPropagation();e.preventDefault(); if(!confirm(`Supprimer les photos ?`))return; c.photos[b.dataset.delCat]=[]; await dbPut(c);openDetail(id); }; });
+    photoGrid.querySelectorAll('[data-del-cat]').forEach(b=>{ b.onclick=async(e)=>{ e.stopPropagation();e.preventDefault(); const cat=b.dataset.delCat,label=b.dataset.catLabel; if(!confirm(`Supprimer les photos « ${label} » ?`))return; c.photos[cat]=[]; await dbPut(c);openDetail(id); }; });
   };
   renderPhotoGrid();
 
   const cassettesGrid = document.getElementById('cassettesGrid');
   const renderCassettes = () => {
-    const cap = parseInt(c.capacite, 10) || 48; const nbCass = Math.ceil(cap / 12); let html = '';
+    const cap = parseInt(c.capacite, 10) || 48;
+    const nbCass = Math.ceil(cap / 12);
+    let html = '';
     for (let i = 1; i <= nbCass; i++) {
-      const catId = `CAS_${i}`; if(!c.photos[catId]) c.photos[catId] = [];
+      const catId = `CAS_${i}`;
+      if(!c.photos[catId]) c.photos[catId] = [];
       html += `<div class="photo-wrapper">${photoSlot({ id: catId, label: `CAS ${i}`, icon: '🗃️' }, c.photos[catId])}</div>`;
     }
     cassettesGrid.innerHTML = html;
     cassettesGrid.querySelectorAll('input[type=file]').forEach(inp => {
-      inp.onchange = async () => { const files = Array.from(inp.files || []); if (!files.length) return; const cat = inp.dataset.cat; showOverlay(true); try { for (const f of files) { const blob = await compress(f); c.photos[cat] = [{ id: crypto.randomUUID(), blob, ts: Date.now() }]; } await dbPut(c); openDetail(id); } catch (err) { alert('Erreur photo : ' + err.message); } finally { showOverlay(false); } };
+      inp.onchange = async () => {
+        const files = Array.from(inp.files || []); if (!files.length) return; const cat = inp.dataset.cat; showOverlay(true);
+        try { for (const f of files) { const blob = await compress(f); c.photos[cat] = [{ id: crypto.randomUUID(), blob, ts: Date.now() }]; } await dbPut(c); openDetail(id); }
+        catch (err) { alert('Erreur photo : ' + err.message); } finally { showOverlay(false); }
+      };
     });
-    cassettesGrid.querySelectorAll('[data-del-cat]').forEach(b => { b.onclick = async (e) => { e.stopPropagation(); e.preventDefault(); if (!confirm(`Supprimer ?`)) return; c.photos[b.dataset.delCat] = []; await dbPut(c); openDetail(id); }; });
+    cassettesGrid.querySelectorAll('[data-del-cat]').forEach(b => {
+      b.onclick = async (e) => { e.stopPropagation(); e.preventDefault(); if (!confirm(`Supprimer la photo ${b.dataset.delCat.replace('_',' ')} ?`)) return; c.photos[b.dataset.delCat] = []; await dbPut(c); openDetail(id); };
+    });
   };
   if (c.hasBoite) renderCassettes();
 
@@ -553,58 +846,99 @@ function openDetail(id){
   }
 
   document.getElementById('capaciteSelect').onchange = async (e) => { c.capacite = parseInt(e.target.value, 10); await dbPut(c); openDetail(id); };
-  cont.querySelectorAll('input[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passage = c.passages.find(x => x.id === inp.dataset.pass); if(passage) { passage[inp.dataset.field] = e.target.value; dbPut(c); } }; });
-  document.getElementById('boiteToggle').onchange = (e) => { c.hasBoite = e.target.checked; dbPut(c); openDetail(id); };
+  cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passId = inp.dataset.pass; const field = inp.dataset.field; const passage = c.passages.find(x => x.id === passId); if(passage) { passage[field] = e.target.value; dbPut(c); if(modeTravail === 'aiguillage') renderPhotoGrid(); } }; });
+  document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c); openDetail(id); });
+  cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c); openDetail(id); } }; });
+  document.getElementById('boiteToggle').onchange = (e) => { 
+    c.hasBoite = e.target.checked; 
+    document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block'; 
+    document.getElementById('cassettesCard').style.display = c.hasBoite ? 'block' : 'none';
+    const soudureCard = document.getElementById('souduresConfigCard');
+    if (soudureCard) soudureCard.style.display = c.hasBoite ? 'block' : 'none';
+    dbPut(c); 
+    if(c.hasBoite) renderCassettes();
+  };
   document.getElementById('bpeDestinationSelect').onchange = (e) => { c.bpeDestination = e.target.value; dbPut(c); };
+  document.getElementById('nonPoseeToggle').onchange = (e) => { c.boiteNonPosee = e.target.checked; dbPut(c); };
   document.getElementById('notesInput').oninput = (e) => { c.notes = e.target.value; dbPut(c); };
   document.getElementById('validateBtn').onclick=async()=>{c.done=!c.done;await dbPut(c);openDetail(id);};
   document.getElementById('nextBtn').onclick=()=>{ const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1]; if(next)openDetail(next.id);else{renderList();showScreen('list');} };
-  
   showScreen('detail');
 }
 
+/* ------------------------------------------------------------------ *
+ * MODAL ÉDITION
+ * ------------------------------------------------------------------ */
 function openEditChambre(id) {
   const c = chambres.find(x => x.id === id); if (!c) return;
   editingId = id; editPendingLat = c.lat || ''; editPendingLon = c.lon || '';
-  document.getElementById('editCodeCh1').value = getRawValue(c, ['CODE_CH1'], ''); document.getElementById('editCodeCh2').value = getRawValue(c, ['CODE_CH2'], '');
-  document.getElementById('editProprietaire').value = getRawValue(c, ['PROPRIETAI'], ''); document.getElementById('editCommune').value = getRawValue(c, ['COMMUNE'], '');
-  document.getElementById('editRefChambr').value = getRawValue(c, ['REF_CHAMBR'], ''); document.getElementById('editNumVoie').value = getRawValue(c, ['NUM_VOIE'], '');
-  document.getElementById('editLat').value = c.lat || ''; document.getElementById('editLon').value = c.lon || ''; document.getElementById('editNotes').value = c.notes || '';
-  document.getElementById('editGpsStatus').textContent = ''; document.getElementById('modalEditChambre').style.display = 'flex';
+  document.getElementById('editCodeCh1').value    = getRawValue(c, ['CODE_CH1'], '');
+  document.getElementById('editCodeCh2').value    = getRawValue(c, ['CODE_CH2'], '');
+  document.getElementById('editProprietaire').value = getRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], '');
+  document.getElementById('editCommune').value    = getRawValue(c, ['COMMUNE'], '');
+  document.getElementById('editRefChambr').value  = getRawValue(c, ['REF_CHAMBR'], '');
+  document.getElementById('editNumVoie').value    = getRawValue(c, ['NUM_VOIE', 'adresse'], '');
+  document.getElementById('editLat').value        = c.lat || '';
+  document.getElementById('editLon').value        = c.lon || '';
+  document.getElementById('editNotes').value      = c.notes || '';
+  document.getElementById('editGpsStatus').textContent = '';
+  document.getElementById('modalEditChambre').style.display = 'flex';
 }
-function closeEditChambre() { editingId = null; editPendingLat = ''; editPendingLon = ''; document.getElementById('modalEditChambre').style.display = 'none'; }
+function closeEditChambre() {
+  editingId = null; editPendingLat = ''; editPendingLon = '';
+  document.getElementById('modalEditChambre').style.display = 'none';
+}
 async function confirmEditChambre() {
   if (!editingId) return; const c = chambres.find(x => x.id === editingId); if (!c) return;
-  const newCodeCh1 = document.getElementById('editCodeCh1').value.trim(); if (!newCodeCh1) { alert("Le CODE_CH1 ne peut pas être vide."); return; }
-  c.raw['CODE_CH1'] = newCodeCh1; c.raw['CODE_CH2'] = document.getElementById('editCodeCh2').value.trim(); c.raw['PROPRIETAI'] = document.getElementById('editProprietaire').value.trim();
-  c.raw['COMMUNE'] = document.getElementById('editCommune').value.trim(); c.raw['REF_CHAMBR'] = document.getElementById('editRefChambr').value.trim(); c.raw['NUM_VOIE'] = document.getElementById('editNumVoie').value.trim();
+  const newCodeCh1 = document.getElementById('editCodeCh1').value.trim();
+  if (!newCodeCh1) { alert("Le CODE_CH1 ne peut pas être vide."); return; }
+  setRawValue(c, ['CODE_CH1'], newCodeCh1, 'CODE_CH1');
+  setRawValue(c, ['CODE_CH2'], document.getElementById('editCodeCh2').value.trim(), 'CODE_CH2');
+  setRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], document.getElementById('editProprietaire').value.trim(), 'PROPRIETAI');
+  setRawValue(c, ['COMMUNE'], document.getElementById('editCommune').value.trim(), 'COMMUNE');
+  setRawValue(c, ['REF_CHAMBR'], document.getElementById('editRefChambr').value.trim(), 'REF_CHAMBR');
+  setRawValue(c, ['NUM_VOIE', 'adresse'], document.getElementById('editNumVoie').value.trim(), 'NUM_VOIE');
   c.lat = editPendingLat || ''; c.lon = editPendingLon || ''; c.notes = document.getElementById('editNotes').value.trim();
   await dbPut(c); closeEditChambre(); updateHomeStats(); openDetail(editingId);
 }
 
+/* ------------------------------------------------------------------ *
+ * SYNOPTIQUE PDF & SOUDURES
+ * ------------------------------------------------------------------ */
 function saveLogoStorage() { try { localStorage.setItem('synoptique_logo_gauche', JSON.stringify(logoGauche)); localStorage.setItem('synoptique_logo_droite', JSON.stringify(logoDroite)); } catch(e){} }
-function loadLogoStorage() { try { const lg = localStorage.getItem('synoptique_logo_gauche'); if (lg) logoGauche = JSON.parse(lg); const ld = localStorage.getItem('synoptique_logo_droite'); if (ld) logoDroite = JSON.parse(ld); } catch(e){} }
-function updateLogoStatus() {}
+function loadLogoStorage() { try { const lg = localStorage.getItem('synoptique_logo_gauche'); if (lg) logoGauche = JSON.parse(lg); const ld = localStorage.getItem('synoptique_logo_droite'); if (ld) logoDroite = JSON.parse(ld); } catch(e){} updateLogoStatus(); }
+function updateLogoStatus() {
+  const sg = document.getElementById('synoptiqueLogoGaucheStatus');
+  const sd = document.getElementById('synoptiqueLogoDroiteStatus');
+  if (sg) { if (logoGauche && logoGauche.dataUrl) sg.innerHTML = `<img src="${logoGauche.dataUrl}" style="max-height:40px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;"> <span style="color:#2e7d32;">✓ chargé</span>`; else sg.innerHTML = '<span style="color:#888;">Aucun logo (optionnel)</span>'; }
+  if (sd) { if (logoDroite && logoDroite.dataUrl) sd.innerHTML = `<img src="${logoDroite.dataUrl}" style="max-height:40px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;"> <span style="color:#2e7d32;">✓ chargé</span>`; else sd.innerHTML = '<span style="color:#888;">Aucun logo (optionnel)</span>'; }
+}
 
-// PDF GENERATION
+function parseFloatSafe(v, def = 0) { if (v === null || v === undefined) return def; const s = String(v).trim().replace(',', '.'); if (s === '') return def; const n = parseFloat(s); return isNaN(n) ? def : n; }
+function extraireXY(wkt) { if (!wkt) return [null, null]; const m = String(wkt).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/); if (m) return [parseFloatSafe(m[1]), parseFloatSafe(m[2])]; return [null, null]; }
+function hashFCI(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
+function couleurFCI(fci) { const palette = [[0.20, 0.55, 0.95], [0.25, 0.75, 0.40], [0.95, 0.55, 0.20], [0.65, 0.35, 0.90], [0.90, 0.75, 0.15], [0.20, 0.85, 0.85], [0.90, 0.35, 0.55], [0.45, 0.85, 0.30]]; return palette[hashFCI(String(fci)) % palette.length]; }
+function getVal(row, ...keys) { for (const k of keys) { if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k]; } return ''; }
+
 async function construireSynoptiquePDF() {
-  if (!chambres.length) return null; const { jsPDF } = window.jspdf || {}; if (!jsPDF) return null;
+  if (!chambres.length) return null;
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) return null;
   
   const nomProjet = document.getElementById('synoptiqueNomProjet').value.trim() || 'PROJET';
   const infoComp  = document.getElementById('synoptiqueInfoComp').value.trim();
-  const optCables  = document.getElementById('synoptiqueOptCables') ? document.getElementById('synoptiqueOptCables').checked : true;
-  const optGPS     = document.getElementById('synoptiqueOptGPS') ? document.getElementById('synoptiqueOptGPS').checked : true;
-  const optBPE     = document.getElementById('synoptiqueOptBPE') ? document.getElementById('synoptiqueOptBPE').checked : true;
-  const optMasques = document.getElementById('synoptiqueOptMasques') ? document.getElementById('synoptiqueOptMasques').checked : true;
-  const optFCI     = document.getElementById('synoptiqueOptFCI') ? document.getElementById('synoptiqueOptFCI').checked : true;
+  const optCables  = document.getElementById('synoptiqueOptCables').checked;
+  const optGPS     = document.getElementById('synoptiqueOptGPS').checked;
+  const optBPE     = document.getElementById('synoptiqueOptBPE').checked;
+  const optMasques = document.getElementById('synoptiqueOptMasques').checked;
+  const optFCI     = document.getElementById('synoptiqueOptFCI').checked;
   
   const donnees = chambres.map(c => {
     const r = c.raw || {};
     return {
       'ORDRE': getVal(r, 'ORDRE'), 'CODE_CH1': getVal(r, 'CODE_CH1'), 'BPE': getVal(r, 'BPE'),
-      'ETIQUETTE_2': getVal(r, 'ETIQUETTE_2'), 'REF_CHAMBR': getVal(r, 'REF_CHAMBR'),
-      'wkt_geom': getVal(r, 'wkt_geom'), 'CABLE': getVal(r, 'CABLE'), 'MASQUE': getVal(r, 'MASQUE'),
-      'DIAMETRE': getVal(r, 'DIAMETRE'), 'MASQUE B': getVal(r, 'MASQUE B'), 'DIAMETRE B': getVal(r, 'DIAMETRE B'),
+      'ETIQUETTE_2': getVal(r, 'ETIQUETTE_2'), 'REF_CHAMBR': getVal(r, 'REF_CHAMBR'), 'wkt_geom': getVal(r, 'wkt_geom', 'WKT_GEOM'),
+      'CABLE': getVal(r, 'CABLE'), 'MASQUE': getVal(r, 'MASQUE'), 'DIAMETRE': getVal(r, 'DIAMETRE'), 'MASQUE B': getVal(r, 'MASQUE B', 'MASQUE_B'), 'DIAMETRE B': getVal(r, 'DIAMETRE B', 'DIAMETRE_B'),
       'FCI': getVal(r, 'FCI'), 'COMMUNE': getVal(r, 'COMMUNE'), 'CAPACITE': c.capacite || 48
     };
   });
@@ -703,22 +1037,6 @@ async function construireSynoptiquePDF() {
     if (optMasques) { setTextColor(COL.red); setFont('Helvetica-Bold', 5); if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right'); if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2); setTextColor(COL.black); }
   }
   
-  function extraireXY(wkt) {
-    if (!wkt) return [null, null];
-    const m = String(wkt).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
-    if (m) return [parseFloatSafe(m[1]), parseFloatSafe(m[2])];
-    return [null, null];
-  }
-  function hashFCI(s) {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return h;
-  }
-  function couleurFCI(fci) {
-    const palette = [[0.20, 0.55, 0.95], [0.25, 0.75, 0.40], [0.95, 0.55, 0.20], [0.65, 0.35, 0.90], [0.90, 0.75, 0.15], [0.20, 0.85, 0.85], [0.90, 0.35, 0.55], [0.45, 0.85, 0.30]];
-    return palette[hashFCI(String(fci)) % palette.length];
-  }
-
   function calculerPositions(donneesPage, debutGlobal, startXp, startYp, WidthP, espX, espY, ptsParLigne) {
     const positions = []; let cx = startXp, cy = startYp, dir = 1, cpt = 0;
     for (let i = 0; i < donneesPage.length; i++) {
@@ -754,7 +1072,7 @@ async function construireSynoptiquePDF() {
   
   // --- AJOUT DES PAGES DE SOUDURE ---
   await ajouterPagesSoudure(doc, chambres, logoGauche, logoDroite);
-
+  
   return { doc, nomProjet, nbPages: doc.internal.getNumberOfPages(), nbChambres: donnees.length };
 }
 
@@ -859,118 +1177,302 @@ async function genererSynoptiquePDF() {
   showOverlay(true);
   try {
     const res = await construireSynoptiquePDF();
-    if (!res) { alert("Erreur."); return; }
+    if (!res) { alert("Erreur : vérifiez que des chambres sont chargées."); return; }
     const fname = `Dossier_Complet_TOP_SAT_${res.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`;
-    res.doc.save(fname); alert(`✅ Dossier généré.`);
-  } catch (e) { console.error(e); alert("Erreur :\n" + e.message); } finally { showOverlay(false); }
+    res.doc.save(fname); alert(`✅ Dossier généré avec succès.`);
+  } catch (e) { console.error(e); alert("Erreur lors de la génération :\n" + e.message); } finally { showOverlay(false); }
 }
 
 function bindSynoptiqueUI() {
-  const inputG = document.getElementById('synoptiqueLogoGauche'); if (inputG) inputG.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoGauche = { dataUrl: ev.target.result, format }; saveLogoStorage(); e.target.value = ''; }; reader.readAsDataURL(f); };
-  const inputD = document.getElementById('synoptiqueLogoDroite'); if (inputD) inputD.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoDroite = { dataUrl: ev.target.result, format }; saveLogoStorage(); e.target.value = ''; }; reader.readAsDataURL(f); };
-  document.getElementById('synoptiqueClearLogoGauche').onclick = () => { logoGauche = null; saveLogoStorage(); };
-  document.getElementById('synoptiqueClearLogoDroite').onclick = () => { logoDroite = null; saveLogoStorage(); };
-  document.getElementById('genererSynoptiqueBtn').onclick = genererSynoptiquePDF; loadLogoStorage();
+  const inputG = document.getElementById('synoptiqueLogoGauche');
+  if (inputG) inputG.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoGauche = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; reader.readAsDataURL(f); };
+  const inputD = document.getElementById('synoptiqueLogoDroite');
+  if (inputD) inputD.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoDroite = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; reader.readAsDataURL(f); };
+  document.getElementById('synoptiqueClearLogoGauche').onclick = () => { if (!confirm('Effacer le logo gauche ?')) return; logoGauche = null; saveLogoStorage(); updateLogoStatus(); };
+  document.getElementById('synoptiqueClearLogoDroite').onclick = () => { if (!confirm('Effacer le logo droite ?')) return; logoDroite = null; saveLogoStorage(); updateLogoStatus(); };
+  document.getElementById('genererSynoptiqueBtn').onclick = genererSynoptiquePDF;
+  loadLogoStorage();
 }
 
+/* ------------------------------------------------------------------ *
+ * NOUVEAU PROJET
+ * ------------------------------------------------------------------ */
 async function nouveauProjet() {
-  if (!confirm("⚠️ Effacer toutes les données ?")) return;
-  showOverlay(true); try { await dbClear(); chambres = []; headers = []; localStorage.removeItem('releve_headers'); updateHomeStats(); updateImportLock(); renderList(); showScreen('home'); alert('✅ Nouveau projet prêt.'); } catch(e) { alert("Erreur : " + e.message); } finally { showOverlay(false); }
+  if (!confirm("⚠️ ATTENTION\n\nCette action va effacer TOUTES les données du projet en cours :\n- Toutes les chambres\n- Toutes les photos\n- Toutes les notes et commentaires\n- Toutes les positions GPS\n\nCette action est IRRÉVERSIBLE.\n\nContinuer ?")) return;
+  if (!confirm("Dernière confirmation : êtes-vous VRAIMENT sûr de vouloir tout effacer ?")) return;
+  showOverlay(true);
+  try {
+    await dbClear(); chambres = []; headers = [];
+    try { localStorage.removeItem('releve_headers'); localStorage.removeItem('derniereChambre'); } catch(e){}
+    updateHomeStats(); updateImportLock(); renderList(); showScreen('home');
+    alert('✅ Nouveau projet prêt. Vous pouvez maintenant importer un nouveau CSV.');
+  } catch(e) { alert("Erreur lors de la réinitialisation : " + e.message); } finally { showOverlay(false); }
 }
 
+/* ------------------------------------------------------------------ *
+ * IMPORT CSV
+ * ------------------------------------------------------------------ */
 async function importCSV(file){
   try {
-    showOverlay(true); const text = await file.text(); const rows = parseCSV(text);
-    if (rows.length < 2) throw new Error("Fichier CSV invalide.");
-    const saved = localStorage.getItem('releve_headers'); if (!saved) { headers = rows[0].map(h => h.trim()); localStorage.setItem('releve_headers', JSON.stringify(headers)); } else { try { headers = JSON.parse(saved); } catch(e) { headers = rows[0].map(h => h.trim()); localStorage.setItem('releve_headers', JSON.stringify(headers)); } }
-    
-    const dataRows = rows.slice(1); const ordreIdx = headers.findIndex(h => /^ORDRE$/i.test(h.trim())); const refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim())); const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
-    const makeId = (raw) => { const parts = [ codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '', refIdx >= 0 ? (raw[headers[refIdx]] || '') : '', ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '' ]; const id = parts.filter(Boolean).join('|'); return id || ('CH-' + Math.random().toString(36).slice(2, 8).toUpperCase()); };
+    showOverlay(true);
+    if (file.size === 0) throw new Error("Le fichier est vide.");
+    const text = await file.text();
+    if (!text || text.length < 5) throw new Error("Le fichier semble illisible.");
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error("Le fichier CSV ne contient pas assez de lignes.");
+
+    const saved = localStorage.getItem('releve_headers');
+    if (!saved) { headers = rows[0].map(h => h.trim()); saveHeaders(); } else { try { headers = JSON.parse(saved); } catch(e) { headers = rows[0].map(h => h.trim()); saveHeaders(); } }
+
+    const dataRows = rows.slice(1);
+    const ordreIdx   = headers.findIndex(h => /^ORDRE$/i.test(h.trim()));
+    const refIdx     = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
+    const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
+
+    const makeId = (raw) => {
+      const parts = [ codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '', refIdx >= 0 ? (raw[headers[refIdx]] || '') : '', ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '' ];
+      const id = parts.filter(Boolean).join('|');
+      return id || ('CH-' + Math.random().toString(36).slice(2, 8).toUpperCase());
+    };
+
     const mapChambres = new Map();
     for (const r of dataRows) {
-      if (r.length < 2) continue; const raw = {}; headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
-      if (!raw['ORDRE_GEO']) { const ordreVal = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : ''; if (ordreVal) raw['ORDRE_GEO'] = makeOrdreGeo(ordreVal); }
+      if (r.length < 2) continue;
+      const raw = {};
+      headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
+      if (!raw['ORDRE_GEO']) {
+        const ordreVal = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : '';
+        if (ordreVal) raw['ORDRE_GEO'] = makeOrdreGeo(ordreVal);
+      }
       const id = makeId(raw);
-      if (!mapChambres.has(id)) mapChambres.set(id, { id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '', forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) }, passages: [{ id: crypto.randomUUID(), cable_name: '' }] });
+      if (!mapChambres.has(id)) {
+        mapChambres.set(id, {
+          id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false,
+          notes: '', lat: '', lon: '', forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48,
+          photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
+          passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
+        });
+      }
     }
-    if (mapChambres.size === 0) throw new Error("Aucune chambre valide.");
-    const existingDb = new Map(chambres.map(c => [c.id, c])); const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','BPE','CODE_CH1','CAPACITE'];
+    if (mapChambres.size === 0) throw new Error("Aucune chambre valide n'a été trouvée dans le fichier.");
+
+    const existingDb = new Map(chambres.map(c => [c.id, c]));
+    const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE','CODE_CH1','CAPACITE'];
     const newC = Array.from(mapChambres.values()).map(newCh => {
       const oldCh = existingDb.get(newCh.id);
-      if (oldCh) { for (const key of Object.keys(newCh.raw)) { const ku = key.toUpperCase(); if (ku === 'ORDRE_GEO') { if (!oldCh.raw['ORDRE_GEO'] && newCh.raw['ORDRE_GEO']) oldCh.raw['ORDRE_GEO'] = newCh.raw['ORDRE_GEO']; continue; } if (safeKeys.includes(ku)) oldCh.raw[key] = newCh.raw[key]; else if (!(key in oldCh.raw)) oldCh.raw[key] = newCh.raw[key]; } return oldCh; }
+      if (oldCh) {
+        for (const key of Object.keys(newCh.raw)) {
+          const ku = key.toUpperCase();
+          if (ku === 'ORDRE_GEO') { if (!oldCh.raw['ORDRE_GEO'] && newCh.raw['ORDRE_GEO']) oldCh.raw['ORDRE_GEO'] = newCh.raw['ORDRE_GEO']; continue; }
+          if (safeKeys.includes(ku)) oldCh.raw[key] = newCh.raw[key];
+          else if (!(key in oldCh.raw)) oldCh.raw[key] = newCh.raw[key];
+        }
+        return oldCh;
+      }
       return newCh;
     });
-    await dbClear(); chambres = newC; for (const c of chambres) await dbPut(c);
-    trierChambres(); updateHomeStats(); updateImportLock(); alert(`${chambres.length} chambre(s) prête(s).`);
-  } catch(err) { alert("Erreur : \n" + err.message); } finally { showOverlay(false); }
+
+    await dbClear();
+    chambres = newC;
+    for (const c of chambres) await dbPut(c);
+    trierChambres();
+    updateHomeStats(); updateImportLock();
+    alert(`${chambres.length} chambre(s) prête(s).\nORDRE_GEO créé depuis ORDRE (A1, A2, A3…).`);
+  } catch(err) { alert("Erreur d'importation : \n" + err.message); } finally { showOverlay(false); }
 }
 
+/* -------------------- Tri -------------------- */
 function trierChambres() {
   chambres.forEach((c, i) => { c.__srcIndex = i; });
-  chambres.sort((a, b) => { const ga = parseOrdreGeo(a.raw['ORDRE_GEO']); const gb = parseOrdreGeo(b.raw['ORDRE_GEO']); const oa = parseInt(a.raw['ORDRE'] || '', 10); const ob = parseInt(b.raw['ORDRE'] || '', 10); const va = ga !== 999999 ? ga : (isNaN(oa) ? 999999 : oa); const vb = gb !== 999999 ? gb : (isNaN(ob) ? 999999 : ob); if (va !== vb) return va - vb; return (a.__srcIndex || 0) - (b.__srcIndex || 0); });
+  chambres.sort((a, b) => {
+    const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']); const gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']);
+    const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10); const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
+    const va = ga !== 999999 ? ga : (isNaN(oa) ? 999999 : oa); const vb = gb !== 999999 ? gb : (isNaN(ob) ? 999999 : ob);
+    if (va !== vb) return va - vb; return (a.__srcIndex || 0) - (b.__srcIndex || 0);
+  });
+  chambres.forEach(c => delete c.__srcIndex);
+}
+function trierParOrdreGeo() {
+  chambres.forEach((c, i) => { c.__srcIndex = i; });
+  chambres.sort((a, b) => {
+    const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']); const gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']);
+    if (ga !== gb) return ga - gb;
+    const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10); const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
+    const va = isNaN(oa) ? 999999 : oa; const vb = isNaN(ob) ? 999999 : ob;
+    if (va !== vb) return va - vb; return (a.__srcIndex || 0) - (b.__srcIndex || 0);
+  });
   chambres.forEach(c => delete c.__srcIndex);
 }
 
+/* -------------------- Export ZIP (avec Synoptique) -------------------- */
 async function exportAll(){
   if(!chambres.length){alert('Rien à exporter.');return;}
   showOverlay(true);
   try{
-    trierChambres(); const zip=new JSZip(); zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
-    try { const pdfRes = await construireSynoptiquePDF(); if (pdfRes) { const pdfBlob = pdfRes.doc.output('blob'); const pdfName = `Dossier_Complet_${pdfRes.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; zip.file(pdfName, pdfBlob); } } catch(e) { console.warn("PDF non généré", e); }
-    const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA]; const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
+    trierParOrdreGeo();
+    const zip=new JSZip();
+    zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
+    
+    try { const pdfRes = await construireSynoptiquePDF(); if (pdfRes) { const pdfBlob = pdfRes.doc.output('blob'); const pdfName = `Dossier_Complet_${pdfRes.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; zip.file(pdfName, pdfBlob); } } catch(e) { console.warn("Synoptique non généré pour l'export :", e); }
+
+    const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
+    const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
     for(const c of chambres){
-      const folderName = (getRawValue(c, ['CODE_CH1'], '') || c.id).replace(/[^A-Za-z0-9_-]/g,'_'); const bpeName = (c.raw['BPE'] || 'Sans_Boite').replace(/[^A-Za-z0-9_-]/g,'_');
-      uniqueCats.forEach(catObj => { const photos = c.photos[catObj.id] || []; photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${folderName}/${catObj.id}/${catObj.id}_${n}.jpg`, p.blob); }); });
-      Object.keys(c.photos).forEach(catKey => { if (catKey.startsWith('CAS_')) { const cassName = catKey.replace('_', ''); const photos = c.photos[catKey] || []; photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${folderName}/${bpeName}/${cassName}/${cassName}_${n}.jpg`, p.blob); }); } });
+      const folderName = (getRawValue(c, ['CODE_CH1'], '') || c.id).replace(/[^A-Za-z0-9_-]/g,'_');
+      const bpeName = (c.raw['BPE'] || 'Sans_Boite').replace(/[^A-Za-z0-9_-]/g,'_');
+      
+      uniqueCats.forEach(catObj => {
+        const catFolder = catObj.id;
+        const photos = c.photos[catFolder] || [];
+        photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${folderName}/${catFolder}/${catFolder}_${n}.jpg`, p.blob); });
+      });
+      
+      Object.keys(c.photos).forEach(catKey => {
+        if (catKey.startsWith('CAS_')) {
+          const cassName = catKey.replace('_', '');
+          const photos = c.photos[catKey] || [];
+          photos.forEach((p, i) => {
+            const n = String(i + 1).padStart(2, '0');
+            zip.file(`photos/${folderName}/${bpeName}/${cassName}/${cassName}_${n}.jpg`, p.blob);
+          });
+        }
+      });
     }
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    const fname = 'TOP_SAT_SERVICES_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
+    const fname = 'TOP_SAT_SERVICES_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
     const file = new File([blob], fname, { type: 'application/zip' });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relevé', text: 'Dossier complet' }); } else { throw new Error("Non supporté"); } } catch (err) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 60000); alert("Le partage direct a été bloqué. Fichier téléchargé."); }
-  }catch(e){alert('Erreur export : '+e.message);} finally{showOverlay(false);}
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relevé Chambres - TOP SAT SERVICES', text: 'Relevé terrain complet' }); }
+      else { throw new Error("Partage non supporté"); }
+    } catch (err) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      alert("Le partage direct a été bloqué. Le fichier ZIP a été téléchargé dans vos dossiers.");
+    }
+  }catch(e){alert('Erreur export : '+e.message);}
+  finally{showOverlay(false);}
 }
 
-document.querySelectorAll('.mode-btn').forEach(btn => { btn.onclick = () => { modeTravail = btn.dataset.mode; document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b === btn)); }; });
-document.getElementById('newProjectBtn').onclick = nouveauProjet; document.getElementById('newProjectBtnInline').onclick = nouveauProjet;
-document.getElementById('csvInput').onchange=async e=>{ const f=e.target.files[0]; if(!f)return; await importCSV(f); e.target.value=''; };
-document.getElementById('startBtn').onclick=()=>{trierChambres();renderList();showScreen('list');}; document.getElementById('exportBtn').onclick=exportAll;
+/* -------------------- Mode -------------------- */
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.onclick = () => {
+    modeTravail = btn.dataset.mode; saveMode();
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+  };
+});
+
+/* -------------------- Nouveau projet -------------------- */
+document.getElementById('newProjectBtn').onclick = nouveauProjet;
+document.getElementById('newProjectBtnInline').onclick = nouveauProjet;
+
+/* -------------------- Import CSV -------------------- */
+document.getElementById('csvInput').onchange=async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  await importCSV(f);
+  e.target.value='';
+};
+
+/* -------------------- Navigation -------------------- */
+document.getElementById('startBtn').onclick=()=>{trierChambres();renderList();showScreen('list');};
+document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
 
+/* -------------------- Modal ajout -------------------- */
+document.getElementById('insertAfterSelect').onchange = updateReferenceInfo;
+
+document.getElementById('copyRefBtn').onclick = () => {
+  const afterId = document.getElementById('insertAfterSelect').value;
+  const ref = chambres.find(c => c.id === afterId);
+  if (!ref) return;
+  document.getElementById('newProprietaire').value = getRawValue(ref, ['PROPRIETAI', 'PROPRIETAIRE'], '');
+  document.getElementById('newCodeCh2').value = getRawValue(ref, ['CODE_CH2'], '');
+  document.getElementById('newCommune').value = getRawValue(ref, ['COMMUNE'], '');
+  document.getElementById('newRefChambr').value = getRawValue(ref, ['REF_CHAMBR'], '');
+  document.getElementById('newNumVoie').value = getRawValue(ref, ['NUM_VOIE', 'adresse'], '');
+  if (ref.lat && ref.lon) {
+    if (confirm(`Cette chambre a des coordonnées GPS : ${ref.lat}, ${ref.lon}\n\nVoulez-vous copier ces coordonnées dans le formulaire ?`)) {
+      pendingLat = ref.lat; pendingLon = ref.lon;
+      document.getElementById('gpsStatus').textContent = `Position copiée : ${pendingLat}, ${pendingLon}`;
+      document.getElementById('gpsStatus').style.color = "green";
+    }
+  }
+  alert('📋 Infos copiées. Complétez le CODE_CH1 (nouveau N°) avant de valider.');
+};
+
+let pendingLat = '', pendingLon = '';
 document.getElementById('addChambreBtn').onclick = () => {
-  if(!chambres.length) { alert("Importez un CSV."); return; }
-  const select = document.getElementById('insertAfterSelect'); select.innerHTML = chambres.map(c => `<option value="${c.id}">${escapeHTML(getDisplayName(c))}</option>`).join('');
-  document.getElementById('newId').value=''; document.getElementById('newProprietaire').value=''; document.getElementById('newCodeCh2').value=''; document.getElementById('newCommune').value=''; document.getElementById('newRefChambr').value=''; document.getElementById('newNumVoie').value=''; document.getElementById('newComment').value=''; document.getElementById('gpsStatus').textContent='';
-  pendingLat=''; pendingLon=''; document.getElementById('modalAddChambre').style.display = 'flex';
+  if(!chambres.length) { alert("Veuillez d'abord importer un CSV."); return; }
+  const select = document.getElementById('insertAfterSelect');
+  select.innerHTML = chambres.map(c => `<option value="${c.id}">${escapeHTML(getDisplayName(c))}</option>`).join('');
+  document.getElementById('newId').value = ''; document.getElementById('newProprietaire').value = ''; document.getElementById('newCodeCh2').value = '';
+  document.getElementById('newCommune').value = ''; document.getElementById('newRefChambr').value = ''; document.getElementById('newNumVoie').value = ''; document.getElementById('newComment').value = '';
+  document.getElementById('gpsStatus').textContent = ''; pendingLat = ''; pendingLon = '';
+  updateReferenceInfo(); document.getElementById('modalAddChambre').style.display = 'flex';
 };
 document.getElementById('cancelAddBtn').onclick = () => { document.getElementById('modalAddChambre').style.display = 'none'; };
 document.getElementById('gpsBtn').onclick = () => {
-  const status = document.getElementById('gpsStatus'); status.textContent = "Recherche...";
-  navigator.geolocation.getCurrentPosition((pos) => { pendingLat = pos.coords.latitude.toFixed(6); pendingLon = pos.coords.longitude.toFixed(6); status.textContent = `Position : ${pendingLat}, ${pendingLon}`; status.style.color = "green"; }, (err) => { status.textContent = "Erreur GPS."; status.style.color = "red"; }, { enableHighAccuracy: true, timeout: 10000 });
+  const status = document.getElementById('gpsStatus'); status.textContent = "Recherche GPS...";
+  if (!navigator.geolocation) { status.textContent = "GPS non supporté."; return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { pendingLat = pos.coords.latitude.toFixed(6); pendingLon = pos.coords.longitude.toFixed(6); status.textContent = `Position : ${pendingLat}, ${pendingLon}`; status.style.color = "green"; },
+    (err) => { status.textContent = "Impossible de récupérer le GPS."; status.style.color = "red"; },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 };
 document.getElementById('confirmAddBtn').onclick = async () => {
   const newId = document.getElementById('newId').value.trim(); const afterId = document.getElementById('insertAfterSelect').value;
-  if(!newId) { alert("Saisir un CODE_CH1."); return; } if(chambres.some(c => getDisplayName(c) === newId)) { alert("Existe déjà."); return; }
+  const proprietaire = document.getElementById('newProprietaire').value.trim(); const codeCh2 = document.getElementById('newCodeCh2').value.trim();
+  const commune = document.getElementById('newCommune').value.trim(); const refChambr = document.getElementById('newRefChambr').value.trim();
+  const numVoie = document.getElementById('newNumVoie').value.trim(); const comment = document.getElementById('newComment').value.trim();
+  if(!newId) { alert("Veuillez saisir un numéro CODE_CH1."); return; }
+  if(chambres.some(c => getDisplayName(c) === newId)) { alert("Ce CODE_CH1 existe déjà."); return; }
   const idx = chambres.findIndex(c => c.id === afterId); if(idx === -1) return;
   const wazeUrl = (pendingLat && pendingLon) ? `https://www.waze.com/ul?ll=${pendingLat},${pendingLon}&navigate=yes` : '';
-  const maxGeo = chambres.reduce((m, c) => { const v = parseOrdreGeo(c.raw['ORDRE_GEO']); return Math.max(m, v === 999999 ? 0 : v); }, 0);
-  const newOrdreGeo = 'A' + (maxGeo + 1); const newOrdre = String(maxGeo + 1);
-  const compositeId = [document.getElementById('newCodeCh2').value.trim(), document.getElementById('newRefChambr').value.trim(), newOrdre].filter(Boolean).join('|') || newId;
-  const newCh = { id: compositeId, raw: { 'CODE_CH1': newId, 'WAZE': wazeUrl, 'PROPRIETAI': document.getElementById('newProprietaire').value.trim(), 'CODE_CH2': document.getElementById('newCodeCh2').value.trim(), 'COMMUNE': document.getElementById('newCommune').value.trim(), 'REF_CHAMBR': document.getElementById('newRefChambr').value.trim(), 'NUM_VOIE': document.getElementById('newNumVoie').value.trim(), 'ORDRE': newOrdre, 'ORDRE_GEO': newOrdreGeo }, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: document.getElementById('newComment').value.trim(), lat: pendingLat, lon: pendingLon, forceShowSoudure: false, capacite: 48, photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) }, passages: [{ id: crypto.randomUUID(), cable_name: '' }] };
-  chambres.splice(idx + 1, 0, newCh); await dbPut(newCh); trierChambres(); updateHomeStats(); document.getElementById('modalAddChambre').style.display = 'none'; alert(`Chambre ${newId} ajoutée.`);
+  const maxGeo = chambres.reduce((m, c) => { const v = parseOrdreGeo(c.raw['ORDRE_GEO'] || c.raw['ordre_geo']); return Math.max(m, v === 999999 ? 0 : v); }, 0);
+  const newOrdreGeoNum = maxGeo + 1; const newOrdreGeo = 'A' + newOrdreGeoNum; const newOrdre = String(newOrdreGeoNum);
+  const compositeId = [codeCh2, refChambr, newOrdre].filter(Boolean).join('|') || newId;
+  const newCh = {
+    id: compositeId, raw: { 'CODE_CH1': newId, 'WAZE': wazeUrl, 'PROPRIETAI': proprietaire, 'CODE_CH2': codeCh2, 'COMMUNE': commune, 'REF_CHAMBR': refChambr, 'NUM_VOIE': numVoie, 'ORDRE': newOrdre, 'ORDRE_GEO': newOrdreGeo },
+    done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: comment, lat: pendingLat, lon: pendingLon, forceShowSoudure: false, capacite: 48,
+    photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
+    passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
+  };
+  chambres.splice(idx + 1, 0, newCh); await dbPut(newCh); trierChambres(); updateHomeStats(); document.getElementById('modalAddChambre').style.display = 'none';
+  alert(`Chambre ${newId} ajoutée (ORDRE_GEO ${newOrdreGeo}).\nElle est insérée après ${getDisplayNameById(afterId)}.`);
 };
 
-document.getElementById('cancelEditBtn').onclick = closeEditChambre; document.getElementById('confirmEditBtn').onclick = confirmEditChambre;
+/* -------------------- Modal édition -------------------- */
+document.getElementById('cancelEditBtn').onclick = closeEditChambre;
+document.getElementById('confirmEditBtn').onclick = confirmEditChambre;
 document.getElementById('editGpsBtn').onclick = () => {
-  const status = document.getElementById('editGpsStatus'); status.textContent = "Recherche...";
-  navigator.geolocation.getCurrentPosition((pos) => { editPendingLat = pos.coords.latitude.toFixed(6); editPendingLon = pos.coords.longitude.toFixed(6); document.getElementById('editLat').value = editPendingLat; document.getElementById('editLon').value = editPendingLon; status.textContent = `Position OK`; status.style.color = "green"; }, (err) => { status.textContent = "Erreur GPS."; status.style.color = "red"; }, { enableHighAccuracy: true, timeout: 10000 });
+  const status = document.getElementById('editGpsStatus'); status.textContent = "Recherche GPS..."; status.style.color = "#444";
+  if (!navigator.geolocation) { status.textContent = "GPS non supporté."; status.style.color = "red"; return; }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => { editPendingLat = pos.coords.latitude.toFixed(6); editPendingLon = pos.coords.longitude.toFixed(6); document.getElementById('editLat').value = editPendingLat; document.getElementById('editLon').value = editPendingLon; status.textContent = `Position : ${editPendingLat}, ${editPendingLon}`; status.style.color = "green"; },
+    (err) => { status.textContent = "Impossible de récupérer le GPS."; status.style.color = "red"; },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
 };
-document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat=''; editPendingLon=''; document.getElementById('editLat').value=''; document.getElementById('editLon').value=''; document.getElementById('editGpsStatus').textContent = "Effacé."; document.getElementById('editGpsStatus').style.color = "#c62828"; };
+document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''; editPendingLon = ''; document.getElementById('editLat').value = ''; document.getElementById('editLon').value = ''; document.getElementById('editGpsStatus').textContent = "Coordonnées effacées."; document.getElementById('editGpsStatus').style.color = "#c62828"; };
 
+/* -------------------- Démarrage -------------------- */
 (async()=>{
   try {
-    await openDB(); loadHeaders(); chambres = await dbGetAll(); trierChambres(); updateHomeStats(); updateImportLock(); bindSynoptiqueUI();
-    if (chambres.length) { renderList(); showScreen('list'); let derniere = null; try { derniere = localStorage.getItem('derniereChambre'); } catch(e){} const cible = chambres.find(c => c.id === derniere && !c.done) || chambres.find(c => !c.done); if (cible) setTimeout(() => openDetail(cible.id), 250); }
-  } catch(e) { console.error("Init erreur : " + e.message); }
+    await openDB(); loadHeaders(); loadMode(); chambres = await dbGetAll();
+    let migrated = 0;
+    for (const c of chambres) {
+      if (c.ordreGeo && !c.raw['ORDRE_GEO']) { c.raw['ORDRE_GEO'] = c.ordreGeo; delete c.ordreGeo; await dbPut(c); migrated++; continue; }
+      if (!c.raw['ORDRE_GEO']) { const ordreVal = c.raw['ORDRE'] || c.raw['ordre']; if (ordreVal) { c.raw['ORDRE_GEO'] = makeOrdreGeo(ordreVal); await dbPut(c); migrated++; } }
+    }
+    trierChambres(); updateHomeStats(); updateImportLock(); bindSynoptiqueUI();
+    if (chambres.length) {
+      renderList(); showScreen('list');
+      let derniere = null; try { derniere = localStorage.getItem('derniereChambre'); } catch(e){}
+      const cible = chambres.find(c => c.id === derniere && !c.done) || chambres.find(c => !c.done);
+      if (cible) setTimeout(() => openDetail(cible.id), 250);
+    }
+  } catch(e) { console.error("Erreur d'initialisation de la base de données : " + e.message); }
 })();
 </script>
 </body>
