@@ -204,7 +204,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   </div>
   
   <div class="footer-credits">
-    TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.1
+    TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.2
   </div>
 </section>
 
@@ -694,7 +694,9 @@ function openDetail(id){
     ? `<span class="info-item clickable" style="grid-column: span 2; background:#e8f5e9;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}','_blank')">📍 ${escapeHTML(c.lat)}, ${escapeHTML(c.lon)}</span>`
     : `<span class="info-item" style="grid-column: span 2; background:#ffebee;">📍 Non renseigné</span>`;
   
-  const showCassettes = c.hasBoite || c.forceShowSoudure;
+  // Correction ici : Affichage conditionnel des cassettes et câbles
+  const showCassettes = hasBpe || c.forceShowSoudure;
+  const showCables = hasBpe || c.forceShowSoudure;
 
   cont.innerHTML=`
   <div class="card">
@@ -732,11 +734,13 @@ function openDetail(id){
     <div style="margin-top:12px; text-align:center;">${navBtns}</div>
   </div>
   
+  ${showCables ? `
   <div class="card">
     <label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label>
     <div id="passages-container">${passagesHtml}</div>
     ${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}
   </div>
+  ` : ''}
   
   <div class="card">
     <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
@@ -1117,7 +1121,7 @@ async function construireSynoptiquePDF() {
     drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
     
     setFont('Helvetica', 10);
-    drawText(`Date : ${today} | Version : 13.1`, W / 2, H - 75, 'center');
+    drawText(`Date : ${today} | Version : 13.2`, W / 2, H - 75, 'center');
     
     if (infoComp) {
       setFont('Helvetica-Oblique', 9);
@@ -1451,7 +1455,6 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
     let cableOut = '';
     let isEndOfLine = false;
     
-    // Détection des sites derrière la dernière boîte (NRO, POP, NRA, TDR)
     const allVals = Object.values(r).join(' ').toUpperCase();
     const hasSiteBehind = /NRO|POP|NRA|TDR/.test(allVals);
 
