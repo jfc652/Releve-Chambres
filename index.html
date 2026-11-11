@@ -71,7 +71,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .help-text { display:none; background:#fff9c4; border-left:4px solid #fbc02d; padding:10px; margin-bottom:8px; font-size:12px; border-radius:4px; color:#333; width:100%;}
 .help-text.show { display:block; }
 .logo-container { text-align: center; padding: 10px 0; }
-.logo-container img { max-width: 200px; max-height: 80px; object-fit: contain; }
+.logo-container img, .logo-container svg { max-width: 220px; max-height: 80px; object-fit: contain; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
 .modal-content { background:#fff; width:90%; max-width:420px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
 .splice-tube-block { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
@@ -87,14 +87,12 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .file-input-clear { display: flex; align-items: center; justify-content: center; width: 44px; background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; border-radius: 8px; cursor: pointer; font-size: 18px; }
 .file-input-clear:active { background: #ffcdd2; }
 
-/* ⏱️ CHRONOMÈTRE */
-.chrono-display { font-family:'Courier New',monospace; font-size:44px; font-weight:bold; text-align:center; padding:16px; background:#263238; color:#00e676; border-radius:12px; letter-spacing:2px; margin:10px 0; transition:color .2s; }
+/* Chrono */
+.chrono-display { font-family:'Courier New',monospace; font-size:44px; font-weight:bold; text-align:center; padding:16px; background:#263238; color:#00e676; border-radius:12px; letter-spacing:2px; margin:10px 0; }
 .chrono-display.paused { color:#ffab40; }
 .chrono-status { text-align:center; font-size:14px; color:#666; margin-bottom:10px; font-weight:600; }
 #headerChrono { font-family:'Courier New',monospace; font-size:13px; font-weight:bold; background:rgba(255,255,255,0.25); padding:4px 10px; border-radius:6px; white-space:nowrap; }
 #headerChrono.paused { background:rgba(255,171,64,0.5); }
-
-/* Toast */
 .toast-notif { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#2e7d32; color:#fff; padding:14px 22px; border-radius:10px; font-weight:600; z-index:300; box-shadow:0 6px 20px rgba(0,0,0,0.35); font-size:15px; animation: toastIn .3s ease-out; max-width:90%; text-align:center; }
 @keyframes toastIn { from { opacity:0; transform:translate(-50%, -20px); } to { opacity:1; transform:translate(-50%, 0); } }
 </style>
@@ -108,12 +106,11 @@ window.onerror = function(msg, url, line, col, err) {
 };
 window.addEventListener('unhandledrejection', function(e) {
   const reason = e.reason;
-  const errMsg = "⚠️ ERREUR ASYNC (promesse non gérée)\n\n" + (reason && reason.message ? reason.message : String(reason));
+  const errMsg = "⚠️ ERREUR ASYNC\n\n" + (reason && reason.message ? reason.message : String(reason));
   console.error(errMsg, reason);
   alert(errMsg);
 });
 </script>
-
 </head>
 <body>
 
@@ -126,8 +123,18 @@ window.addEventListener('unhandledrejection', function(e) {
 <main>
 
 <section id="screen-home">
-  <div class="logo-container">
-    <img src="data:image/png;base64,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" alt="TOP SAT SERVICES">
+  <!-- LOGO ACCUEIL avec SVG fallback + upload -->
+  <div class="logo-container" id="logoContainer">
+    <img id="logoAccueil" src="" alt="TOP SAT SERVICES" style="display:none;max-width:220px;max-height:80px;object-fit:contain;">
+    <svg id="logoFallback" viewBox="0 0 300 80" style="max-width:220px;max-height:70px;display:inline-block;" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="300" height="80" fill="#0055A4" rx="8"/>
+      <text x="150" y="38" font-family="Arial Black, Arial, sans-serif" font-size="30" font-weight="900" fill="white" text-anchor="middle">TOP SAT</text>
+      <text x="150" y="66" font-family="Arial, sans-serif" font-size="18" fill="#FFD700" text-anchor="middle" letter-spacing="4">SERVICES</text>
+    </svg>
+    <div style="margin-top:6px;">
+      <label for="logoUpload" style="font-size:11px;color:#0055A4;cursor:pointer;text-decoration:underline;display:inline-block;">🖼️ Changer le logo</label>
+      <input type="file" id="logoUpload" accept="image/*" style="display:none;">
+    </div>
   </div>
 
   <div class="card">
@@ -161,7 +168,7 @@ window.addEventListener('unhandledrejection', function(e) {
       </div>
     </div>
   </div>
-  
+
   <div class="card" id="homeStats" style="display:none;">
     <h2 style="margin-top:0;font-size:17px;">📊 État du relevé</h2>
     <div class="stat-grid">
@@ -182,7 +189,7 @@ window.addEventListener('unhandledrejection', function(e) {
 
   <div class="card" id="chronoCard" style="display:none;">
     <h2 style="margin-top:0;font-size:17px;">⏱️ Chronomètre de chantier</h2>
-    <p class="small">Le chrono démarre à la première pression sur <b>📍 Chambre la plus proche</b>. La chambre est chronométrée depuis son ouverture jusqu'à la prise de la <b>dernière photo requise</b>, puis validée automatiquement. Le chrono global continue de tourner jusqu'au reset.</p>
+    <p class="small">Le chrono démarre à la première pression sur <b>📍 Chambre la plus proche</b>. La chambre est chronométrée depuis son ouverture jusqu'à la prise de la <b>dernière photo requise</b>, puis validée automatiquement.</p>
     <div class="chrono-display" id="chronoDisplay">00:00</div>
     <div class="chrono-status" id="chronoStatus">En attente du premier clic 📍</div>
     <div style="margin-top:10px;">
@@ -224,11 +231,11 @@ window.addEventListener('unhandledrejection', function(e) {
 
   <div class="card" style="margin-top:12px;">
     <h3 style="margin-top:0;font-size:15px;color:#c62828;">⚠️ Zone sensible</h3>
-    <p class="small">Le bouton ci-dessous efface TOUTES les données (chambres, photos, notes, GPS, temps) et démarre un nouveau projet vierge. Irréversible.</p>
+    <p class="small">Le bouton ci-dessous efface TOUTES les données (chambres, photos, notes, GPS, temps). Irréversible.</p>
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
-  
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.6</div>
+
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.7</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -314,10 +321,50 @@ let logoGauche = null, logoDroite = null;
 let _liveChamberInterval = null;
 
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
-const couleursHex = { 'Rouge': [255, 0, 0], 'Bleu': [0, 0, 255], 'Vert': [0, 128, 0], 'Jaune': [255, 255, 0], 'Violet': [128, 0, 128], 'Blanc': [255, 255, 255], 'Orange': [255, 165, 0], 'Gris': [128, 128, 128], 'Marron': [139, 69, 19], 'Noir': [0, 0, 0], 'Turquoise': [64, 224, 208], 'Rose': [255, 192, 203] };
+const couleursHex = { 'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] };
 
 /* ============================================================
-   ⏱️ MODULE CHRONOMÈTRE (automatique)
+   LOGO PAGE D'ACCUEIL
+   ============================================================ */
+function chargerLogoAccueil() {
+  try {
+    const saved = localStorage.getItem('logo_accueil');
+    const img = document.getElementById('logoAccueil');
+    const fallback = document.getElementById('logoFallback');
+    if (saved && img) {
+      img.src = saved;
+      img.onerror = () => { img.style.display = 'none'; if (fallback) fallback.style.display = 'inline-block'; };
+      img.style.display = 'inline-block';
+      if (fallback) fallback.style.display = 'none';
+    }
+  } catch(e) { console.warn('Chargement logo:', e); }
+}
+function bindLogoUpload() {
+  const input = document.getElementById('logoUpload');
+  if (!input) return;
+  input.onchange = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    if (f.size > 500000) { alert("Image trop lourde (max 500 Ko)."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      try {
+        localStorage.setItem('logo_accueil', dataUrl);
+        const img = document.getElementById('logoAccueil');
+        const fallback = document.getElementById('logoFallback');
+        img.src = dataUrl;
+        img.style.display = 'inline-block';
+        if (fallback) fallback.style.display = 'none';
+        img.onerror = () => { img.style.display = 'none'; if (fallback) fallback.style.display = 'inline-block'; alert("Format d'image non supporté. Essayez PNG ou JPEG."); };
+      } catch(ex) { alert("Impossible de sauvegarder le logo : " + ex.message); }
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
+}
+
+/* ============================================================
+   CHRONOMÈTRE
    ============================================================ */
 let chrono = { startTime: null, accumulated: 0, running: false, pausedAt: null };
 let chronoInterval = null;
@@ -335,10 +382,10 @@ function getActiveTime() {
 }
 function formatTime(ms) {
   if (ms === null || ms === undefined || ms < 0) ms = 0;
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600), m = Math.floor((totalSec % 3600) / 60), s = totalSec % 60;
-  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
 }
 function updateChronoUI() {
   const disp = document.getElementById('chronoDisplay');
@@ -441,15 +488,47 @@ async function tryAutoValidateOnLastPhoto(c) {
   return true;
 }
 
+/* ============================================================
+   Modal confirmation distance GPS
+   ============================================================ */
+async function demanderConfirmationDistance(distanceM, chambre) {
+  return new Promise((resolve) => {
+    const distStr = distanceM > 1000
+      ? (distanceM / 1000).toFixed(1) + ' km'
+      : Math.round(distanceM) + ' m';
+    const couleur = distanceM > 5000 ? '#c62828' : distanceM > 500 ? '#e65100' : '#2e7d32';
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:400;padding:16px;';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:14px;padding:24px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.4);">
+        <div style="font-size:52px;margin-bottom:8px;">📍</div>
+        <h3 style="margin:0 0 14px 0;color:${couleur};font-size:18px;">Chambre éloignée</h3>
+        <div style="background:#fff3e0;padding:14px;border-radius:10px;margin-bottom:14px;">
+          <div style="font-size:13px;color:#666;margin-bottom:4px;">Distance actuelle :</div>
+          <div style="font-size:26px;font-weight:bold;color:${couleur};font-family:'Courier New',monospace;">${distStr}</div>
+        </div>
+        <div style="background:#e3f2fd;padding:12px;border-radius:10px;margin-bottom:16px;text-align:left;font-size:13px;">
+          <div style="font-weight:bold;font-size:15px;margin-bottom:4px;">${escapeHTML(getDisplayName(chambre))}</div>
+          <div style="color:#666;">${escapeHTML(getRawValue(chambre, ['COMMUNE'], '—'))}${getRawValue(chambre, ['REF_CHAMBR'], '') ? ' • ' + escapeHTML(getRawValue(chambre, ['REF_CHAMBR'], '')) : ''}</div>
+        </div>
+        <p style="font-size:13px;color:#555;margin:0 0 16px 0;">Voulez-vous quand même ouvrir cette chambre ?</p>
+        <div style="display:flex;gap:10px;">
+          <button id="mdCancel" style="flex:1;padding:14px;background:#e0e0e0;color:#333;border:0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Annuler</button>
+          <button id="mdOk" style="flex:1;padding:14px;background:#2e7d32;color:#fff;border:0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Ouvrir</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#mdOk').onclick = () => { modal.remove(); resolve(true); };
+    modal.querySelector('#mdCancel').onclick = () => { modal.remove(); resolve(false); };
+  });
+}
+
 /* -------------------- Persistance -------------------- */
 function saveHeaders() { try { localStorage.setItem('releve_headers', JSON.stringify(headers)); } catch(e){} }
-function loadHeaders() {
-  const saved = localStorage.getItem('releve_headers');
-  if (saved) { try { headers = JSON.parse(saved); } catch(e){ headers = []; } }
-}
+function loadHeaders() { const s = localStorage.getItem('releve_headers'); if (s) { try { headers = JSON.parse(s); } catch(e){ headers = []; } } }
 function saveMode() { try { localStorage.setItem(MODE_KEY, modeTravail); } catch(e){} }
 function loadMode() {
-  try { const saved = localStorage.getItem(MODE_KEY); if (saved === 'aiguillage' || saved === 'foa') modeTravail = saved; } catch(e){}
+  try { const s = localStorage.getItem(MODE_KEY); if (s === 'aiguillage' || s === 'foa') modeTravail = s; } catch(e){}
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === modeTravail));
 }
 
@@ -470,13 +549,13 @@ const DIAMETRES = [32, 45, 60, 80, 100, 150];
 function findRawKey(raw, aliases) {
   if (!raw) return null;
   const norm = s => String(s).toUpperCase().replace(/[_\s]/g, '');
-  for (const a of aliases) { const target = norm(a); for (const k of Object.keys(raw)) { if (norm(k) === target) return k; } }
+  for (const a of aliases) { const t = norm(a); for (const k of Object.keys(raw)) { if (norm(k) === t) return k; } }
   return null;
 }
 function setRawValue(c, aliases, value, defaultKey) {
   if (!c.raw) c.raw = {};
-  const existing = findRawKey(c.raw, aliases);
-  c.raw[existing || defaultKey || aliases[0]] = value;
+  const k = findRawKey(c.raw, aliases);
+  c.raw[k || defaultKey || aliases[0]] = value;
 }
 function getRawValue(c, aliases, fallback) {
   if (!c || !c.raw) return fallback ?? '';
@@ -486,7 +565,7 @@ function getRawValue(c, aliases, fallback) {
 }
 function getDisplayName(c) { if (!c) return '?'; return getRawValue(c, ['CODE_CH1', 'code_ch1', 'Code_ch1'], '') || c.id || '?'; }
 function getDisplayNameById(id) { const c = chambres.find(x => x.id === id); return getDisplayName(c) || id; }
-function makeOrdreGeo(ordreVal) { const s = String(ordreVal ?? '').trim().replace(/^A/i, ''); if (!s) return ''; return 'A' + s; }
+function makeOrdreGeo(v) { const s = String(v ?? '').trim().replace(/^A/i, ''); if (!s) return ''; return 'A' + s; }
 function parseOrdreGeo(v) {
   if (v === null || v === undefined || v === '') return 999999;
   const m = String(v).toUpperCase().replace(/\s/g,'').match(/^A?(-?\d+(?:\.\d+)?)$/);
@@ -527,85 +606,45 @@ function generateCSV(){
   const sourceHeaders = headers.slice();
   const sourceHasGeo = sourceHeaders.some(h => h.toUpperCase().trim() === 'ORDRE_GEO');
   let allHeaders = [], geoInserted = false;
-  sourceHeaders.forEach(h => {
-    allHeaders.push(h);
-    if (!sourceHasGeo && h.toUpperCase().trim() === 'ORDRE') { allHeaders.push('ORDRE_GEO'); geoInserted = true; }
-  });
+  sourceHeaders.forEach(h => { allHeaders.push(h); if (!sourceHasGeo && h.toUpperCase().trim() === 'ORDRE') { allHeaders.push('ORDRE_GEO'); geoInserted = true; } });
   if (!sourceHasGeo && !geoInserted) allHeaders.push('ORDRE_GEO');
   const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE','Temps_Chambre','Temps_Cumul',...currentCats.map(c => `Nb_${c.id}`), 'CAPACITE'];
   const setUpper = new Set(allHeaders.map(h => h.toUpperCase().trim()));
   for (const col of extraCols) { if (!setUpper.has(col.toUpperCase())) { allHeaders.push(col); setUpper.add(col.toUpperCase()); } }
-
   const norm = s => s.toUpperCase().replace(/[_\s]/g,'');
   const findHeader = (aliases) => { for (const a of aliases) { const found = allHeaders.find(h => norm(h) === norm(a)); if (found) return found; } return null; };
-  const H = {
-    ordre: findHeader(['ORDRE']), ordreGeo: findHeader(['ORDRE_GEO']),
-    codeCh1: findHeader(['CODE_CH1']), codeCh2: findHeader(['CODE_CH2']),
-    refChambr: findHeader(['REF_CHAMBR']), proprietaire: findHeader(['PROPRIETAI','PROPRIETAIRE']),
-    commune: findHeader(['COMMUNE']), waze: findHeader(['WAZE']), wkt: findHeader(['wkt_geom']),
-    bpe: findHeader(['BPE']), capacite: findHeader(['CAPACITE']),
-    masque: findHeader(['MASQUE']), diametre: findHeader(['DIAMETRE']),
-    masqueB: findHeader(['MASQUE B','MASQUE_B']), diametreB: findHeader(['DIAMETRE B','DIAMETRE_B']),
-    cable: findHeader(['CABLE']), etiquette2: findHeader(['ETIQUETTE_2']),
-    numVoie: findHeader(['NUM_VOIE']), distChamb: findHeader(['DIST_CHAMB']),
-    fci: findHeader(['FCI']), bpeOrigine: findHeader(['BPE_Origine']),
-    obsBpe: findHeader(['Observation_BPE']), commentaire: findHeader(['Commentaire_Terrain']),
-    latitude: findHeader(['LATITUDE']), longitude: findHeader(['LONGITUDE']),
-    tempsChambre: findHeader(['Temps_Chambre','TEMPS_CHAMBRE']),
-    tempsCumul: findHeader(['Temps_Cumul','TEMPS_CUMUL'])
-  };
+  const H = { ordre:findHeader(['ORDRE']), ordreGeo:findHeader(['ORDRE_GEO']), codeCh1:findHeader(['CODE_CH1']), codeCh2:findHeader(['CODE_CH2']), refChambr:findHeader(['REF_CHAMBR']), proprietaire:findHeader(['PROPRIETAI','PROPRIETAIRE']), commune:findHeader(['COMMUNE']), waze:findHeader(['WAZE']), wkt:findHeader(['wkt_geom']), bpe:findHeader(['BPE']), capacite:findHeader(['CAPACITE']), masque:findHeader(['MASQUE']), diametre:findHeader(['DIAMETRE']), masqueB:findHeader(['MASQUE B','MASQUE_B']), diametreB:findHeader(['DIAMETRE B','DIAMETRE_B']), cable:findHeader(['CABLE']), etiquette2:findHeader(['ETIQUETTE_2']), numVoie:findHeader(['NUM_VOIE']), distChamb:findHeader(['DIST_CHAMB']), fci:findHeader(['FCI']), bpeOrigine:findHeader(['BPE_Origine']), obsBpe:findHeader(['Observation_BPE']), commentaire:findHeader(['Commentaire_Terrain']), latitude:findHeader(['LATITUDE']), longitude:findHeader(['LONGITUDE']), tempsChambre:findHeader(['Temps_Chambre','TEMPS_CHAMBRE']), tempsCumul:findHeader(['Temps_Cumul','TEMPS_CUMUL']) };
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
-
   const bpeRecues = {};
-  for (const c of chambres) {
-    if (!c.hasBoite && c.bpeDestination) {
-      const bpeName = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
-      if (bpeName) (bpeRecues[c.bpeDestination] = bpeRecues[c.bpeDestination] || []).push(bpeName);
-    }
-  }
+  for (const c of chambres) { if (!c.hasBoite && c.bpeDestination) { const n = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || ''; if (n) (bpeRecues[c.bpeDestination] = bpeRecues[c.bpeDestination] || []).push(n); } }
   for(const c of chambres){
     const p = (c.passages && c.passages[0]) ? c.passages[0] : {};
-    let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || '';
-    let bpeOrigine = bpeFinal, obsBpe = '';
-    if (!c.hasBoite) {
-      bpeFinal = '';
-      if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE';
-      else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${getDisplayNameById(c.bpeDestination)}`;
-    } else if (bpeRecues[c.id] && bpeRecues[c.id].length) {
-      bpeFinal = bpeRecues[c.id].join(' + ');
-      obsBpe = 'RECOIT BPE(S) : ' + bpeFinal;
-    }
+    let bpeFinal = c.raw['BPE'] || c.raw['bpe'] || c.raw['N_BPE'] || ''; let bpeOrigine = bpeFinal, obsBpe = '';
+    if (!c.hasBoite) { bpeFinal = ''; if (c.boiteNonPosee && !c.bpeDestination) obsBpe = 'BOITE NON POSEE'; else if (c.bpeDestination) obsBpe = `TRANSFEREE VERS : ${getDisplayNameById(c.bpeDestination)}`; }
+    else if (bpeRecues[c.id] && bpeRecues[c.id].length) { bpeFinal = bpeRecues[c.id].join(' + '); obsBpe = 'RECOIT BPE(S) : ' + bpeFinal; }
     const ordreGeoVal = c.raw[H.ordreGeo] || c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || makeOrdreGeo(c.raw[H.ordre]);
-    const ordreVal    = c.raw[H.ordre] ?? c.raw['ORDRE'] ?? c.raw['ordre'] ?? '';
-    const logicalByHeader = new Map();
-    Object.entries(H).forEach(([logical, hName]) => { if (hName) logicalByHeader.set(hName, logical); });
-    const valFor = (logical) => {
-      switch (logical) {
-        case 'ordre': return ordreVal; case 'ordreGeo': return ordreGeoVal;
-        case 'codeCh1': return c.raw[H.codeCh1] || ''; case 'codeCh2': return c.raw[H.codeCh2] || '';
-        case 'refChambr': return c.raw[H.refChambr] || ''; case 'proprietaire': return c.raw[H.proprietaire] || '';
-        case 'commune': return c.raw[H.commune] || ''; case 'waze': return c.raw[H.waze] || '';
-        case 'wkt': return c.raw[H.wkt] || ''; case 'bpe': return bpeFinal;
-        case 'capacite': return c.capacite || c.raw[H.capacite] || '';
-        case 'masque': return p.masque_in || ''; case 'diametre': return p.diam_in || '';
-        case 'masqueB': return p.masque_out || ''; case 'diametreB': return p.diam_out || '';
-        case 'cable': return p.cable_name || c.raw[H.cable] || '';
-        case 'etiquette2': return c.raw[H.etiquette2] || ''; case 'numVoie': return c.raw[H.numVoie] || '';
-        case 'distChamb': return c.raw[H.distChamb] || ''; case 'fci': return c.raw[H.fci] || '';
-        case 'bpeOrigine': return bpeOrigine; case 'obsBpe': return obsBpe;
-        case 'commentaire': return c.notes || ''; case 'latitude': return c.lat || ''; case 'longitude': return c.lon || '';
-        case 'tempsChambre': return (c.timeSpent !== null && c.timeSpent !== undefined) ? formatTime(c.timeSpent * 1000) : '';
-        case 'tempsCumul': return (c.chronoCumul !== null && c.chronoCumul !== undefined) ? formatTime(c.chronoCumul * 1000) : '';
-        default: return '';
-      }
-    };
-    const row = allHeaders.map(h => {
-      if (h.startsWith('Nb_')) return (c.photos[h.replace('Nb_', '')] || []).length;
-      const logical = logicalByHeader.get(h);
-      if (logical) return valFor(logical);
-      return c.raw[h] || '';
-    });
+    const ordreVal = c.raw[H.ordre] ?? c.raw['ORDRE'] ?? c.raw['ordre'] ?? '';
+    const logicalByHeader = new Map(); Object.entries(H).forEach(([logical, hName]) => { if (hName) logicalByHeader.set(hName, logical); });
+    const valFor = (logical) => { switch (logical) {
+      case 'ordre': return ordreVal; case 'ordreGeo': return ordreGeoVal;
+      case 'codeCh1': return c.raw[H.codeCh1] || ''; case 'codeCh2': return c.raw[H.codeCh2] || '';
+      case 'refChambr': return c.raw[H.refChambr] || ''; case 'proprietaire': return c.raw[H.proprietaire] || '';
+      case 'commune': return c.raw[H.commune] || ''; case 'waze': return c.raw[H.waze] || '';
+      case 'wkt': return c.raw[H.wkt] || ''; case 'bpe': return bpeFinal;
+      case 'capacite': return c.capacite || c.raw[H.capacite] || '';
+      case 'masque': return p.masque_in || ''; case 'diametre': return p.diam_in || '';
+      case 'masqueB': return p.masque_out || ''; case 'diametreB': return p.diam_out || '';
+      case 'cable': return p.cable_name || c.raw[H.cable] || '';
+      case 'etiquette2': return c.raw[H.etiquette2] || ''; case 'numVoie': return c.raw[H.numVoie] || '';
+      case 'distChamb': return c.raw[H.distChamb] || ''; case 'fci': return c.raw[H.fci] || '';
+      case 'bpeOrigine': return bpeOrigine; case 'obsBpe': return obsBpe;
+      case 'commentaire': return c.notes || ''; case 'latitude': return c.lat || ''; case 'longitude': return c.lon || '';
+      case 'tempsChambre': return (c.timeSpent !== null && c.timeSpent !== undefined) ? formatTime(c.timeSpent * 1000) : '';
+      case 'tempsCumul': return (c.chronoCumul !== null && c.chronoCumul !== undefined) ? formatTime(c.chronoCumul * 1000) : '';
+      default: return '';
+    }};
+    const row = allHeaders.map(h => { if (h.startsWith('Nb_')) return (c.photos[h.replace('Nb_', '')] || []).length; const logical = logicalByHeader.get(h); if (logical) return valFor(logical); return c.raw[h] || ''; });
     lines.push(row.map(v=>esc(v,d)).join(d));
   }
   return lines.join('\r\n');
@@ -620,7 +659,7 @@ async function compress(file,maxDim=1920,q=0.85){
     img.onerror=rej;img.src=URL.createObjectURL(file);
   });
 }
-const blobToDataURL = (blob) => new Promise((resolve) => { const reader = new FileReader(); reader.onload = (e) => resolve(e.target.result); reader.readAsDataURL(blob); });
+const blobToDataURL = (blob) => new Promise((resolve) => { const r = new FileReader(); r.onload = (e) => resolve(e.target.result); r.readAsDataURL(blob); });
 
 function showScreen(name){
   if (_liveChamberInterval && name !== 'detail') { clearInterval(_liveChamberInterval); _liveChamberInterval = null; }
@@ -634,8 +673,7 @@ function showOverlay(s){document.getElementById('overlay').classList.toggle('hid
 
 function updateHomeStats(){
   const total=chambres.length,done=chambres.filter(c=>c.done).length;
-  let photos=0;
-  for(const c of chambres) { for(const k in c.photos) photos+=(c.photos[k]||[]).length; }
+  let photos=0; for(const c of chambres) { for(const k in c.photos) photos+=(c.photos[k]||[]).length; }
   document.getElementById('statTotal').textContent=total;
   document.getElementById('statDone').textContent=done;
   document.getElementById('statPhotos').textContent=photos;
@@ -644,13 +682,9 @@ function updateHomeStats(){
   document.getElementById('chronoCard').style.display=total?'block':'none';
   const transferts = chambres.filter(c => !c.hasBoite && c.bpeDestination);
   const trDiv = document.getElementById('transfertsResume'), trList = document.getElementById('transfertsList');
-  if (transferts.length > 0) {
-    trDiv.style.display = 'block';
-    let html = '';
-    transferts.forEach(c => {
-      const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
-      html += `<li>La BPE de <b>${escapeHTML(getDisplayName(c))}</b> (${escapeHTML(bpe)}) est transférée vers <b>${escapeHTML(getDisplayNameById(c.bpeDestination))}</b></li>`;
-    });
+  if (transferts.length > 0) { trDiv.style.display = 'block'; let html = '';
+    transferts.forEach(c => { const bpe = c.raw['BPE'] || c.raw['bpe'] || 'Inconnue';
+      html += `<li>La BPE de <b>${escapeHTML(getDisplayName(c))}</b> (${escapeHTML(bpe)}) est transférée vers <b>${escapeHTML(getDisplayNameById(c.bpeDestination))}</b></li>`; });
     trList.innerHTML = html;
   } else { trDiv.style.display = 'none'; }
 }
@@ -666,8 +700,7 @@ function renderList(){
   if(!chambres.length){cont.innerHTML='<div class="empty">Aucune chambre. Importez un CSV.</div>';return;}
   cont.innerHTML='';
   for(const c of chambres){
-    const div=document.createElement('div');
-    div.className='list-item';
+    const div=document.createElement('div'); div.className='list-item';
     const commune = getRawValue(c, ['COMMUNE'], ''), ref = getRawValue(c, ['REF_CHAMBR'], '');
     const geo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || '';
     let sub = [geo ? `📌 ${geo}` : '', commune, ref].filter(Boolean).join(' • ');
@@ -698,32 +731,17 @@ function openDetail(id){
   if(!c.bpeDestination) c.bpeDestination = '';
   if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
   if(!c.notes) c.notes = '';
-
-  // ⏱️ Démarre le timer chambre SI le chrono global tourne (sinon pas de chrono)
-  if (!c.done && (c._timeStart === null || c._timeStart === undefined) && chrono.running) {
-    c._timeStart = getActiveTime();
-    dbPut(c).catch(()=>{});
-  }
-
+  if (!c.done && (c._timeStart === null || c._timeStart === undefined) && chrono.running) { c._timeStart = getActiveTime(); dbPut(c).catch(()=>{}); }
   const bpeOrigine = getRawValue(c, ['BPE', 'bpe'], '');
   const hasBpe = bpeOrigine && bpeOrigine.trim() !== '' && bpeOrigine.toLowerCase() !== 'none' && bpeOrigine.toLowerCase() !== 'nan';
   if (c.forceShowSoudure === undefined) c.forceShowSoudure = false;
   if (!c.capacite) c.capacite = parseInt(getRawValue(c, ['CAPACITE', 'capacite'], '48'), 10) || 48;
   if (!c.splicingData) c.splicingData = {};
   const nbTubes = Math.ceil(c.capacite / 12);
-  for (let t = 1; t <= nbTubes; t++) {
-    if (!c.splicingData[t]) c.splicingData[t] = { droit: true, fibers: Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1 })) };
-  }
-
+  for (let t = 1; t <= nbTubes; t++) { if (!c.splicingData[t]) c.splicingData[t] = { droit: true, fibers: Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1 })) }; }
   const cont=document.getElementById('detailContainer');
   const displayName = getDisplayName(c);
-  const numVoie  = getRawValue(c, ['NUM_VOIE', 'adresse'], '');
-  const codeCh2  = getRawValue(c, ['CODE_CH2'], '');
-  const commune  = getRawValue(c, ['COMMUNE'], '');
-  const refChambr= getRawValue(c, ['REF_CHAMBR'], '');
-  const proprietaire = getRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], '');
-  const fci      = getRawValue(c, ['FCI'], '');
-  const etiquette2 = getRawValue(c, ['ETIQUETTE_2'], '');
+  const numVoie = getRawValue(c, ['NUM_VOIE', 'adresse'], ''), codeCh2 = getRawValue(c, ['CODE_CH2'], ''), commune = getRawValue(c, ['COMMUNE'], ''), refChambr = getRawValue(c, ['REF_CHAMBR'], ''), proprietaire = getRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], ''), fci = getRawValue(c, ['FCI'], ''), etiquette2 = getRawValue(c, ['ETIQUETTE_2'], '');
   const ordreGeo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || makeOrdreGeo(c.raw['ORDRE']) || '—';
   const ordre = c.raw['ORDRE'] || c.raw['ordre'] || '—';
   const wazeUrlCsv = c.raw['WAZE'] || c.raw['waze'] || '';
@@ -736,41 +754,21 @@ function openDetail(id){
     navBtns = `<a href="https://waze.com/ul?q=${encodeURIComponent(wazeUrlCsv)}&navigate=yes" target="_blank" class="btn btn-waze">🚗 Ouvrir Waze</a><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(wazeUrlCsv)}" target="_blank" class="btn btn-maps">📍 Ouvrir Google Maps</a>`;
   } else if (c.lat && c.lon) {
     navBtns = `<a href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}" target="_blank" class="btn btn-maps">📍 Voir sur Google Maps</a>`;
-  } else {
-    navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de coordonnées GPS ni de lien Waze</div>`;
-  }
+  } else { navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de coordonnées GPS ni de lien Waze</div>`; }
   const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${escapeHTML(getDisplayName(other))}</option>`).join('');
-  let csvCableVal = '';
-  for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
-
+  let csvCableVal = ''; for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
     const cableVal = p.cable_name || (index === 0 ? csvCableVal : '');
-    const masqueInVal = p.masque_in || (index === 0 ? (c.raw['MASQUE'] || '') : '');
-    const diamInVal = p.diam_in || (index === 0 ? (c.raw['DIAMETRE'] || '') : '');
-    const masqueOutVal = p.masque_out || (index === 0 ? (c.raw['MASQUE B'] || c.raw['MASQUE_B'] || '') : '');
-    const diamOutVal = p.diam_out || (index === 0 ? (c.raw['DIAMETRE B'] || c.raw['DIAMETRE_B'] || '') : '');
+    const masqueInVal = p.masque_in || (index === 0 ? (c.raw['MASQUE'] || '') : ''), diamInVal = p.diam_in || (index === 0 ? (c.raw['DIAMETRE'] || '') : '');
+    const masqueOutVal = p.masque_out || (index === 0 ? (c.raw['MASQUE B'] || c.raw['MASQUE_B'] || '') : ''), diamOutVal = p.diam_out || (index === 0 ? (c.raw['DIAMETRE B'] || c.raw['DIAMETRE_B'] || '') : '');
     return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
-
-  const gpsDisplay = (c.lat && c.lon)
-    ? `<span class="info-item clickable" style="grid-column: span 2; background:#e8f5e9;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}','_blank')">📍 ${escapeHTML(c.lat)}, ${escapeHTML(c.lon)}</span>`
-    : `<span class="info-item" style="grid-column: span 2; background:#ffebee;">📍 Non renseigné</span>`;
-  const showBoxSettings = hasBpe || c.forceShowSoudure;
-  const showCassettes = hasBpe || c.forceShowSoudure;
-
+  const gpsDisplay = (c.lat && c.lon) ? `<span class="info-item clickable" style="grid-column: span 2; background:#e8f5e9;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}','_blank')">📍 ${escapeHTML(c.lat)}, ${escapeHTML(c.lon)}</span>` : `<span class="info-item" style="grid-column: span 2; background:#ffebee;">📍 Non renseigné</span>`;
+  const showBoxSettings = hasBpe || c.forceShowSoudure; const showCassettes = hasBpe || c.forceShowSoudure;
   let chronoInfoHtml = '';
-  if (c.done && c.timeSpent !== null && c.timeSpent !== undefined) {
-    chronoInfoHtml = `<div class="info-item" style="grid-column: span 2; background:#e8f5e9; border-left:4px solid #4caf50;">
-      <b>⏱️ Temps chambre :</b> <span style="font-family:monospace;font-weight:bold;font-size:15px;color:#2e7d32;">${formatTime(c.timeSpent * 1000)}</span>
-      ${(c.chronoCumul !== null && c.chronoCumul !== undefined) ? ` <span style="color:#666;">•</span> <b>Cumul :</b> <span style="font-family:monospace;font-weight:bold;">${formatTime(c.chronoCumul * 1000)}</span>` : ''}
-    </div>`;
-  } else if (!c.done && c._timeStart !== null && c._timeStart !== undefined) {
-    chronoInfoHtml = `<div class="info-item" style="grid-column: span 2; background:#e3f2fd; border-left:4px solid #1976d2;">
-      <b>⏱️ Temps en cours :</b> <span id="liveChamberValue" style="font-family:monospace;font-weight:bold;font-size:15px;color:#0055A4;">${formatTime(getActiveTime() - c._timeStart)}</span>
-    </div>`;
-  }
-
+  if (c.done && c.timeSpent !== null && c.timeSpent !== undefined) { chronoInfoHtml = `<div class="info-item" style="grid-column: span 2; background:#e8f5e9; border-left:4px solid #4caf50;"><b>⏱️ Temps chambre :</b> <span style="font-family:monospace;font-weight:bold;font-size:15px;color:#2e7d32;">${formatTime(c.timeSpent * 1000)}</span>${(c.chronoCumul !== null && c.chronoCumul !== undefined) ? ` <span style="color:#666;">•</span> <b>Cumul :</b> <span style="font-family:monospace;font-weight:bold;">${formatTime(c.chronoCumul * 1000)}</span>` : ''}</div>`; }
+  else if (!c.done && c._timeStart !== null && c._timeStart !== undefined) { chronoInfoHtml = `<div class="info-item" style="grid-column: span 2; background:#e3f2fd; border-left:4px solid #1976d2;"><b>⏱️ Temps en cours :</b> <span id="liveChamberValue" style="font-family:monospace;font-weight:bold;font-size:15px;color:#0055A4;">${formatTime(getActiveTime() - c._timeStart)}</span></div>`; }
   cont.innerHTML=`
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -778,10 +776,7 @@ function openDetail(id){
       <button id="editInfoBtn" class="btn btn-secondary" style="width:auto;padding:8px 12px;font-size:13px;background:#e3f2fd;color:#0055A4;border:1px solid #90caf9;">✏️ Modifier</button>
     </div>
     <div class="info-grid" style="margin-bottom:12px;">
-      <div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;">
-        <b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span>
-        <span class="small">(ORDRE d'origine : ${escapeHTML(ordre)})</span>
-      </div>
+      <div class="info-item" style="grid-column: span 2; background:#fff8e1; border-left:4px solid #f9a825;"><b>ORDRE_GEO :</b> <span style="font-family:monospace;font-size:16px;color:#c62828;"><b>${escapeHTML(ordreGeo)}</b></span> <span class="small">(ORDRE : ${escapeHTML(ordre)})</span></div>
       ${chronoInfoHtml}
     </div>
     <h4 style="margin:12px 0 6px 0;font-size:14px;color:#0055A4;">📋 Informations administratives</h4>
@@ -800,11 +795,7 @@ function openDetail(id){
     ${showBoxSettings ? `<div style="margin-top:12px; background:#e8eaf6; padding:10px; border-radius:8px; border:1px solid #c5cae9;"><label for="capaciteSelect" style="margin-top:0; color:#283593;">🔌 Capacité du câble (FO)</label><select id="capaciteSelect" style="margin-top:5px; border-color:#9fa8da;">${[12, 24, 36, 48, 72, 96, 144, 288].map(cap => `<option value="${cap}" ${c.capacite == cap ? 'selected' : ''}>${cap} FO (${Math.ceil(cap/12)} cassettes)</option>`).join('')}</select></div>` : ''}
     <div style="margin-top:12px; text-align:center;">${navBtns}</div>
   </div>
-  <div class="card">
-    <label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label>
-    <div id="passages-container">${passagesHtml}</div>
-    ${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}
-  </div>
+  <div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div>
   <div class="card">
     <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
     <div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div>
@@ -822,9 +813,7 @@ function openDetail(id){
   ${showBoxSettings ? `<div class="card" id="souduresConfigCard"><div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div><p class="small">Cochez "Droit" pour souder les 12 fibres du tube sur le même tube.</p><div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div></div>` : ''}
   <button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider manuellement'}</button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
-
   document.getElementById('editInfoBtn').onclick = () => openEditChambre(id);
-
   const photoGrid = document.getElementById('photoGrid');
   const renderPhotoGrid = () => {
     const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
@@ -838,48 +827,26 @@ function openDetail(id){
       if(!visible) return '';
       return `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`;
     }).join('');
-    photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{
-      inp.onchange=async()=>{
-        const files=Array.from(inp.files||[]);if(!files.length)return;
-        const cat = inp.dataset.cat;
-        showOverlay(true);
-        try{
-          for(const f of files){ const blob=await compress(f); if(!c.photos[cat]) c.photos[cat] = []; c.photos[cat].push({id:crypto.randomUUID(),blob,ts:Date.now()}); }
-          await dbPut(c);
-          const autoValidated = await tryAutoValidateOnLastPhoto(c);
-          openDetail(id);
-          if (autoValidated) showToast('✅ Chambre validée automatiquement !');
-        }catch(err){alert('Erreur photo : '+err.message);}
-        finally{showOverlay(false);}
-      };
-    });
+    photoGrid.querySelectorAll('input[type=file][data-cat]').forEach(inp=>{ inp.onchange=async()=>{ const files=Array.from(inp.files||[]);if(!files.length)return; const cat = inp.dataset.cat; showOverlay(true); try{ for(const f of files){ const blob=await compress(f); if(!c.photos[cat]) c.photos[cat] = []; c.photos[cat].push({id:crypto.randomUUID(),blob,ts:Date.now()}); } await dbPut(c); const autoValidated = await tryAutoValidateOnLastPhoto(c); openDetail(id); if (autoValidated) showToast('✅ Chambre validée automatiquement !'); }catch(err){alert('Erreur photo : '+err.message);} finally{showOverlay(false);} }; });
     photoGrid.querySelectorAll('[data-del-cat]').forEach(b=>{ b.onclick=async(e)=>{ e.stopPropagation();e.preventDefault(); const cat=b.dataset.delCat,label=b.dataset.catLabel; if(!confirm(`Supprimer les photos « ${label} » ?`))return; c.photos[cat]=[]; await dbPut(c);openDetail(id); }; });
   };
   renderPhotoGrid();
-
   const cassettesGrid = document.getElementById('cassettesGrid');
   const renderCassettes = () => {
     const cap = parseInt(c.capacite, 10) || 48; const nbCass = Math.ceil(cap / 12); let html = '';
     for (let i = 1; i <= nbCass; i++) { const catId = `CAS_${i}`; if(!c.photos[catId]) c.photos[catId] = []; html += `<div class="photo-wrapper">${photoSlot({ id: catId, label: `CAS ${i}`, icon: '🗃️' }, c.photos[catId])}</div>`; }
     cassettesGrid.innerHTML = html;
-    cassettesGrid.querySelectorAll('input[type=file]').forEach(inp => { inp.onchange = async () => {
-      const files = Array.from(inp.files || []); if (!files.length) return; const cat = inp.dataset.cat; showOverlay(true);
-      try { for (const f of files) { const blob = await compress(f); c.photos[cat] = [{ id: crypto.randomUUID(), blob, ts: Date.now() }]; } await dbPut(c); openDetail(id); }
-      catch (err) { alert('Erreur photo : ' + err.message); } finally { showOverlay(false); }
-    }; });
+    cassettesGrid.querySelectorAll('input[type=file]').forEach(inp => { inp.onchange = async () => { const files = Array.from(inp.files || []); if (!files.length) return; const cat = inp.dataset.cat; showOverlay(true); try { for (const f of files) { const blob = await compress(f); c.photos[cat] = [{ id: crypto.randomUUID(), blob, ts: Date.now() }]; } await dbPut(c); openDetail(id); } catch (err) { alert('Erreur photo : ' + err.message); } finally { showOverlay(false); } }; });
     cassettesGrid.querySelectorAll('[data-del-cat]').forEach(b => { b.onclick = async (e) => { e.stopPropagation(); e.preventDefault(); if (!confirm(`Supprimer la photo ${b.dataset.delCat.replace('_',' ')} ?`)) return; c.photos[b.dataset.delCat] = []; await dbPut(c); openDetail(id); }; });
   };
   if (showCassettes) renderCassettes();
-
   const renderSouduresConfig = () => {
     const grid = document.getElementById('souduresConfigGrid'); if(!grid) return; let html = '';
     for (let t = 1; t <= nbTubes; t++) {
       const tubeData = c.splicingData[t]; const isDroit = tubeData.droit;
       html += `<div class="splice-tube-block" data-tube="${t}"><div class="splice-tube-header"><span>Tube ${t} (${couleursNoms[t-1] || 'Couleur ' + t})</span><label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label></div><table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>Tube Dest.</th><th>Fibre Dest.</th></tr></thead><tbody>`;
-      for (let f = 0; f < 12; f++) {
-        const fib = tubeData.fibers[f]; const disabled = (isDroit || fib.status !== 'soude') ? 'disabled' : '';
-        html += `<tr><td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td><td><select class="fib-status" data-tube="${t}" data-fib="${f}" ${isDroit ? 'disabled' : ''}><option value="soude" ${fib.status === 'soude' ? 'selected' : ''}>Soudé</option><option value="attente" ${fib.status === 'attente' ? 'selected' : ''}>Attente</option><option value="passage" ${fib.status === 'passage' ? 'selected' : ''}>Passage</option></select></td><td><input type="number" min="1" max="${nbTubes}" class="fib-dest-tube" data-tube="${t}" data-fib="${f}" value="${fib.destTube}" ${disabled}></td><td><input type="number" min="1" max="12" class="fib-dest-fib" data-tube="${t}" data-fib="${f}" value="${fib.destFib}" ${disabled}></td></tr>`;
-      }
+      for (let f = 0; f < 12; f++) { const fib = tubeData.fibers[f]; const disabled = (isDroit || fib.status !== 'soude') ? 'disabled' : '';
+        html += `<tr><td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td><td><select class="fib-status" data-tube="${t}" data-fib="${f}" ${isDroit ? 'disabled' : ''}><option value="soude" ${fib.status === 'soude' ? 'selected' : ''}>Soudé</option><option value="attente" ${fib.status === 'attente' ? 'selected' : ''}>Attente</option><option value="passage" ${fib.status === 'passage' ? 'selected' : ''}>Passage</option></select></td><td><input type="number" min="1" max="${nbTubes}" class="fib-dest-tube" data-tube="${t}" data-fib="${f}" value="${fib.destTube}" ${disabled}></td><td><input type="number" min="1" max="12" class="fib-dest-fib" data-tube="${t}" data-fib="${f}" value="${fib.destFib}" ${disabled}></td></tr>`; }
       html += `</tbody></table></div>`;
     }
     grid.innerHTML = html;
@@ -888,62 +855,33 @@ function openDetail(id){
     grid.querySelectorAll('.fib-dest-tube, .fib-dest-fib').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); const val = parseInt(e.target.value) || 1; if (inp.classList.contains('fib-dest-tube')) c.splicingData[t].fibers[f].destTube = val; else c.splicingData[t].fibers[f].destFib = val; await dbPut(c); }; });
   };
   if (showBoxSettings) renderSouduresConfig();
-
   const toggleSoudureBtn = document.getElementById('toggleSoudureBtn');
   if (toggleSoudureBtn) toggleSoudureBtn.onclick = async () => { c.forceShowSoudure = !c.forceShowSoudure; await dbPut(c); openDetail(id); };
-
   document.getElementById('capaciteSelect')?.addEventListener('change', async (e) => { c.capacite = parseInt(e.target.value, 10); await dbPut(c); openDetail(id); });
   cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passId = inp.dataset.pass; const field = inp.dataset.field; const passage = c.passages.find(x => x.id === passId); if(passage) { passage[field] = e.target.value; dbPut(c); if(modeTravail === 'aiguillage') renderPhotoGrid(); } }; });
   document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c); openDetail(id); });
   cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c); openDetail(id); } }; });
-  document.getElementById('boiteToggle').onchange = (e) => {
-    c.hasBoite = e.target.checked;
-    document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block';
-    document.getElementById('cassettesCard').style.display = (c.hasBoite || c.forceShowSoudure) ? 'block' : 'none';
-    const soudureCard = document.getElementById('souduresConfigCard');
-    if (soudureCard) soudureCard.style.display = c.hasBoite ? 'block' : 'none';
-    dbPut(c); if(c.hasBoite) renderCassettes();
-  };
+  document.getElementById('boiteToggle').onchange = (e) => { c.hasBoite = e.target.checked; document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block'; document.getElementById('cassettesCard').style.display = (c.hasBoite || c.forceShowSoudure) ? 'block' : 'none'; const s = document.getElementById('souduresConfigCard'); if (s) s.style.display = c.hasBoite ? 'block' : 'none'; dbPut(c); if(c.hasBoite) renderCassettes(); };
   document.getElementById('bpeDestinationSelect').onchange = (e) => { c.bpeDestination = e.target.value; dbPut(c); };
   document.getElementById('nonPoseeToggle').onchange = (e) => { c.boiteNonPosee = e.target.checked; dbPut(c); };
   document.getElementById('notesInput').oninput = (e) => { c.notes = e.target.value; dbPut(c); };
-
-  document.getElementById('validateBtn').onclick = async () => {
-    if (!c.done) {
-      if (c._timeStart !== null && c._timeStart !== undefined) {
-        const sessionSec = Math.round((getActiveTime() - c._timeStart) / 1000);
-        c.timeSpent = (c.timeSpent || 0) + sessionSec;
-        c.chronoCumul = Math.round(getActiveTime() / 1000);
-      }
-      c._timeStart = null; c.done = true;
-    } else { c.done = false; c._timeStart = null; }
-    await dbPut(c); openDetail(id);
-  };
+  document.getElementById('validateBtn').onclick = async () => { if (!c.done) { if (c._timeStart !== null && c._timeStart !== undefined) { const sec = Math.round((getActiveTime() - c._timeStart) / 1000); c.timeSpent = (c.timeSpent || 0) + sec; c.chronoCumul = Math.round(getActiveTime() / 1000); } c._timeStart = null; c.done = true; } else { c.done = false; c._timeStart = null; } await dbPut(c); openDetail(id); };
   document.getElementById('nextBtn').onclick=()=>{ const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1]; if(next)openDetail(next.id);else{renderList();showScreen('list');} };
   showScreen('detail');
-
-  // Live timer pour la chambre en cours
-  if (!c.done && c._timeStart !== null && c._timeStart !== undefined) {
-    _liveChamberInterval = setInterval(() => {
-      const el = document.getElementById('liveChamberValue');
-      if (!el) { clearInterval(_liveChamberInterval); _liveChamberInterval = null; return; }
-      el.textContent = formatTime(getActiveTime() - c._timeStart);
-    }, 1000);
-  }
+  if (!c.done && c._timeStart !== null && c._timeStart !== undefined) { _liveChamberInterval = setInterval(() => { const el = document.getElementById('liveChamberValue'); if (!el) { clearInterval(_liveChamberInterval); _liveChamberInterval = null; return; } el.textContent = formatTime(getActiveTime() - c._timeStart); }, 1000); }
 }
 
 function openEditChambre(id) {
   const c = chambres.find(x => x.id === id); if (!c) return;
   editingId = id; editPendingLat = c.lat || ''; editPendingLon = c.lon || '';
-  document.getElementById('editCodeCh1').value    = getRawValue(c, ['CODE_CH1'], '');
-  document.getElementById('editCodeCh2').value    = getRawValue(c, ['CODE_CH2'], '');
+  document.getElementById('editCodeCh1').value = getRawValue(c, ['CODE_CH1'], '');
+  document.getElementById('editCodeCh2').value = getRawValue(c, ['CODE_CH2'], '');
   document.getElementById('editProprietaire').value = getRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], '');
-  document.getElementById('editCommune').value    = getRawValue(c, ['COMMUNE'], '');
-  document.getElementById('editRefChambr').value  = getRawValue(c, ['REF_CHAMBR'], '');
-  document.getElementById('editNumVoie').value    = getRawValue(c, ['NUM_VOIE', 'adresse'], '');
-  document.getElementById('editLat').value        = c.lat || '';
-  document.getElementById('editLon').value        = c.lon || '';
-  document.getElementById('editNotes').value      = c.notes || '';
+  document.getElementById('editCommune').value = getRawValue(c, ['COMMUNE'], '');
+  document.getElementById('editRefChambr').value = getRawValue(c, ['REF_CHAMBR'], '');
+  document.getElementById('editNumVoie').value = getRawValue(c, ['NUM_VOIE', 'adresse'], '');
+  document.getElementById('editLat').value = c.lat || ''; document.getElementById('editLon').value = c.lon || '';
+  document.getElementById('editNotes').value = c.notes || '';
   document.getElementById('editGpsStatus').textContent = '';
   document.getElementById('modalEditChambre').style.display = 'flex';
 }
@@ -976,11 +914,9 @@ function updateReferenceInfo() {
   const gps = (ref.lat && ref.lon) ? `${ref.lat}, ${ref.lon}` : '—';
   content.innerHTML = `<div><b>CODE_CH1 :</b> ${escapeHTML(getDisplayName(ref))}</div><div><b>CODE_CH2 :</b> ${escapeHTML(codeCh2)}</div><div><b>PROPRIETAI :</b> ${escapeHTML(proprietaire)}</div><div><b>COMMUNE :</b> ${escapeHTML(commune)}</div><div><b>REF_CHAMBR :</b> ${escapeHTML(refChambr)}</div><div><b>N° Voie :</b> ${escapeHTML(numVoie)}</div><div><b>GPS :</b> ${escapeHTML(gps)}</div>`;
 }
+
 function saveLogoStorage() { try { localStorage.setItem('synoptique_logo_gauche', JSON.stringify(logoGauche)); localStorage.setItem('synoptique_logo_droite', JSON.stringify(logoDroite)); } catch(e){} }
-function loadLogoStorage() {
-  try { const lg = localStorage.getItem('synoptique_logo_gauche'); if (lg) logoGauche = JSON.parse(lg); const ld = localStorage.getItem('synoptique_logo_droite'); if (ld) logoDroite = JSON.parse(ld); } catch(e){}
-  updateLogoStatus();
-}
+function loadLogoStorage() { try { const lg = localStorage.getItem('synoptique_logo_gauche'); if (lg) logoGauche = JSON.parse(lg); const ld = localStorage.getItem('synoptique_logo_droite'); if (ld) logoDroite = JSON.parse(ld); } catch(e){} updateLogoStatus(); }
 function updateLogoStatus() {
   const sg = document.getElementById('synoptiqueLogoGaucheStatus'), sd = document.getElementById('synoptiqueLogoDroiteStatus');
   if (sg) { if (logoGauche && logoGauche.dataUrl) sg.innerHTML = `<img src="${logoGauche.dataUrl}" style="max-height:40px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;"> <span style="color:#2e7d32;">✓ chargé</span>`; else sg.innerHTML = '<span style="color:#888;">Aucun logo (optionnel)</span>'; }
@@ -992,45 +928,33 @@ function hashFCI(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 
 function couleurFCI(fci) { const palette = [[0.20,0.55,0.95],[0.25,0.75,0.40],[0.95,0.55,0.20],[0.65,0.35,0.90],[0.90,0.75,0.15],[0.20,0.85,0.85],[0.90,0.35,0.55],[0.45,0.85,0.30]]; return palette[hashFCI(String(fci)) % palette.length]; }
 function getVal(row, ...keys) { for (const k of keys) { if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k]; } return ''; }
 
-/* ---------- PDF (inchangé, version 13.6) ---------- */
+/* ---------- PDF ---------- */
 async function construireSynoptiquePDF() {
   if (!chambres.length) return null;
   const { jsPDF } = window.jspdf || {}; if (!jsPDF) return null;
   const nomProjet = document.getElementById('synoptiqueNomProjet').value.trim() || 'PROJET';
-  const infoComp  = document.getElementById('synoptiqueInfoComp').value.trim();
-  const optCables  = document.getElementById('synoptiqueOptCables').checked;
-  const optGPS     = document.getElementById('synoptiqueOptGPS').checked;
-  const optBPE     = document.getElementById('synoptiqueOptBPE').checked;
-  const optMasques = document.getElementById('synoptiqueOptMasques').checked;
-  const optFCI     = document.getElementById('synoptiqueOptFCI').checked;
-  const donnees = chambres.map(c => {
-    const r = c.raw || {};
-    return { 'ORDRE': getVal(r,'ORDRE','ordre'), 'CODE_CH1': getVal(r,'CODE_CH1'), 'BPE': getVal(r,'BPE'), 'ETIQUETTE_2': getVal(r,'ETIQUETTE_2'), 'REF_CHAMBR': getVal(r,'REF_CHAMBR'), 'wkt_geom': getVal(r,'wkt_geom','WKT_GEOM'), 'CABLE': getVal(r,'CABLE'), 'MASQUE': getVal(r,'MASQUE'), 'DIAMETRE': getVal(r,'DIAMETRE'), 'MASQUE B': getVal(r,'MASQUE B','MASQUE_B'), 'DIAMETRE B': getVal(r,'DIAMETRE B','DIAMETRE_B'), 'FCI': getVal(r,'FCI'), 'COMMUNE': getVal(r,'COMMUNE'), 'CAPACITE': c.capacite || 48 };
-  });
+  const infoComp = document.getElementById('synoptiqueInfoComp').value.trim();
+  const optCables = document.getElementById('synoptiqueOptCables').checked, optGPS = document.getElementById('synoptiqueOptGPS').checked, optBPE = document.getElementById('synoptiqueOptBPE').checked, optMasques = document.getElementById('synoptiqueOptMasques').checked, optFCI = document.getElementById('synoptiqueOptFCI').checked;
+  const donnees = chambres.map(c => { const r = c.raw || {}; return { 'ORDRE':getVal(r,'ORDRE','ordre'), 'CODE_CH1':getVal(r,'CODE_CH1'), 'BPE':getVal(r,'BPE'), 'ETIQUETTE_2':getVal(r,'ETIQUETTE_2'), 'REF_CHAMBR':getVal(r,'REF_CHAMBR'), 'wkt_geom':getVal(r,'wkt_geom','WKT_GEOM'), 'CABLE':getVal(r,'CABLE'), 'MASQUE':getVal(r,'MASQUE'), 'DIAMETRE':getVal(r,'DIAMETRE'), 'MASQUE B':getVal(r,'MASQUE B','MASQUE_B'), 'DIAMETRE B':getVal(r,'DIAMETRE B','DIAMETRE_B'), 'FCI':getVal(r,'FCI'), 'COMMUNE':getVal(r,'COMMUNE'), 'CAPACITE':c.capacite||48 }; });
   donnees.sort((a, b) => parseFloatSafe(a['ORDRE'], 999) - parseFloatSafe(b['ORDRE'], 999));
   const nbChambres = donnees.length, nbBoites = donnees.filter(r => String(r['BPE']).trim() !== '').length;
-  const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0);
-  const cableML = infraML * 1.10 + nbBoites;
+  const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0), cableML = infraML * 1.10 + nbBoites;
   const stats = { nbChambres, nbBoites, infraML, cableML };
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const flipY = y => H - y;
   const COL = { red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208], purple:[128,0,128], orange:[255,165,0], grey:[128,128,128], whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211] };
-  const setDrawColor = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
-  const setFillColor = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-  const setTextColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-  const drawRect = (x, yBottom, w, h, style) => doc.rect(x, flipY(yBottom + h), w, h, style);
-  const drawLine = (x1, y1, x2, y2) => doc.line(x1, flipY(y1), x2, flipY(y2));
-  const drawCircle = (cx, cy, r, style) => doc.circle(cx, flipY(cy), r, style);
-  const drawText = (txt, x, y, align) => { const opts = align === 'center' ? { align: 'center' } : align === 'right' ? { align: 'right' } : undefined; doc.text(String(txt), x, flipY(y), opts); };
-  const setFont = (name, size) => { let style = 'normal'; if (name.includes('Bold') && name.includes('Oblique')) style = 'bolditalic'; else if (name.includes('Bold')) style = 'bold'; else if (name.includes('Oblique')) style = 'italic'; doc.setFont('helvetica', style); doc.setFontSize(size); };
+  const setDrawColor = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]); const setFillColor = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]); const setTextColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+  const drawRect = (x, yB, w, h, st) => doc.rect(x, flipY(yB + h), w, h, st); const drawLine = (x1, y1, x2, y2) => doc.line(x1, flipY(y1), x2, flipY(y2)); const drawCircle = (cx, cy, r, st) => doc.circle(cx, flipY(cy), r, st);
+  const drawText = (txt, x, y, al) => { const o = al === 'center' ? { align: 'center' } : al === 'right' ? { align: 'right' } : undefined; doc.text(String(txt), x, flipY(y), o); };
+  const setFont = (name, size) => { let st = 'normal'; if (name.includes('Bold') && name.includes('Oblique')) st = 'bolditalic'; else if (name.includes('Bold')) st = 'bold'; else if (name.includes('Oblique')) st = 'italic'; doc.setFont('helvetica', st); doc.setFontSize(size); };
   const today = new Date().toLocaleDateString('fr-FR');
   function dessinerEntetePied(numPage, nbPages) {
     setDrawColor(COL.black); doc.setLineWidth(1); drawRect(40, H - 100, W - 80, 60, 'S');
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 13.6`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 13.7`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1060,9 +984,8 @@ async function construireSynoptiquePDF() {
       let xMin = Math.min(...xs), xMax = Math.max(...xs), yMin = Math.min(...ys), yMax = Math.max(...ys);
       if (xMax - xMin < 20) { xMin -= 10; xMax += 10; } if (yMax - yMin < 20) { yMin -= 10; yMax += 10; }
       const pad = 15; const [r, g, b] = couleurFCI(fci);
-      doc.setFillColor(Math.round((0.88 + r * 0.12) * 255), Math.round((0.88 + g * 0.12) * 255), Math.round((0.88 + b * 0.12) * 255));
-      doc.setDrawColor(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)); doc.setLineWidth(1.2); doc.setLineDashPattern([5, 3], 0);
-      drawRect(xMin - pad, yMin - pad, (xMax - xMin) + 2 * pad, (yMax - yMin) + 2 * pad, 'FD'); doc.setLineDashPattern([], 0);
+      doc.setFillColor(Math.round((0.88 + r * 0.12) * 255), Math.round((0.88 + g * 0.12) * 255), Math.round((0.88 + b * 0.12) * 255)); doc.setDrawColor(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
+      doc.setLineWidth(1.2); doc.setLineDashPattern([5, 3], 0); drawRect(xMin - pad, yMin - pad, (xMax - xMin) + 2 * pad, (yMax - yMin) + 2 * pad, 'FD'); doc.setLineDashPattern([], 0);
       let commune = ''; for (const p of pts) { commune = String(p.row.COMMUNE || '').trim(); if (commune) break; }
       const label = commune ? `${commune}  [${fci}]` : `[${fci}]`;
       setTextColor([Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255)]); setFont('Helvetica-Bold', 9); drawText(label, xMin - pad + 5, yMax + pad + 12); setTextColor(COL.black);
@@ -1070,16 +993,15 @@ async function construireSynoptiquePDF() {
   }
   function dessinerRenvoiSortie(x, y, longueur, pageSuivante) { setDrawColor(COL.red); setFillColor(COL.red); doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0); drawLine(x, y - 8, x, y - 18); doc.setLineDashPattern([], 0); doc.setLineWidth(1.2); doc.triangle(x, flipY(y - 22), x - 3, flipY(y - 18), x + 3, flipY(y - 18), 'F'); setFont('Helvetica-Bold', 6); drawText(`Suite P.${pageSuivante}`, x, y - 28, 'center'); drawText(`(${longueur} m)`, x, y - 35, 'center'); }
   function dessinerRenvoiEntree(x, y, longueur, pagePrecedente) { setDrawColor(COL.red); setFillColor(COL.red); doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0); drawLine(x, y + 8, x, y + 16); doc.setLineDashPattern([], 0); doc.setLineWidth(1.2); doc.triangle(x, flipY(y + 5), x - 3, flipY(y + 9), x + 3, flipY(y + 9), 'F'); setFont('Helvetica-Bold', 6); drawText(`Suite P.${pagePrecedente}`, x, y + 20, 'center'); drawText(`(${longueur} m)`, x, y + 26, 'center'); }
-  function couleurPoint(ref, bpe) { const refU = String(ref).toUpperCase(), bpeU = String(bpe).toUpperCase(); if (bpeU.includes('PBC') || refU.includes('PBC')) return COL.turquoise; if (refU.includes('PEC')) return COL.red; if (refU.includes('PDB')) return COL.blue; if (bpeU) return COL.purple; return COL.black; }
+  function couleurPoint(ref, bpe) { const r = String(ref).toUpperCase(), b = String(bpe).toUpperCase(); if (b.includes('PBC') || r.includes('PBC')) return COL.turquoise; if (r.includes('PEC')) return COL.red; if (r.includes('PDB')) return COL.blue; if (b) return COL.purple; return COL.black; }
   function dessinerPoint(cx, cy, row, globalI) {
     const ch = row.CODE_CH1 || '', bpe = row.BPE || '', ref = row.REF_CHAMBR || '', wkt = row.wkt_geom || '', nomCable = row.CABLE || '';
-    const mH = row.MASQUE || '', dH = row.DIAMETRE || '', mB = row['MASQUE B'] || '', dB = row['DIAMETRE B'] || '';
-    const [xg, yg] = extraireXY(wkt);
+    const mH = row.MASQUE || '', dH = row.DIAMETRE || '', mB = row['MASQUE B'] || '', dB = row['DIAMETRE B'] || ''; const [xg, yg] = extraireXY(wkt);
     if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ch) === '-1' || String(ref).toUpperCase() === 'POP')) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); setTextColor(COL.black); setFont('Helvetica-Bold', 7); drawText("NRO / POP", cx, cy + 8, 'center'); }
     else { if (globalI === 0) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); } else { const c = couleurPoint(ref, bpe); setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5); drawCircle(cx, cy, 4, 'FD'); } setTextColor(COL.black); if (ref) { setFont('Helvetica-Oblique', 5); setTextColor(COL.grey); drawText(ref, cx, cy + 16, 'center'); setTextColor(COL.black); } setFont('Helvetica-Bold', 7); drawText(`CH ${ch}`, cx, cy + 8, 'center'); }
     if (optBPE && bpe) { setTextColor(COL.navy); setFont('Helvetica', 5); drawText(bpe, cx, cy - 8, 'center'); setTextColor(COL.black); }
     if (optGPS && xg !== null && yg !== null) { setTextColor(COL.darkviolet); setFont('Helvetica', 4); drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center'); setTextColor(COL.black); }
-    if (optCables && nomCable) { const offset = (optGPS && xg !== null) ? -19 : -14; setTextColor(COL.blue); setFont('Helvetica', 4); drawText(nomCable, cx, cy + offset, 'center'); setTextColor(COL.black); }
+    if (optCables && nomCable) { const off = (optGPS && xg !== null) ? -19 : -14; setTextColor(COL.blue); setFont('Helvetica', 4); drawText(nomCable, cx, cy + off, 'center'); setTextColor(COL.black); }
     if (optMasques) { setTextColor(COL.red); setFont('Helvetica-Bold', 5); if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right'); if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2); setTextColor(COL.black); }
   }
   function calculerPositions(donneesPage, debutGlobal, startXp, startYp, WidthP, espX, espY, ptsParLigne) {
@@ -1099,11 +1021,8 @@ async function construireSynoptiquePDF() {
     if (numPage > 1 && positions.length) { const prevL = positions[0].row.ETIQUETTE_2 || '0'; if (parseFloatSafe(prevL) > 0) dessinerRenvoiEntree(positions[0].x, positions[0].y, prevL, numPage - 1); }
     for (let idx = 0; idx < positions.length; idx++) {
       const p = positions[idx];
-      if (idx > 0) {
-        const prev = positions[idx - 1]; const prevL = prev.row.ETIQUETTE_2 || '0'; const isLastGlobal = (p.globalI === donnees.length - 1);
-        const skip = isLastGlobal && ['0','0.0','','None'].includes(String(prevL).trim());
-        if (!skip) { setDrawColor(COL.orange); doc.setLineWidth(1.5); const debutNouvelleLigne = (idx % pointsParLigne === 0); if (debutNouvelleLigne) { const midY = p.y + espacementY / 2; drawLine(prev.x, prev.y, prev.x, midY); drawLine(prev.x, midY, p.x, midY); drawLine(p.x, midY, p.x, p.y); } else drawLine(prev.x, prev.y, p.x, p.y); setTextColor(COL.black); setFont('Helvetica-Bold', 6); const midX = (prev.x + p.x) / 2, midY2 = (prev.y + p.y) / 2; drawText(`${prevL}m`, midX, midY2 + 4, 'center'); }
-      }
+      if (idx > 0) { const prev = positions[idx - 1]; const prevL = prev.row.ETIQUETTE_2 || '0'; const isLast = (p.globalI === donnees.length - 1); const skip = isLast && ['0','0.0','','None'].includes(String(prevL).trim());
+        if (!skip) { setDrawColor(COL.orange); doc.setLineWidth(1.5); const nv = (idx % pointsParLigne === 0); if (nv) { const my = p.y + espacementY / 2; drawLine(prev.x, prev.y, prev.x, my); drawLine(prev.x, my, p.x, my); drawLine(p.x, my, p.x, p.y); } else drawLine(prev.x, prev.y, p.x, p.y); setTextColor(COL.black); setFont('Helvetica-Bold', 6); const mx = (prev.x + p.x) / 2, my2 = (prev.y + p.y) / 2; drawText(`${prevL}m`, mx, my2 + 4, 'center'); } }
       dessinerPoint(p.x, p.y, p.row, p.globalI);
     }
     if (numPage < nbPages && positions.length && fin < donnees.length) { const last = positions[positions.length - 1]; const nextL = donnees[fin].ETIQUETTE_2 || '0'; if (parseFloatSafe(nextL) > 0) dessinerRenvoiSortie(last.x, last.y, nextL, numPage + 1); }
@@ -1117,12 +1036,13 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
   const truncateText = (text, maxWidth, docInstance, fontSize) => { if (!text) return ''; let t = String(text); docInstance.setFontSize(fontSize); if (docInstance.getTextWidth(t) <= maxWidth) return t; while (t.length > 0 && docInstance.getTextWidth(t + '...') > maxWidth) t = t.slice(0, -1); return t + '...'; };
   const validBoxes = chambres.filter(c => { const bpe = getVal(c.raw, 'BPE') || ''; const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan'; return hasBpe || c.forceShowSoudure; });
   for (let i = 0; i < validBoxes.length; i++) {
-    const c = validBoxes[i]; const r = c.raw || {}; const bpe = getVal(r, 'BPE') || ''; const nomBoite = (bpe && bpe.trim() !== '') ? bpe : 'BOÎTE TRANSFÉRÉE / SANS NOM';
+    const c = validBoxes[i]; const r = c.raw || {}; const bpe = getVal(r, 'BPE') || '';
+    const nomBoite = (bpe && bpe.trim() !== '') ? bpe : 'BOÎTE TRANSFÉRÉE / SANS NOM';
     const nextBox = validBoxes[i + 1]; const cableIn = getVal(r, 'CABLE') || 'CÂBLE INCONNU';
     let destination = '', cableOut = '', isEndOfLine = false;
-    const allVals = Object.values(r).join(' ').toUpperCase(); const hasSiteBehind = /NRO|POP|NRA|TDR/.test(allVals);
+    const allVals = Object.values(r).join(' ').toUpperCase(); const hasSite = /NRO|POP|NRA|TDR/.test(allVals);
     if (nextBox) { destination = getVal(nextBox.raw, 'BPE') || getVal(nextBox.raw, 'CODE_CH1'); cableOut = getVal(nextBox.raw, 'CABLE') || 'CÂBLE INCONNU'; }
-    else { if (hasSiteBehind) { destination = getVal(r, 'DESTINATION') || 'SITE'; cableOut = getVal(r, 'CABLE_OUT') || '—'; } else { isEndOfLine = true; destination = 'FIN DE PARCOURS'; cableOut = '—'; } }
+    else { if (hasSite) { destination = getVal(r, 'DESTINATION') || 'SITE'; cableOut = getVal(r, 'CABLE_OUT') || '—'; } else { isEndOfLine = true; destination = 'FIN DE PARCOURS'; cableOut = '—'; } }
     if (getVal(r, 'DESTINATION')) destination = getVal(r, 'DESTINATION');
     if (getVal(r, 'CABLE_OUT')) cableOut = getVal(r, 'CABLE_OUT');
     const chambreNom = getVal(r, 'CODE_CH1') || '—', commune = getVal(r, 'COMMUNE') || '—', codeSite = getVal(r, 'CODE_CH2', 'CODE_CH1') || '—';
@@ -1139,7 +1059,37 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       doc.text(`Tube ${t} / ${nbTubes} - ${new Date().toLocaleDateString('fr-FR')}`, pageW / 2, 81, { align: 'center' });
       if (logoG && logoG.dataUrl) try { doc.addImage(logoG.dataUrl, logoG.format, 30, 85, 50, 25); } catch(e){}
       if (logoD && logoD.dataUrl) try { doc.addImage(logoD.dataUrl, logoD.format, pageW - 80, 85, 50, 25); } catch(e){}
-      if (bpe && bpe.trim() !== '') { try { let qrData = wazeUrl; if (!qrData && c.lat && c.lon) qrData = `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}`; if (!qrData) qrData = `BPE:${nomBoite} - Code:${codeSite}`; const qrCanvas = document.createElement('canvas'); await QRCode.toCanvas(qrCanvas, qrData, { margin: 1, width: 200 }); const qrDataUrl = qrCanvas.toDataURL('image/png'); doc.addImage(qrDataUrl, 'PNG', pageW - 95, 20, 65, 65); doc.setFontSize(8); doc.setTextColor(100,100,100); doc.setFont('helvetica','bold'); doc.text("Localisation", pageW - 62.5, 90, { align: 'center' }); if (qrData.startsWith('http')) { doc.setTextColor(0,0,255); doc.textWithLink('Ouvrir le lien', pageW - 62.5, 100, { align: 'center', url: qrData }); } } catch(e){ console.error("QR Error", e); } }
+
+      /* ----- PATCH QR CODE ROBUSTE ----- */
+      if (bpe && bpe.trim() !== '') {
+        let qrData = wazeUrl;
+        if (!qrData && c.lat && c.lon) qrData = `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}`;
+        if (!qrData) qrData = `BPE:${nomBoite} - Code:${codeSite}`;
+        if (typeof QRCode === 'undefined' || typeof QRCode.toCanvas !== 'function') {
+          console.warn('⚠️ Librairie QRCode non chargée.');
+          doc.setFontSize(8); doc.setTextColor(0,0,255);
+          doc.textWithLink('🗺️ Ouvrir la localisation', pageW - 100, 45, { align: 'center', url: qrData });
+          doc.setDrawColor(200,200,200); doc.rect(pageW - 100, 20, 80, 80);
+          doc.setTextColor(150,150,150); doc.setFontSize(7);
+          doc.text("(QR indisponible)", pageW - 60, 62, { align: 'center' });
+        } else {
+          try {
+            const qrCanvas = document.createElement('canvas');
+            await QRCode.toCanvas(qrCanvas, qrData, { margin: 1, width: 200, errorCorrectionLevel: 'M' });
+            const qrDataUrl = qrCanvas.toDataURL('image/png');
+            doc.addImage(qrDataUrl, 'PNG', pageW - 95, 20, 65, 65);
+            doc.setFontSize(8); doc.setTextColor(100,100,100); doc.setFont('helvetica','bold');
+            doc.text("Localisation", pageW - 62.5, 90, { align: 'center' });
+            if (qrData.startsWith('http')) { doc.setTextColor(0,0,255); doc.textWithLink('Ouvrir le lien', pageW - 62.5, 100, { align: 'center', url: qrData }); }
+          } catch(e) {
+            console.error('Erreur QR:', e);
+            doc.setFontSize(8); doc.setTextColor(0,0,255);
+            doc.textWithLink('🗺️ Ouvrir le lien', pageW - 100, 50, { align: 'center', url: qrData });
+          }
+        }
+      }
+      /* ----- FIN PATCH QR ----- */
+
       const startY = 120, startX = 20, rowHeight = 22;
       const colWidths = [100, 135, 35, 35, 55, 35, 35, 135, 235]; const colNames = ['Source', 'Câble entrant', 'Tube', 'Fibre', 'Type', 'Fibre', 'Tube', 'Câble sortant', 'Destination'];
       const tableWidth = colWidths.reduce((a, b) => a + b, 0);
@@ -1158,7 +1108,7 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
         for (let i = 0; i < colWidths.length; i++) {
           if (i !== 2 && i !== 6) doc.rect(currentX, rowY, colWidths[i], rowHeight);
           if (i === 3) { doc.setFillColor(rgb[0], rgb[1], rgb[2]); doc.rect(currentX, rowY, colWidths[i], rowHeight, 'F'); doc.setDrawColor(0); doc.rect(currentX, rowY, colWidths[i], rowHeight); }
-          if (i === 5 && (fibData.status === 'soude' || fibData.status === 'passage')) { let destFib = fibData.status === 'passage' ? (f + 1) : fibData.destFib; const destRgb = couleursHex[couleursNoms[destFib - 1]]; doc.setFillColor(destRgb[0], destRgb[1], destRgb[2]); doc.rect(currentX, rowY, colWidths[i], rowHeight, 'F'); doc.setDrawColor(0); doc.rect(currentX, rowY, colWidths[i], rowHeight); }
+          if (i === 5 && (fibData.status === 'soude' || fibData.status === 'passage')) { let dF = fibData.status === 'passage' ? (f + 1) : fibData.destFib; const dRgb = couleursHex[couleursNoms[dF - 1]]; doc.setFillColor(dRgb[0], dRgb[1], dRgb[2]); doc.rect(currentX, rowY, colWidths[i], rowHeight, 'F'); doc.setDrawColor(0); doc.rect(currentX, rowY, colWidths[i], rowHeight); }
           currentX += colWidths[i];
         }
         currentX = startX; doc.setTextColor(0,0,0);
@@ -1167,44 +1117,44 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
         doc.setTextColor(textColor[0], textColor[1], textColor[2]); doc.setFont('helvetica','bold'); doc.text(`F${f+1}`, currentX + colWidths[3]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); currentX += colWidths[3];
         let typeStr = '---*---'; if (fibData.status === 'attente') typeStr = '---o'; else if (fibData.status === 'passage') typeStr = '---=>---';
         doc.setFont('helvetica','bold'); if (fibData.status === 'soude') doc.setTextColor(255,0,0); doc.text(typeStr, currentX + colWidths[4]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); currentX += colWidths[4];
-        if (fibData.status === 'soude' || fibData.status === 'passage') { let destFib = fibData.status === 'passage' ? (f + 1) : fibData.destFib; const destRgb = couleursHex[couleursNoms[destFib - 1]]; const destTextColor = getTextColor(destRgb); doc.setFont('helvetica','bold'); doc.setTextColor(destTextColor[0], destTextColor[1], destTextColor[2]); doc.text(`F${destFib}`, currentX + colWidths[5]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); }
+        if (fibData.status === 'soude' || fibData.status === 'passage') { let dF = fibData.status === 'passage' ? (f + 1) : fibData.destFib; const dRgb = couleursHex[couleursNoms[dF - 1]]; const dTc = getTextColor(dRgb); doc.setFont('helvetica','bold'); doc.setTextColor(dTc[0], dTc[1], dTc[2]); doc.text(`F${dF}`, currentX + colWidths[5]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); }
         currentX += colWidths[5]; currentX += colWidths[6];
         if (fibData.status === 'soude') { doc.text(truncateText(cableOut, colWidths[7]-5, doc, 7.5), currentX + 5, rowY + 14); doc.text(truncateText(destination, colWidths[8]-5, doc, 7.5), currentX + colWidths[7] + 5, rowY + 14); }
         else if (fibData.status === 'passage') { doc.text(truncateText(cableIn, colWidths[7]-5, doc, 7.5), currentX + 5, rowY + 14); doc.text(truncateText(destination, colWidths[8]-5, doc, 7.5), currentX + colWidths[7] + 5, rowY + 14); }
         else if (fibData.status === 'attente') { doc.text('EN ATTENTE', currentX + colWidths[7] + 5, rowY + 14); }
       }
       const tubeHeight = 12 * rowHeight, tubeStartY = startY + rowHeight;
-      const tubeX = startX + colWidths[0] + colWidths[1]; const tColor = couleursHex[couleursNoms[t-1] || 'Bleu']; const tTextColor = getTextColor(tColor);
+      const tubeX = startX + colWidths[0] + colWidths[1]; const tColor = couleursHex[couleursNoms[t-1] || 'Bleu']; const tTc = getTextColor(tColor);
       doc.setFillColor(tColor[0], tColor[1], tColor[2]); doc.rect(tubeX, tubeStartY, colWidths[2], tubeHeight, 'F'); doc.setDrawColor(0); doc.rect(tubeX, tubeStartY, colWidths[2], tubeHeight);
-      doc.setTextColor(tTextColor[0], tTextColor[1], tTextColor[2]); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(`T${t}`, tubeX + colWidths[2]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
+      doc.setTextColor(tTc[0], tTc[1], tTc[2]); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(`T${t}`, tubeX + colWidths[2]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
       const destTube = isDroit ? t : (tubeData.fibers.find(f => f.status === 'soude')?.destTube || t);
       const tubeDestX = startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + colWidths[4] + colWidths[5];
-      const tDestColor = couleursHex[couleursNoms[destTube-1] || 'Bleu']; const tDestTextColor = getTextColor(tDestColor);
-      doc.setFillColor(tDestColor[0], tDestColor[1], tDestColor[2]); doc.rect(tubeDestX, tubeStartY, colWidths[6], tubeHeight, 'F'); doc.setDrawColor(0); doc.rect(tubeDestX, tubeStartY, colWidths[6], tubeHeight);
-      doc.setTextColor(tDestTextColor[0], tDestTextColor[1], tDestTextColor[2]); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(`T${destTube}`, tubeDestX + colWidths[6]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
+      const tDC = couleursHex[couleursNoms[destTube-1] || 'Bleu']; const tDTc = getTextColor(tDC);
+      doc.setFillColor(tDC[0], tDC[1], tDC[2]); doc.rect(tubeDestX, tubeStartY, colWidths[6], tubeHeight, 'F'); doc.setDrawColor(0); doc.rect(tubeDestX, tubeStartY, colWidths[6], tubeHeight);
+      doc.setTextColor(tDTc[0], tDTc[1], tDTc[2]); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text(`T${destTube}`, tubeDestX + colWidths[6]/2, tubeStartY + tubeHeight/2, { angle: 90, align: 'center' });
       doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(9);
       const cassPhotos = c.photos[`CAS_${t}`] || []; const photoBoxY = 420, photoBoxW = 200, photoBoxH = 140, photoBoxX = (pageW - photoBoxW) / 2;
       doc.setDrawColor(150,150,150); doc.setLineWidth(0.5); doc.rect(photoBoxX, photoBoxY, photoBoxW, photoBoxH);
       doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(100,100,100); doc.text(`Photo Cassette ${t}`, photoBoxX, photoBoxY - 5);
-      if (cassPhotos.length > 0 && cassPhotos[0].blob) { try { const imgDataUrl = await blobToDataURL(cassPhotos[0].blob); const imgProps = doc.getImageProperties(imgDataUrl); const imgRatio = imgProps.width / imgProps.height; let drawW = photoBoxW - 4, drawH = drawW / imgRatio; if (drawH > photoBoxH - 4) { drawH = photoBoxH - 4; drawW = drawH * imgRatio; } const drawX = photoBoxX + (photoBoxW - drawW) / 2, drawY = photoBoxY + (photoBoxH - drawH) / 2; doc.addImage(imgDataUrl, 'JPEG', drawX, drawY, drawW, drawH); } catch(e) { doc.setTextColor(255,0,0); doc.text("Erreur image", photoBoxX + 80, photoBoxY + 70); } }
+      if (cassPhotos.length > 0 && cassPhotos[0].blob) { try { const u = await blobToDataURL(cassPhotos[0].blob); const ip = doc.getImageProperties(u); const r = ip.width / ip.height; let dW = photoBoxW - 4, dH = dW / r; if (dH > photoBoxH - 4) { dH = photoBoxH - 4; dW = dH * r; } const dx = photoBoxX + (photoBoxW - dW) / 2, dy = photoBoxY + (photoBoxH - dH) / 2; doc.addImage(u, 'JPEG', dx, dy, dW, dH); } catch(e) { doc.setTextColor(255,0,0); doc.text("Erreur image", photoBoxX + 80, photoBoxY + 70); } }
       else { doc.setFontSize(10); doc.setTextColor(180,180,180); doc.setFont('helvetica','italic'); doc.text("Aucune photo", pageW / 2, photoBoxY + 70, { align: 'center' }); }
     }
   }
   const totalPages = doc.internal.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) { doc.setPage(i); const pageWidth = doc.internal.pageSize.getWidth(); if (pageWidth < 1000) { doc.setFontSize(8); doc.setTextColor(100,100,100); doc.text(`Page ${i} / ${totalPages}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' }); } }
+  for (let i = 1; i <= totalPages; i++) { doc.setPage(i); const pw = doc.internal.pageSize.getWidth(); if (pw < 1000) { doc.setFontSize(8); doc.setTextColor(100,100,100); doc.text(`Page ${i} / ${totalPages}`, pw / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' }); } }
 }
 
 async function genererSynoptiquePDF() {
   showOverlay(true);
-  try { const res = await construireSynoptiquePDF(); if (!res) { alert("Aucune chambre ou jsPDF non disponible."); return; } const fname = `Dossier_Complet_TOP_SAT_${res.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; res.doc.save(fname); alert(`✅ Dossier généré avec succès !\n\n- ${res.nbChambres} chambres\n- Synoptique + Fiches de soudure.`); }
-  catch (e) { console.error(e); alert("Erreur lors de la génération :\n" + e.message); }
+  try { const res = await construireSynoptiquePDF(); if (!res) { alert("Aucune chambre ou jsPDF non disponible."); return; } const fname = `Dossier_Complet_TOP_SAT_${res.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; res.doc.save(fname); alert(`✅ Dossier généré !\n\n- ${res.nbChambres} chambres\n- Synoptique + Fiches de soudure.`); }
+  catch (e) { console.error(e); alert("Erreur génération :\n" + e.message); }
   finally { showOverlay(false); }
 }
 function bindSynoptiqueUI() {
-  const inputG = document.getElementById('synoptiqueLogoGauche');
-  if (inputG) inputG.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoGauche = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; reader.readAsDataURL(f); };
-  const inputD = document.getElementById('synoptiqueLogoDroite');
-  if (inputD) inputD.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const reader = new FileReader(); reader.onload = (ev) => { const format = f.type.includes('png') ? 'PNG' : 'JPEG'; logoDroite = { dataUrl: ev.target.result, format }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; reader.readAsDataURL(f); };
+  const iG = document.getElementById('synoptiqueLogoGauche');
+  if (iG) iG.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = (ev) => { const fmt = f.type.includes('png') ? 'PNG' : 'JPEG'; logoGauche = { dataUrl: ev.target.result, format: fmt }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; r.readAsDataURL(f); };
+  const iD = document.getElementById('synoptiqueLogoDroite');
+  if (iD) iD.onchange = (e) => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = (ev) => { const fmt = f.type.includes('png') ? 'PNG' : 'JPEG'; logoDroite = { dataUrl: ev.target.result, format: fmt }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; r.readAsDataURL(f); };
   document.getElementById('synoptiqueClearLogoGauche').onclick = () => { if (!confirm('Effacer le logo gauche ?')) return; logoGauche = null; saveLogoStorage(); updateLogoStatus(); };
   document.getElementById('synoptiqueClearLogoDroite').onclick = () => { if (!confirm('Effacer le logo droite ?')) return; logoDroite = null; saveLogoStorage(); updateLogoStatus(); };
   document.getElementById('genererSynoptiqueBtn').onclick = genererSynoptiquePDF;
@@ -1212,11 +1162,10 @@ function bindSynoptiqueUI() {
 }
 
 async function nouveauProjet() {
-  if (!confirm("⚠️ ATTENTION\n\nCette action va effacer TOUTES les données du projet en cours.\n\nCette action est IRRÉVERSIBLE.\n\nContinuer ?")) return;
-  if (!confirm("Dernière confirmation : êtes-vous VRAIMENT sûr de vouloir tout effacer ?")) return;
+  if (!confirm("⚠️ ATTENTION\n\nCette action va effacer TOUTES les données du projet en cours.\n\nIRRÉVERSIBLE.\n\nContinuer ?")) return;
+  if (!confirm("Dernière confirmation ?")) return;
   showOverlay(true);
-  try {
-    await dbClear(); chambres = []; headers = [];
+  try { await dbClear(); chambres = []; headers = [];
     try { localStorage.removeItem('releve_headers'); localStorage.removeItem('derniereChambre'); localStorage.removeItem('chrono_state'); } catch(e){}
     chrono = { startTime: null, accumulated: 0, running: false, pausedAt: null };
     if (chronoInterval) { clearInterval(chronoInterval); chronoInterval = null; }
@@ -1231,64 +1180,44 @@ async function importCSV(file){
     showOverlay(true);
     if (file.size === 0) throw new Error("Le fichier est vide.");
     const text = await file.text();
-    if (!text || text.length < 5) throw new Error("Le fichier semble illisible.");
+    if (!text || text.length < 5) throw new Error("Fichier illisible.");
     const rows = parseCSV(text);
     if (rows.length < 2) throw new Error("CSV trop court.");
     const saved = localStorage.getItem('releve_headers');
-    if (!saved) { headers = rows[0].map(h => h.trim()); saveHeaders(); }
-    else { try { headers = JSON.parse(saved); } catch(e) { headers = rows[0].map(h => h.trim()); saveHeaders(); } }
+    if (!saved) { headers = rows[0].map(h => h.trim()); saveHeaders(); } else { try { headers = JSON.parse(saved); } catch(e) { headers = rows[0].map(h => h.trim()); saveHeaders(); } }
     const dataRows = rows.slice(1);
-    const ordreIdx = headers.findIndex(h => /^ORDRE$/i.test(h.trim()));
-    const refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
-    const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
-    const makeId = (raw) => { const parts = [codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '', refIdx >= 0 ? (raw[headers[refIdx]] || '') : '', ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '']; const id = parts.filter(Boolean).join('|'); return id || ('CH-' + Math.random().toString(36).slice(2, 8).toUpperCase()); };
+    const ordreIdx = headers.findIndex(h => /^ORDRE$/i.test(h.trim())), refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim())), codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
+    const makeId = (raw) => { const p = [codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '', refIdx >= 0 ? (raw[headers[refIdx]] || '') : '', ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '']; const id = p.filter(Boolean).join('|'); return id || ('CH-' + Math.random().toString(36).slice(2, 8).toUpperCase()); };
     const mapChambres = new Map();
     for (const r of dataRows) {
       if (r.length < 2) continue;
       const raw = {}; headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
-      if (!raw['ORDRE_GEO']) { const ordreVal = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : ''; if (ordreVal) raw['ORDRE_GEO'] = makeOrdreGeo(ordreVal); }
+      if (!raw['ORDRE_GEO']) { const o = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : ''; if (o) raw['ORDRE_GEO'] = makeOrdreGeo(o); }
       const id = makeId(raw);
-      if (!mapChambres.has(id)) {
-        mapChambres.set(id, { id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '', forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, _timeStart: null, timeSpent: null, chronoCumul: null,
-          photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
-          passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] });
-      }
+      if (!mapChambres.has(id)) mapChambres.set(id, { id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '', forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, _timeStart: null, timeSpent: null, chronoCumul: null,
+        photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((a, c) => { a[c.id] = []; return a; }, {}), ...PHOTO_CATS_FOA.reduce((a, c) => { a[c.id] = []; return a; }, {}) },
+        passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] });
     }
     if (mapChambres.size === 0) throw new Error("Aucune chambre valide.");
     const existingDb = new Map(chambres.map(c => [c.id, c]));
     const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE','CODE_CH1','CAPACITE'];
-    const newC = Array.from(mapChambres.values()).map(newCh => {
-      const oldCh = existingDb.get(newCh.id);
-      if (oldCh) { for (const key of Object.keys(newCh.raw)) { const ku = key.toUpperCase(); if (ku === 'ORDRE_GEO') { if (!oldCh.raw['ORDRE_GEO'] && newCh.raw['ORDRE_GEO']) oldCh.raw['ORDRE_GEO'] = newCh.raw['ORDRE_GEO']; continue; } if (safeKeys.includes(ku)) oldCh.raw[key] = newCh.raw[key]; else if (!(key in oldCh.raw)) oldCh.raw[key] = newCh.raw[key]; } return oldCh; }
-      return newCh;
-    });
+    const newC = Array.from(mapChambres.values()).map(nC => { const oC = existingDb.get(nC.id); if (oC) { for (const k of Object.keys(nC.raw)) { const ku = k.toUpperCase(); if (ku === 'ORDRE_GEO') { if (!oC.raw['ORDRE_GEO'] && nC.raw['ORDRE_GEO']) oC.raw['ORDRE_GEO'] = nC.raw['ORDRE_GEO']; continue; } if (safeKeys.includes(ku)) oC.raw[k] = nC.raw[k]; else if (!(k in oC.raw)) oC.raw[k] = nC.raw[k]; } return oC; } return nC; });
     await dbClear(); chambres = newC;
     for (const c of chambres) await dbPut(c);
     trierChambres(); updateHomeStats(); updateImportLock();
-    alert(`${chambres.length} chambre(s) prête(s).\nORDRE_GEO créé depuis ORDRE.`);
+    alert(`${chambres.length} chambre(s) prête(s).`);
   } catch(err) { alert("Erreur d'importation : \n" + err.message); }
   finally { showOverlay(false); }
 }
 
 function trierChambres() {
   chambres.forEach((c, i) => { c.__srcIndex = i; });
-  chambres.sort((a, b) => {
-    const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']), gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']);
-    const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10), ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
-    const va = ga !== 999999 ? ga : (isNaN(oa) ? 999999 : oa), vb = gb !== 999999 ? gb : (isNaN(ob) ? 999999 : ob);
-    if (va !== vb) return va - vb; return (a.__srcIndex || 0) - (b.__srcIndex || 0);
-  });
+  chambres.sort((a, b) => { const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']), gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']); const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10), ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10); const va = ga !== 999999 ? ga : (isNaN(oa) ? 999999 : oa), vb = gb !== 999999 ? gb : (isNaN(ob) ? 999999 : ob); if (va !== vb) return va - vb; return (a.__srcIndex || 0) - (b.__srcIndex || 0); });
   chambres.forEach(c => delete c.__srcIndex);
 }
 function trierParOrdreGeo() {
   chambres.forEach((c, i) => { c.__srcIndex = i; });
-  chambres.sort((a, b) => {
-    const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']), gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']);
-    if (ga !== gb) return ga - gb;
-    const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10), ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
-    const va = isNaN(oa) ? 999999 : oa, vb = isNaN(ob) ? 999999 : ob;
-    if (va !== vb) return va - vb; return (a.__srcIndex || 0) - (b.__srcIndex || 0);
-  });
+  chambres.sort((a, b) => { const ga = parseOrdreGeo(a.raw['ORDRE_GEO'] || a.raw['ordre_geo']), gb = parseOrdreGeo(b.raw['ORDRE_GEO'] || b.raw['ordre_geo']); if (ga !== gb) return ga - gb; const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10), ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10); const va = isNaN(oa) ? 999999 : oa, vb = isNaN(ob) ? 999999 : ob; if (va !== vb) return va - vb; return (a.__srcIndex || 0) - (b.__srcIndex || 0); });
   chambres.forEach(c => delete c.__srcIndex);
 }
 
@@ -1299,18 +1228,18 @@ async function exportAll(){
     trierParOrdreGeo();
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
-    try { const pdfRes = await construireSynoptiquePDF(); if (pdfRes) { const pdfBlob = pdfRes.doc.output('blob'); const pdfName = `Dossier_Complet_${pdfRes.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; zip.file(pdfName, pdfBlob); } } catch(e) { console.warn("PDF non généré :", e); }
-    const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA]; const uniqueCats = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
+    try { const pr = await construireSynoptiquePDF(); if (pr) { const pb = pr.doc.output('blob'); const pn = `Dossier_Complet_${pr.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; zip.file(pn, pb); } } catch(e) { console.warn("PDF non généré :", e); }
+    const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA]; const uC = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
     for(const c of chambres){
-      const folderName = (getRawValue(c, ['CODE_CH1'], '') || c.id).replace(/[^A-Za-z0-9_-]/g,'_'); const bpeName = (c.raw['BPE'] || 'Sans_Boite').replace(/[^A-Za-z0-9_-]/g,'_');
-      uniqueCats.forEach(catObj => { const catFolder = catObj.id; const photos = c.photos[catFolder] || []; photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${folderName}/${catFolder}/${catFolder}_${n}.jpg`, p.blob); }); });
-      Object.keys(c.photos).forEach(catKey => { if (catKey.startsWith('CAS_')) { const cassName = catKey.replace('_', ''); const photos = c.photos[catKey] || []; photos.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${folderName}/${bpeName}/${cassName}/${cassName}_${n}.jpg`, p.blob); }); } });
+      const fn = (getRawValue(c, ['CODE_CH1'], '') || c.id).replace(/[^A-Za-z0-9_-]/g,'_'); const bn = (c.raw['BPE'] || 'Sans_Boite').replace(/[^A-Za-z0-9_-]/g,'_');
+      uC.forEach(cat => { const f = cat.id; const ps = c.photos[f] || []; ps.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${fn}/${f}/${f}_${n}.jpg`, p.blob); }); });
+      Object.keys(c.photos).forEach(k => { if (k.startsWith('CAS_')) { const cn = k.replace('_', ''); const ps = c.photos[k] || []; ps.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${fn}/${bn}/${cn}/${cn}_${n}.jpg`, p.blob); }); } });
     }
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const fname = 'TOP_SAT_SERVICES_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
     const file = new File([blob], fname, { type: 'application/zip' });
-    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relevé Chambres', text: 'Relevé terrain complet' }); } else throw new Error("Partage non supporté"); }
-    catch (err) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 60000); alert("Le partage direct a été bloqué. Le fichier ZIP a été téléchargé."); }
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Relevé Chambres', text: 'Relevé terrain' }); } else throw new Error("Partage non supporté"); }
+    catch (err) { const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(u), 60000); alert("ZIP téléchargé."); }
   }catch(e){alert('Erreur export : '+e.message);}
   finally{showOverlay(false);}
 }
@@ -1325,22 +1254,21 @@ document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
 document.getElementById('insertAfterSelect').onchange = updateReferenceInfo;
 
-document.getElementById('copyRefBtn').onclick = () => {
-  const afterId = document.getElementById('insertAfterSelect').value; const ref = chambres.find(c => c.id === afterId); if (!ref) return;
+document.getElementById('copyRefBtn').onclick = () => { const id = document.getElementById('insertAfterSelect').value; const ref = chambres.find(c => c.id === id); if (!ref) return;
   document.getElementById('newProprietaire').value = getRawValue(ref, ['PROPRIETAI', 'PROPRIETAIRE'], '');
   document.getElementById('newCodeCh2').value = getRawValue(ref, ['CODE_CH2'], '');
   document.getElementById('newCommune').value = getRawValue(ref, ['COMMUNE'], '');
   document.getElementById('newRefChambr').value = getRawValue(ref, ['REF_CHAMBR'], '');
   document.getElementById('newNumVoie').value = getRawValue(ref, ['NUM_VOIE', 'adresse'], '');
-  if (ref.lat && ref.lon) { if (confirm(`Cette chambre a des coordonnées GPS : ${ref.lat}, ${ref.lon}\n\nVoulez-vous copier ces coordonnées ?`)) { pendingLat = ref.lat; pendingLon = ref.lon; document.getElementById('gpsStatus').textContent = `Position copiée : ${pendingLat}, ${pendingLon}`; document.getElementById('gpsStatus').style.color = "green"; } }
+  if (ref.lat && ref.lon) { if (confirm(`GPS : ${ref.lat}, ${ref.lon}\n\nCopier ces coordonnées ?`)) { pendingLat = ref.lat; pendingLon = ref.lon; document.getElementById('gpsStatus').textContent = `Position copiée : ${pendingLat}, ${pendingLon}`; document.getElementById('gpsStatus').style.color = "green"; } }
   alert('📋 Infos copiées.');
 };
 
 let pendingLat = '', pendingLon = '';
 document.getElementById('addChambreBtn').onclick = () => {
-  if(!chambres.length) { alert("Veuillez d'abord importer un CSV."); return; }
-  const select = document.getElementById('insertAfterSelect');
-  select.innerHTML = chambres.map(c => `<option value="${c.id}">${escapeHTML(getDisplayName(c))}</option>`).join('');
+  if(!chambres.length) { alert("Importez d'abord un CSV."); return; }
+  const s = document.getElementById('insertAfterSelect');
+  s.innerHTML = chambres.map(c => `<option value="${c.id}">${escapeHTML(getDisplayName(c))}</option>`).join('');
   document.getElementById('newId').value = ''; document.getElementById('newProprietaire').value = ''; document.getElementById('newCodeCh2').value = '';
   document.getElementById('newCommune').value = ''; document.getElementById('newRefChambr').value = ''; document.getElementById('newNumVoie').value = ''; document.getElementById('newComment').value = '';
   document.getElementById('gpsStatus').textContent = ''; pendingLat = ''; pendingLon = '';
@@ -1348,45 +1276,41 @@ document.getElementById('addChambreBtn').onclick = () => {
 };
 document.getElementById('cancelAddBtn').onclick = () => { document.getElementById('modalAddChambre').style.display = 'none'; };
 document.getElementById('gpsBtn').onclick = () => {
-  const status = document.getElementById('gpsStatus'); status.textContent = "Recherche GPS...";
-  if (!navigator.geolocation) { status.textContent = "GPS non supporté."; return; }
+  const st = document.getElementById('gpsStatus'); st.textContent = "Recherche GPS...";
+  if (!navigator.geolocation) { st.textContent = "GPS non supporté."; return; }
   navigator.geolocation.getCurrentPosition(
-    (pos) => { pendingLat = pos.coords.latitude.toFixed(6); pendingLon = pos.coords.longitude.toFixed(6); status.textContent = `Position : ${pendingLat}, ${pendingLon}`; status.style.color = "green"; },
-    (err) => { status.textContent = "Impossible de récupérer le GPS."; status.style.color = "red"; },
+    (p) => { pendingLat = p.coords.latitude.toFixed(6); pendingLon = p.coords.longitude.toFixed(6); st.textContent = `Position : ${pendingLat}, ${pendingLon}`; st.style.color = "green"; },
+    (e) => { st.textContent = "Impossible."; st.style.color = "red"; },
     { enableHighAccuracy: true, timeout: 10000 }
   );
 };
 document.getElementById('confirmAddBtn').onclick = async () => {
-  const newId = document.getElementById('newId').value.trim(), afterId = document.getElementById('insertAfterSelect').value;
-  const proprietaire = document.getElementById('newProprietaire').value.trim(), codeCh2 = document.getElementById('newCodeCh2').value.trim();
-  const commune = document.getElementById('newCommune').value.trim(), refChambr = document.getElementById('newRefChambr').value.trim();
-  const numVoie = document.getElementById('newNumVoie').value.trim(), comment = document.getElementById('newComment').value.trim();
-  if(!newId) { alert("Veuillez saisir un CODE_CH1."); return; }
-  if(chambres.some(c => getDisplayName(c) === newId)) { alert("Ce CODE_CH1 existe déjà."); return; }
-  const idx = chambres.findIndex(c => c.id === afterId); if(idx === -1) return;
-  const wazeUrl = (pendingLat && pendingLon) ? `https://www.waze.com/ul?ll=${pendingLat},${pendingLon}&navigate=yes` : '';
-  const maxGeo = chambres.reduce((m, c) => { const v = parseOrdreGeo(c.raw['ORDRE_GEO'] || c.raw['ordre_geo']); return Math.max(m, v === 999999 ? 0 : v); }, 0);
-  const newOrdreGeo = 'A' + (maxGeo + 1), newOrdre = String(maxGeo + 1);
-  const compositeId = [codeCh2, refChambr, newOrdre].filter(Boolean).join('|') || newId;
-  const newCh = {
-    id: compositeId, raw: { 'CODE_CH1': newId, 'WAZE': wazeUrl, 'PROPRIETAI': proprietaire, 'CODE_CH2': codeCh2, 'COMMUNE': commune, 'REF_CHAMBR': refChambr, 'NUM_VOIE': numVoie, 'ORDRE': newOrdre, 'ORDRE_GEO': newOrdreGeo },
-    done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: comment, lat: pendingLat, lon: pendingLon, forceShowSoudure: false, capacite: 48,
-    _timeStart: null, timeSpent: null, chronoCumul: null,
-    photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}), ...PHOTO_CATS_FOA.reduce((acc, cat) => { acc[cat.id] = []; return acc; }, {}) },
-    passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }]
-  };
-  chambres.splice(idx + 1, 0, newCh); await dbPut(newCh); trierChambres(); updateHomeStats(); document.getElementById('modalAddChambre').style.display = 'none';
-  alert(`Chambre ${newId} ajoutée (ORDRE_GEO ${newOrdreGeo}).`);
+  const nId = document.getElementById('newId').value.trim(), aId = document.getElementById('insertAfterSelect').value;
+  const prop = document.getElementById('newProprietaire').value.trim(), c2 = document.getElementById('newCodeCh2').value.trim();
+  const com = document.getElementById('newCommune').value.trim(), ref = document.getElementById('newRefChambr').value.trim();
+  const nv = document.getElementById('newNumVoie').value.trim(), cmt = document.getElementById('newComment').value.trim();
+  if(!nId) { alert("CODE_CH1 requis."); return; }
+  if(chambres.some(c => getDisplayName(c) === nId)) { alert("CODE_CH1 existe déjà."); return; }
+  const idx = chambres.findIndex(c => c.id === aId); if(idx === -1) return;
+  const wz = (pendingLat && pendingLon) ? `https://www.waze.com/ul?ll=${pendingLat},${pendingLon}&navigate=yes` : '';
+  const mg = chambres.reduce((m, c) => { const v = parseOrdreGeo(c.raw['ORDRE_GEO'] || c.raw['ordre_geo']); return Math.max(m, v === 999999 ? 0 : v); }, 0);
+  const nG = 'A' + (mg + 1), nO = String(mg + 1);
+  const compId = [c2, ref, nO].filter(Boolean).join('|') || nId;
+  const nC = { id: compId, raw: { 'CODE_CH1': nId, 'WAZE': wz, 'PROPRIETAI': prop, 'CODE_CH2': c2, 'COMMUNE': com, 'REF_CHAMBR': ref, 'NUM_VOIE': nv, 'ORDRE': nO, 'ORDRE_GEO': nG }, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: cmt, lat: pendingLat, lon: pendingLon, forceShowSoudure: false, capacite: 48, _timeStart: null, timeSpent: null, chronoCumul: null,
+    photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((a, c) => { a[c.id] = []; return a; }, {}), ...PHOTO_CATS_FOA.reduce((a, c) => { a[c.id] = []; return a; }, {}) },
+    passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] };
+  chambres.splice(idx + 1, 0, nC); await dbPut(nC); trierChambres(); updateHomeStats(); document.getElementById('modalAddChambre').style.display = 'none';
+  alert(`Chambre ${nId} ajoutée (ORDRE_GEO ${nG}).`);
 };
 
 document.getElementById('cancelEditBtn').onclick = closeEditChambre;
 document.getElementById('confirmEditBtn').onclick = confirmEditChambre;
 document.getElementById('editGpsBtn').onclick = () => {
-  const status = document.getElementById('editGpsStatus'); status.textContent = "Recherche GPS..."; status.style.color = "#444";
-  if (!navigator.geolocation) { status.textContent = "GPS non supporté."; status.style.color = "red"; return; }
+  const st = document.getElementById('editGpsStatus'); st.textContent = "Recherche GPS..."; st.style.color = "#444";
+  if (!navigator.geolocation) { st.textContent = "GPS non supporté."; st.style.color = "red"; return; }
   navigator.geolocation.getCurrentPosition(
-    (pos) => { editPendingLat = pos.coords.latitude.toFixed(6); editPendingLon = pos.coords.longitude.toFixed(6); document.getElementById('editLat').value = editPendingLat; document.getElementById('editLon').value = editPendingLon; status.textContent = `Position : ${editPendingLat}, ${editPendingLon}`; status.style.color = "green"; },
-    (err) => { status.textContent = "Impossible de récupérer le GPS."; status.style.color = "red"; },
+    (p) => { editPendingLat = p.coords.latitude.toFixed(6); editPendingLon = p.coords.longitude.toFixed(6); document.getElementById('editLat').value = editPendingLat; document.getElementById('editLon').value = editPendingLon; st.textContent = `Position : ${editPendingLat}, ${editPendingLon}`; st.style.color = "green"; },
+    (e) => { st.textContent = "Impossible."; st.style.color = "red"; },
     { enableHighAccuracy: true, timeout: 10000 }
   );
 };
@@ -1397,56 +1321,45 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
     await openDB(); loadHeaders(); loadMode(); loadChronoState(); chambres = await dbGetAll();
     for (const c of chambres) {
       if (c.ordreGeo && !c.raw['ORDRE_GEO']) { c.raw['ORDRE_GEO'] = c.ordreGeo; delete c.ordreGeo; await dbPut(c); continue; }
-      if (!c.raw['ORDRE_GEO']) { const ordreVal = c.raw['ORDRE'] || c.raw['ordre']; if (ordreVal) { c.raw['ORDRE_GEO'] = makeOrdreGeo(ordreVal); await dbPut(c); } }
+      if (!c.raw['ORDRE_GEO']) { const o = c.raw['ORDRE'] || c.raw['ordre']; if (o) { c.raw['ORDRE_GEO'] = makeOrdreGeo(o); await dbPut(c); } }
     }
     trierChambres(); updateHomeStats(); updateImportLock(); bindSynoptiqueUI();
+    chargerLogoAccueil();
+    bindLogoUpload();
     if (chambres.length) {
       renderList(); showScreen('list');
-      let derniere = null; try { derniere = localStorage.getItem('derniereChambre'); } catch(e){}
-      const cible = chambres.find(c => c.id === derniere && !c.done) || chambres.find(c => !c.done);
+      let d = null; try { d = localStorage.getItem('derniereChambre'); } catch(e){}
+      const cible = chambres.find(c => c.id === d && !c.done) || chambres.find(c => !c.done);
       if (cible) setTimeout(() => openDetail(cible.id), 250);
     }
-  } catch(e) { console.error("Erreur d'initialisation : " + e.message); }
+  } catch(e) { console.error("Erreur init : " + e.message); }
 })();
 
-/* -------------------- GÉOLOCALISATION (auto start chrono + room timer) -------------------- */
+/* -------------------- GÉOLOCALISATION avec modal custom -------------------- */
 document.getElementById('btnGeoLoc').onclick = () => {
   if (!chambres.length) { alert("Aucune chambre chargée."); return; }
   if (!chrono.running && !chrono.pausedAt && chrono.accumulated === 0) chronoStart();
-
-  // On cible uniquement les chambres NON validées avec GPS
-  const chambresAvecGPS = chambres.filter(c => !c.done && c.lat && c.lon && !isNaN(parseFloat(c.lat)) && !isNaN(parseFloat(c.lon)));
-
-  if (chambresAvecGPS.length === 0) {
+  const withGps = chambres.filter(c => !c.done && c.lat && c.lon && !isNaN(parseFloat(c.lat)) && !isNaN(parseFloat(c.lon)));
+  if (withGps.length === 0) {
     const allDone = chambres.every(c => c.done);
-    if (allDone) alert("🎉 Toutes les chambres sont validées !\n\nAucune chambre restante à traiter.");
-    else alert("Aucune chambre NON validée n'a de coordonnées GPS.\n\nAjoutez un GPS ou utilisez la liste.");
+    if (allDone) alert("🎉 Toutes les chambres sont validées !");
+    else alert("Aucune chambre NON validée n'a de GPS.");
     return;
   }
   showOverlay(true);
   if (!navigator.geolocation) { showOverlay(false); alert("Géolocalisation non supportée."); return; }
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
-      const userLat = pos.coords.latitude, userLon = pos.coords.longitude;
-      let chambreProche = null, minDistance = Infinity;
-      for (const c of chambresAvecGPS) {
-        const d = calculerDistance(userLat, userLon, parseFloat(c.lat), parseFloat(c.lon));
-        if (d < minDistance) { minDistance = d; chambreProche = c; }
-      }
+      const uLat = pos.coords.latitude, uLon = pos.coords.longitude;
+      let best = null, minD = Infinity;
+      for (const c of withGps) { const d = calculerDistance(uLat, uLon, parseFloat(c.lat), parseFloat(c.lon)); if (d < minD) { minD = d; best = c; } }
       showOverlay(false);
-      if (chambreProche) {
-        if (minDistance > 500) {
-          if (!confirm(`La chambre la plus proche est à ${minDistance.toFixed(0)} mètres.\nVoulez-vous quand même l'ouvrir ?`)) return;
-        }
-        // ⏱️ Démarre le timer chambre si pas déjà actif
-        if (!chambreProche.done && (chambreProche._timeStart === null || chambreProche._timeStart === undefined)) {
-          chambreProche._timeStart = getActiveTime();
-          await dbPut(chambreProche);
-        }
-        openDetail(chambreProche.id);
-      } else {
-        alert("Impossible de déterminer la chambre la plus proche.");
-      }
+      if (!best) { alert("Impossible de déterminer la chambre."); return; }
+      let open = true;
+      if (minD > 500) open = await demanderConfirmationDistance(minD, best);
+      if (!open) return;
+      if (!best.done && (best._timeStart === null || best._timeStart === undefined)) { best._timeStart = getActiveTime(); await dbPut(best); }
+      openDetail(best.id);
     },
     (err) => { showOverlay(false); alert("Impossible de récupérer votre position GPS.\n\nErreur : " + err.message); },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
