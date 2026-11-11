@@ -123,7 +123,6 @@ window.addEventListener('unhandledrejection', function(e) {
 <main>
 
 <section id="screen-home">
-  <!-- LOGO ACCUEIL avec SVG fallback + upload -->
   <div class="logo-container" id="logoContainer">
     <img id="logoAccueil" src="" alt="TOP SAT SERVICES" style="display:none;max-width:220px;max-height:80px;object-fit:contain;">
     <svg id="logoFallback" viewBox="0 0 300 80" style="max-width:220px;max-height:70px;display:inline-block;" xmlns="http://www.w3.org/2000/svg">
@@ -235,7 +234,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.8</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.0</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -953,7 +952,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 13.8`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.0`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1056,17 +1055,16 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text(`Chambre : ${chambreNom} | Commune : ${commune} | Code : ${codeSite}`, pageW / 2, 55, { align: 'center' });
       if (adresse) doc.text(`Adresse : ${adresse}`, pageW / 2, 68, { align: 'center' });
       doc.text(`Tube ${t} / ${nbTubes} - ${new Date().toLocaleDateString('fr-FR')}`, pageW / 2, 81, { align: 'center' });
+      // DÉCALAGE DU LOGO DE DROITE POUR ÉVITER LE CHEVAUCHEMENT
       if (logoG && logoG.dataUrl) try { doc.addImage(logoG.dataUrl, logoG.format, 30, 85, 50, 25); } catch(e){}
-      if (logoD && logoD.dataUrl) try { doc.addImage(logoD.dataUrl, logoD.format, pageW - 80, 85, 50, 25); } catch(e){}
+      if (logoD && logoD.dataUrl) try { doc.addImage(logoD.dataUrl, logoD.format, pageW - 80, 120, 50, 25); } catch(e){}
 
-      /* ----- GÉNÉRATION QR CODE VIA API (Sans librairie externe) ----- */
       if (bpe && bpe.trim() !== '') {
         let qrData = wazeUrl;
         if (!qrData && c.lat && c.lon) qrData = `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}`;
         if (!qrData) qrData = `BPE:${nomBoite} - Code:${codeSite}`;
         
         try {
-          // On utilise l'API gratuite qrserver.com
           const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
           const img = new Image();
           img.crossOrigin = 'Anonymous';
@@ -1080,7 +1078,7 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
               canvas.getContext('2d').drawImage(img, 0, 0);
               resolve(canvas.toDataURL('image/png'));
             };
-            img.onerror = () => resolve(null); // Fallback si l'API échoue
+            img.onerror = () => resolve(null); 
           });
 
           if (qrDataUrl) {
@@ -1092,8 +1090,7 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
             throw new Error("Impossible de charger le QR depuis l'API");
           }
         } catch(e) {
-          console.warn("Erreur QR API, fallback vers lien simple :", e);
-          // Fallback visuel propre (sans emoji qui cause des caractères corrompus)
+          console.warn("Erreur QR API :", e);
           doc.setDrawColor(200,200,200); doc.setLineWidth(0.5); doc.rect(pageW - 95, 20, 65, 65);
           doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont('helvetica','italic');
           doc.text("(QR non dispo)", pageW - 62.5, 52, { align: 'center' });
@@ -1101,7 +1098,6 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
           doc.textWithLink('Voir sur la carte', pageW - 62.5, 70, { align: 'center', url: qrData });
         }
       }
-      /* ----- FIN PATCH QR ----- */
 
       const startY = 120, startX = 20, rowHeight = 22;
       const colWidths = [100, 135, 35, 35, 55, 35, 35, 135, 235]; const colNames = ['Source', 'Câble entrant', 'Tube', 'Fibre', 'Type', 'Fibre', 'Tube', 'Câble sortant', 'Destination'];
@@ -1203,9 +1199,10 @@ async function importCSV(file){
     const ordreIdx = headers.findIndex(h => /^ORDRE$/i.test(h.trim()));
     const refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
     const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
-    // ⚠️ CORRECTION IMPORT GPS ICI :
+    
+    // ⚠️ DÉTECTION ROBUSTE DES COORDONNÉES GPS
     const latIdx = headers.findIndex(h => /^(LATITUDE|LAT|Y)$/i.test(h.trim()));
-    const lonIdx = headers.findIndex(h => /^(LONGITUDE|LON|X)$/i.test(h.trim()));
+    const lonIdx = headers.findIndex(h => /^(LONGITUDE|LON|LNG|X)$/i.test(h.trim()));
 
     const makeId = (raw) => { const p = [codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '', refIdx >= 0 ? (raw[headers[refIdx]] || '') : '', ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '']; const id = p.filter(Boolean).join('|'); return id || ('CH-' + Math.random().toString(36).slice(2, 8).toUpperCase()); };
     
@@ -1217,12 +1214,25 @@ async function importCSV(file){
       const id = makeId(raw);
       
       // Récupération des coordonnées GPS du CSV
-      const latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
-      const lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
+      let latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
+      let lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
+      
+      // Si vide, on tente d'extraire du wkt_geom (très courant)
+      if ((!latVal || !lonVal) && raw['wkt_geom']) {
+        const m = String(raw['wkt_geom']).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
+        if (m) {
+          latVal = m[1].replace(',', '.');
+          lonVal = m[2].replace(',', '.');
+        }
+      }
+      
+      // Nettoyage final (virgules -> points)
+      if (latVal) latVal = String(latVal).replace(',', '.');
+      if (lonVal) lonVal = String(lonVal).replace(',', '.');
 
       if (!mapChambres.has(id)) mapChambres.set(id, { 
         id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', 
-        lat: latVal, lon: lonVal, // Affectation des GPS !
+        lat: latVal, lon: lonVal, // Affectation
         forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, _timeStart: null, timeSpent: null, chronoCumul: null,
         photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((a, c) => { a[c.id] = []; return a; }, {}), ...PHOTO_CATS_FOA.reduce((a, c) => { a[c.id] = []; return a; }, {}) },
         passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] 
@@ -1240,7 +1250,6 @@ async function importCSV(file){
           if (safeKeys.includes(ku)) oC.raw[k] = nC.raw[k]; 
           else if (!(k in oC.raw)) oC.raw[k] = nC.raw[k]; 
         } 
-        // Si l'ancienne chambre n'avait pas de GPS, on prend ceux du CSV
         if (!oC.lat && nC.lat) oC.lat = nC.lat;
         if (!oC.lon && nC.lon) oC.lon = nC.lon;
         return oC; 
@@ -1251,7 +1260,7 @@ async function importCSV(file){
     await dbClear(); chambres = newC;
     for (const c of chambres) await dbPut(c);
     trierChambres(); updateHomeStats(); updateImportLock();
-    alert(`${chambres.length} chambre(s) prête(s).`);
+    alert(`${chambres.length} chambre(s) prête(s).\n\nVérifiez la console si le GPS ne s'affiche pas.`);
   } catch(err) { alert("Erreur d'importation : \n" + err.message); }
   finally { showOverlay(false); }
 }
