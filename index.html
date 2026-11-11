@@ -235,7 +235,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.7</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 13.8</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -309,7 +309,6 @@ window.addEventListener('unhandledrejection', function(e) {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script>
 const DB_NAME='releve-chambres-v5', STORE='chambres';
 const MODE_KEY = 'releve_mode_travail';
@@ -954,7 +953,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 13.7`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 13.8`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1060,32 +1059,46 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       if (logoG && logoG.dataUrl) try { doc.addImage(logoG.dataUrl, logoG.format, 30, 85, 50, 25); } catch(e){}
       if (logoD && logoD.dataUrl) try { doc.addImage(logoD.dataUrl, logoD.format, pageW - 80, 85, 50, 25); } catch(e){}
 
-      /* ----- PATCH QR CODE ROBUSTE ----- */
+      /* ----- GÉNÉRATION QR CODE VIA API (Sans librairie externe) ----- */
       if (bpe && bpe.trim() !== '') {
         let qrData = wazeUrl;
         if (!qrData && c.lat && c.lon) qrData = `https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}`;
         if (!qrData) qrData = `BPE:${nomBoite} - Code:${codeSite}`;
-        if (typeof QRCode === 'undefined' || typeof QRCode.toCanvas !== 'function') {
-          console.warn('⚠️ Librairie QRCode non chargée.');
-          doc.setFontSize(8); doc.setTextColor(0,0,255);
-          doc.textWithLink('🗺️ Ouvrir la localisation', pageW - 100, 45, { align: 'center', url: qrData });
-          doc.setDrawColor(200,200,200); doc.rect(pageW - 100, 20, 80, 80);
-          doc.setTextColor(150,150,150); doc.setFontSize(7);
-          doc.text("(QR indisponible)", pageW - 60, 62, { align: 'center' });
-        } else {
-          try {
-            const qrCanvas = document.createElement('canvas');
-            await QRCode.toCanvas(qrCanvas, qrData, { margin: 1, width: 200, errorCorrectionLevel: 'M' });
-            const qrDataUrl = qrCanvas.toDataURL('image/png');
+        
+        try {
+          // On utilise l'API gratuite qrserver.com
+          const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.src = qrApiUrl;
+
+          const qrDataUrl = await new Promise((resolve) => {
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              canvas.getContext('2d').drawImage(img, 0, 0);
+              resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = () => resolve(null); // Fallback si l'API échoue
+          });
+
+          if (qrDataUrl) {
             doc.addImage(qrDataUrl, 'PNG', pageW - 95, 20, 65, 65);
             doc.setFontSize(8); doc.setTextColor(100,100,100); doc.setFont('helvetica','bold');
             doc.text("Localisation", pageW - 62.5, 90, { align: 'center' });
             if (qrData.startsWith('http')) { doc.setTextColor(0,0,255); doc.textWithLink('Ouvrir le lien', pageW - 62.5, 100, { align: 'center', url: qrData }); }
-          } catch(e) {
-            console.error('Erreur QR:', e);
-            doc.setFontSize(8); doc.setTextColor(0,0,255);
-            doc.textWithLink('🗺️ Ouvrir le lien', pageW - 100, 50, { align: 'center', url: qrData });
+          } else {
+            throw new Error("Impossible de charger le QR depuis l'API");
           }
+        } catch(e) {
+          console.warn("Erreur QR API, fallback vers lien simple :", e);
+          // Fallback visuel propre (sans emoji qui cause des caractères corrompus)
+          doc.setDrawColor(200,200,200); doc.setLineWidth(0.5); doc.rect(pageW - 95, 20, 65, 65);
+          doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont('helvetica','italic');
+          doc.text("(QR non dispo)", pageW - 62.5, 52, { align: 'center' });
+          doc.setFontSize(8); doc.setTextColor(0,0,255); doc.setFont('helvetica','normal');
+          doc.textWithLink('Voir sur la carte', pageW - 62.5, 70, { align: 'center', url: qrData });
         }
       }
       /* ----- FIN PATCH QR ----- */
@@ -1185,23 +1198,56 @@ async function importCSV(file){
     if (rows.length < 2) throw new Error("CSV trop court.");
     const saved = localStorage.getItem('releve_headers');
     if (!saved) { headers = rows[0].map(h => h.trim()); saveHeaders(); } else { try { headers = JSON.parse(saved); } catch(e) { headers = rows[0].map(h => h.trim()); saveHeaders(); } }
+    
     const dataRows = rows.slice(1);
-    const ordreIdx = headers.findIndex(h => /^ORDRE$/i.test(h.trim())), refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim())), codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
+    const ordreIdx = headers.findIndex(h => /^ORDRE$/i.test(h.trim()));
+    const refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
+    const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
+    // ⚠️ CORRECTION IMPORT GPS ICI :
+    const latIdx = headers.findIndex(h => /^(LATITUDE|LAT|Y)$/i.test(h.trim()));
+    const lonIdx = headers.findIndex(h => /^(LONGITUDE|LON|X)$/i.test(h.trim()));
+
     const makeId = (raw) => { const p = [codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '', refIdx >= 0 ? (raw[headers[refIdx]] || '') : '', ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '']; const id = p.filter(Boolean).join('|'); return id || ('CH-' + Math.random().toString(36).slice(2, 8).toUpperCase()); };
+    
     const mapChambres = new Map();
     for (const r of dataRows) {
       if (r.length < 2) continue;
       const raw = {}; headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
       if (!raw['ORDRE_GEO']) { const o = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : ''; if (o) raw['ORDRE_GEO'] = makeOrdreGeo(o); }
       const id = makeId(raw);
-      if (!mapChambres.has(id)) mapChambres.set(id, { id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', lat: '', lon: '', forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, _timeStart: null, timeSpent: null, chronoCumul: null,
+      
+      // Récupération des coordonnées GPS du CSV
+      const latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
+      const lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
+
+      if (!mapChambres.has(id)) mapChambres.set(id, { 
+        id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', 
+        lat: latVal, lon: lonVal, // Affectation des GPS !
+        forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, _timeStart: null, timeSpent: null, chronoCumul: null,
         photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((a, c) => { a[c.id] = []; return a; }, {}), ...PHOTO_CATS_FOA.reduce((a, c) => { a[c.id] = []; return a; }, {}) },
-        passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] });
+        passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] 
+      });
     }
     if (mapChambres.size === 0) throw new Error("Aucune chambre valide.");
     const existingDb = new Map(chambres.map(c => [c.id, c]));
-    const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE','CODE_CH1','CAPACITE'];
-    const newC = Array.from(mapChambres.values()).map(nC => { const oC = existingDb.get(nC.id); if (oC) { for (const k of Object.keys(nC.raw)) { const ku = k.toUpperCase(); if (ku === 'ORDRE_GEO') { if (!oC.raw['ORDRE_GEO'] && nC.raw['ORDRE_GEO']) oC.raw['ORDRE_GEO'] = nC.raw['ORDRE_GEO']; continue; } if (safeKeys.includes(ku)) oC.raw[k] = nC.raw[k]; else if (!(k in oC.raw)) oC.raw[k] = nC.raw[k]; } return oC; } return nC; });
+    const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE','CODE_CH1','CAPACITE','LATITUDE','LONGITUDE'];
+    const newC = Array.from(mapChambres.values()).map(nC => { 
+      const oC = existingDb.get(nC.id); 
+      if (oC) { 
+        for (const k of Object.keys(nC.raw)) { 
+          const ku = k.toUpperCase(); 
+          if (ku === 'ORDRE_GEO') { if (!oC.raw['ORDRE_GEO'] && nC.raw['ORDRE_GEO']) oC.raw['ORDRE_GEO'] = nC.raw['ORDRE_GEO']; continue; } 
+          if (safeKeys.includes(ku)) oC.raw[k] = nC.raw[k]; 
+          else if (!(k in oC.raw)) oC.raw[k] = nC.raw[k]; 
+        } 
+        // Si l'ancienne chambre n'avait pas de GPS, on prend ceux du CSV
+        if (!oC.lat && nC.lat) oC.lat = nC.lat;
+        if (!oC.lon && nC.lon) oC.lon = nC.lon;
+        return oC; 
+      } 
+      return nC; 
+    });
+    
     await dbClear(); chambres = newC;
     for (const c of chambres) await dbPut(c);
     trierChambres(); updateHomeStats(); updateImportLock();
@@ -1335,15 +1381,17 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
   } catch(e) { console.error("Erreur init : " + e.message); }
 })();
 
-/* -------------------- GÉOLOCALISATION avec modal custom -------------------- */
+/* -------------------- GÉOLOCALISATION -------------------- */
 document.getElementById('btnGeoLoc').onclick = () => {
   if (!chambres.length) { alert("Aucune chambre chargée."); return; }
   if (!chrono.running && !chrono.pausedAt && chrono.accumulated === 0) chronoStart();
+  
   const withGps = chambres.filter(c => !c.done && c.lat && c.lon && !isNaN(parseFloat(c.lat)) && !isNaN(parseFloat(c.lon)));
+  
   if (withGps.length === 0) {
     const allDone = chambres.every(c => c.done);
     if (allDone) alert("🎉 Toutes les chambres sont validées !");
-    else alert("Aucune chambre NON validée n'a de GPS.");
+    else alert("Aucune chambre NON validée n'a de GPS. Assurez-vous que le CSV importé contient bien les colonnes LATITUDE et LONGITUDE.");
     return;
   }
   showOverlay(true);
@@ -1355,6 +1403,7 @@ document.getElementById('btnGeoLoc').onclick = () => {
       for (const c of withGps) { const d = calculerDistance(uLat, uLon, parseFloat(c.lat), parseFloat(c.lon)); if (d < minD) { minD = d; best = c; } }
       showOverlay(false);
       if (!best) { alert("Impossible de déterminer la chambre."); return; }
+      
       let open = true;
       if (minD > 500) open = await demanderConfirmationDistance(minD, best);
       if (!open) return;
