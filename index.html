@@ -1232,6 +1232,25 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
 
       map.invalidateSize();
 
+      // 1. Trier les chambres par ordre pour tracer une ligne logique
+      const chambresTriees = [...chambresGps].sort((a, b) => {
+          const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
+          const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
+          return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
+      });
+
+      // 2. Créer le tableau des coordonnées pour le tracé
+      const itineraireCoords = chambresTriees.map(c => [parseFloat(c.lat), parseFloat(c.lon)]);
+
+      // 3. Dessiner le tracé (le "vecteur") en rouge semi-transparent
+      L.polyline(itineraireCoords, {
+        color: '#c62828', // Rouge
+        weight: 3,        // Épaisseur de la ligne
+        opacity: 0.6,     // Semi-transparent pour ne pas cacher la carte
+        lineJoin: 'round'
+      }).addTo(map);
+
+      // 4. Ajouter les marqueurs (points + étiquettes) par-dessus le tracé
       chambresGps.forEach(c => {
         const lat = parseFloat(c.lat);
         const lon = parseFloat(c.lon);
