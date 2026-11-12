@@ -1231,7 +1231,7 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
 
       map.invalidateSize();
 
-      // 1. Tracé du chemin (la ligne rouge)
+      // 1. Tracé du chemin global (la ligne rouge)
       const chambresTriees = [...chambresGps].sort((a, b) => {
           const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
           const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
@@ -1242,33 +1242,67 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
       L.polyline(itineraireCoords, {
         color: '#c62828',
         weight: 3,
-        opacity: 0.5,
+        opacity: 0.4,
         lineJoin: 'round'
       }).addTo(map);
 
-      // 2. Ajout des points et des étiquettes
-      chambresGps.forEach((c, index) => {
+      // 2. Préparation des étiquettes avec gestion des collisions
+      const markersWithLabels = chambresGps.map(c => {
         const lat = parseFloat(c.lat);
         const lon = parseFloat(c.lon);
-        
-        // Point rouge
-        L.circleMarker([lat, lon], {
-          radius: 5,
+        return {
+          latlng: L.latLng(lat, lon),
+          label: escapeHTML(getDisplayName(c)),
+          originalLatLng: L.latLng(lat, lon)
+        };
+      });
+
+      // 3. Algorithme de résolution de collisions
+      const labelsPlaced = [];
+      const labelWidth = 40;
+      const labelHeight = 16;
+      
+      markersWithLabels.forEach((marker, index) => {
+        L.circleMarker(marker.latlng, {
+          radius: 4,
           fillColor: '#c62828',
           color: '#ffffff',
-          weight: 1.5,
+          weight: 1,
           opacity: 1,
           fillOpacity: 1
         }).addTo(map);
 
-        // On alterne le côté de l'étiquette
-        const isRight = index % 2 === 0;
-        
-        // On calcule une position décalée pour l'étiquette (approx. 15 mètres)
-        const offsetLat = isRight ? 0 : -0.0001; 
-        const offsetLon = isRight ? 0.0002 : -0.0002;
+        let px = 10;
+        let py = -10;
+        let collision = true;
+        let attempts = 0;
 
-        // Création de l'étiquette
+        while(collision && attempts < 8) {
+          collision = false;
+          const pt = map.latLngToContainerPoint(marker.latlng);
+          const labelX = pt.x + px;
+          const labelY = pt.y + py;
+
+          for (const placed of labelsPlaced) {
+            if (Math.abs(labelX - placed.x) < labelWidth && Math.abs(labelY - placed.y) < labelHeight) {
+              collision = true;
+              break;
+            }
+          }
+
+          if (collision) {
+            attempts++;
+            if (attempts === 1) { px = 10; py = -20; }
+            else if (attempts === 2) { px = -50; py = -10; }
+            else if (attempts === 3) { px = 10; py = 10; }
+            else if (attempts === 4) { px = -50; py = -20; }
+            else if (attempts === 5) { px = -50; py = 10; }
+            else { px = 10 + (attempts * 15); py = 0; }
+          }
+        }
+
+        labelsPlaced.push({ x: map.latLngToContainerPoint(marker.latlng).x + px, y: map.latLngToContainerPoint(marker.latlng).y + py });
+
         const customIcon = L.divIcon({
           className: 'custom-label-wrapper',
           html: `
@@ -1278,29 +1312,29 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
               padding: 1px 4px;
               border-radius: 3px;
               font-family: Arial, sans-serif;
-              font-size: 11px;
+              font-size: 10px;
               font-weight: bold;
               color: #000;
               white-space: nowrap;
               box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-            ">${escapeHTML(getDisplayName(c))}</div>
+            ">${marker.label}</div>
           `,
           iconSize: [0, 0],
-          iconAnchor: [0, 0]
+          iconAnchor: [-px, -py]
         });
 
-        // On place l'étiquette
-        L.marker([lat + offsetLat, lon + offsetLon], { icon: customIcon }).addTo(map);
+        L.marker(marker.latlng, { icon: customIcon }).addTo(map);
 
-        // On trace le trait de renvoi entre le point et l'étiquette
-        L.polyline([
-          [lat, lon], 
-          [lat + offsetLat, lon + offsetLon]
-        ], {
-          color: '#333',
-          weight: 1,
-          opacity: 0.8
-        }).addTo(map);
+        if (px !== 10 || py !== -10) {
+          L.polyline([
+            [marker.latlng.lat, marker.latlng.lng], 
+            [marker.latlng.lat - (py / 100000), marker.latlng.lng + (px / 100000)]
+          ], {
+            color: '#666',
+            weight: 1,
+            opacity: 0.6
+          }).addTo(map);
+        }
       });
 
       const doCapture = async () => {
