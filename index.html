@@ -182,13 +182,13 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px; background:#e0e0e0; color:#333; border:1px solid #ccc;">➕ Ajouter une nouvelle chambre</button>
     <!-- BOUTON FUSIONNÉ -->
-    <button id="startBtn" class="btn" style="margin-top:8px; background:#e65100;">🚀 Démarrer le relevé (GPS)</button>
+    <button id="startBtn" class="btn" style="margin-top:8px; background:#e65100;">🚀 Démarrer le relevé</button>
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
 
   <div class="card" id="chronoCard" style="display:none;">
     <h2 style="margin-top:0;font-size:17px;">⏱️ Chronomètre de chantier</h2>
-    <p class="small">Le chrono démarre à la première pression sur <b>🚀 Démarrer le relevé</b>. La chambre est chronométrée depuis son ouverture jusqu'à la prise de la <b>dernière photo requise</b>, puis validée automatiquement.</p>
+    <p class="small">Le chrono démarre au premier clic sur le bouton orange. La chambre est chronométrée depuis son ouverture jusqu'à la prise de la <b>dernière photo requise</b>, puis validée automatiquement.</p>
     <div class="chrono-display" id="chronoDisplay">00:00</div>
     <div class="chrono-status" id="chronoStatus">En attente du démarrage</div>
     <div style="margin-top:10px;">
@@ -234,7 +234,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.3</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.4</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -317,6 +317,7 @@ let editingId = null;
 let editPendingLat = '', editPendingLon = '';
 let logoGauche = null, logoDroite = null;
 let _liveChamberInterval = null;
+let hasStartedReleve = false; // Nouvelle variable pour gérer le 1er clic
 
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
 const couleursHex = { 'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] };
@@ -864,7 +865,13 @@ function openDetail(id){
   document.getElementById('nonPoseeToggle').onchange = (e) => { c.boiteNonPosee = e.target.checked; dbPut(c); };
   document.getElementById('notesInput').oninput = (e) => { c.notes = e.target.value; dbPut(c); };
   document.getElementById('validateBtn').onclick = async () => { if (!c.done) { if (c._timeStart !== null && c._timeStart !== undefined) { const sec = Math.round((getActiveTime() - c._timeStart) / 1000); c.timeSpent = (c.timeSpent || 0) + sec; c.chronoCumul = Math.round(getActiveTime() / 1000); } c._timeStart = null; c.done = true; } else { c.done = false; c._timeStart = null; } await dbPut(c); openDetail(id); };
-  document.getElementById('nextBtn').onclick=()=>{ const idx=chambres.findIndex(x=>x.id===id);const next=chambres[idx+1]; if(next)openDetail(next.id);else{renderList();showScreen('list');} };
+  
+  // Modification : le bouton "Chambre suivante" utilise le GPS
+  document.getElementById('nextBtn').onclick=()=>{
+    hasStartedReleve = true; // Assure que la logique GPS est active
+    lancerRechercheProche();
+  };
+
   showScreen('detail');
   if (!c.done && c._timeStart !== null && c._timeStart !== undefined) { _liveChamberInterval = setInterval(() => { const el = document.getElementById('liveChamberValue'); if (!el) { clearInterval(_liveChamberInterval); _liveChamberInterval = null; return; } el.textContent = formatTime(getActiveTime() - c._timeStart); }, 1000); }
 }
@@ -952,7 +959,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.3`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.4`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1173,7 +1180,7 @@ async function nouveauProjet() {
   if (!confirm("⚠️ ATTENTION\n\nCette action va effacer TOUTES les données du projet en cours.\n\nIRRÉVERSIBLE.\n\nContinuer ?")) return;
   if (!confirm("Dernière confirmation ?")) return;
   showOverlay(true);
-  try { await dbClear(); chambres = []; headers = [];
+  try { await dbClear(); chambres = []; headers = []; hasStartedReleve = false;
     try { localStorage.removeItem('releve_headers'); localStorage.removeItem('derniereChambre'); localStorage.removeItem('chrono_state'); } catch(e){}
     chrono = { startTime: null, accumulated: 0, running: false, pausedAt: null };
     if (chronoInterval) { clearInterval(chronoInterval); chronoInterval = null; }
@@ -1394,17 +1401,12 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
   } catch(e) { console.error("Erreur init : " + e.message); }
 })();
 
-/* -------------------- BOUTON FUSIONNÉ : DÉMARRER LE RELEVÉ (GPS) -------------------- */
-document.getElementById('startBtn').onclick = () => {
-  if (!chambres.length) { alert("Aucune chambre chargée. Importez un CSV."); return; }
+/* -------------------- NOUVELLE LOGIQUE DU BOUTON FUSIONNÉ -------------------- */
+async function lancerRechercheProche() {
+  if (!chambres.length) { showScreen('list'); return; }
   
-  trierChambres();
-  renderList(); // Toujours prêt en arrière-plan pour le fallback
-
-  if (!chrono.running && !chrono.pausedAt && chrono.accumulated === 0) chronoStart();
-
   const withGps = chambres.filter(c => !c.done && c.lat && c.lon && !isNaN(parseFloat(c.lat)) && !isNaN(parseFloat(c.lon)));
-
+  
   if (withGps.length === 0) {
     showScreen('list');
     const allDone = chambres.every(c => c.done);
@@ -1467,11 +1469,33 @@ document.getElementById('startBtn').onclick = () => {
     },
     (err) => {
       showOverlay(false);
-      showScreen('list'); // Erreur GPS -> bascule sur la liste
+      showScreen('list');
       alert("Impossible de récupérer votre position GPS.\nAffichage de la liste des chambres.\n\nErreur : " + err.message);
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
+}
+
+document.getElementById('startBtn').onclick = () => {
+  if (!hasStartedReleve) {
+    hasStartedReleve = true;
+    if (!chrono.running && !chrono.pausedAt && chrono.accumulated === 0) chronoStart();
+    trierChambres();
+    const premiere = chambres.find(c => !c.done);
+    if (premiere) {
+      if (!premiere._timeStart) {
+        premiere._timeStart = getActiveTime();
+        dbPut(premiere).catch(()=>{});
+      }
+      showToast(`Ouverture de la première chambre : ${getDisplayName(premiere)}`, '#2e7d32', 2500);
+      openDetail(premiere.id);
+    } else {
+      alert("Toutes les chambres sont déjà terminées !");
+      showScreen('list');
+    }
+  } else {
+    lancerRechercheProche();
+  }
 };
 </script>
 </body>
