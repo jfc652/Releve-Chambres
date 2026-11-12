@@ -1216,9 +1216,8 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         attributionControl: false,
         fadeAnimation: false,
         zoomAnimation: false,
-        preferCanvas: true,
-        zoomSnap: 0.5,
-        renderer: L.canvas()
+        preferCanvas: false, // On repasse en SVG/DOM pour bien gérer les étiquettes
+        zoomSnap: 0.5
       });
 
       const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1232,52 +1231,81 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
 
       map.invalidateSize();
 
-      // 1. Trier les chambres par ordre pour tracer une ligne logique
+      // 1. Tracé du chemin (la ligne rouge)
       const chambresTriees = [...chambresGps].sort((a, b) => {
           const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
           const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
           return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
       });
-
-      // 2. Créer le tableau des coordonnées pour le tracé
       const itineraireCoords = chambresTriees.map(c => [parseFloat(c.lat), parseFloat(c.lon)]);
 
-      // 3. Dessiner le tracé (le "vecteur") en rouge semi-transparent
       L.polyline(itineraireCoords, {
-        color: '#c62828', // Rouge
-        weight: 3,        // Épaisseur de la ligne
-        opacity: 0.6,     // Semi-transparent pour ne pas cacher la carte
+        color: '#c62828',
+        weight: 3,
+        opacity: 0.5,
         lineJoin: 'round'
       }).addTo(map);
 
-      // 4. Ajouter les marqueurs (points + étiquettes) par-dessus le tracé
-      chambresGps.forEach(c => {
+      // 2. Ajout des points et des étiquettes avec trait de renvoi
+      chambresGps.forEach((c, index) => {
         const lat = parseFloat(c.lat);
         const lon = parseFloat(c.lon);
         
-        const marker = L.circleMarker([lat, lon], {
-          radius: 6,
+        // Point rouge
+        L.circleMarker([lat, lon], {
+          radius: 5,
           fillColor: '#c62828',
           color: '#ffffff',
-          weight: 2,
+          weight: 1.5,
           opacity: 1,
           fillOpacity: 1
         }).addTo(map);
 
-        marker.bindTooltip(escapeHTML(getDisplayName(c)), {
-          permanent: true,
-          direction: 'right',
-          offset: [8, 0],
-          className: 'leaflet-tooltip-custom'
-        }).openTooltip();
+        // On alterne le côté de l'étiquette pour éviter les chevauchements
+        const isRight = index % 2 === 0;
+        
+        // Création de l'icône avec l'étiquette et le trait
+        const customIcon = L.divIcon({
+          className: 'custom-label-wrapper',
+          html: `
+            <div class="label-line" style="
+              position: absolute; 
+              top: 0; 
+              left: ${isRight ? '0' : 'auto'}; 
+              right: ${isRight ? 'auto' : '0'};
+              width: 25px; 
+              height: 1px; 
+              background: #333;
+              transform: translateY(-50%);
+              ${isRight ? 'transform-origin: left center;' : 'transform-origin: right center;'}
+            "></div>
+            <div class="label-text" style="
+              position: absolute;
+              top: -10px;
+              ${isRight ? 'left: 28px;' : 'right: 28px;'}
+              background: #fff;
+              border: 1px solid #c62828;
+              padding: 1px 4px;
+              border-radius: 3px;
+              font-family: Arial, sans-serif;
+              font-size: 11px;
+              font-weight: bold;
+              color: #000;
+              white-space: nowrap;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            ">${escapeHTML(getDisplayName(c))}</div>
+          `,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        });
+
+        L.marker([lat, lon], { icon: customIcon }).addTo(map);
       });
 
       const doCapture = async () => {
         if (resolved) return;
         map.invalidateSize();
-        
         await new Promise(r => setTimeout(r, 2500)); 
-
         try {
           const canvas = await html2canvas(container, {
             useCORS: true,
