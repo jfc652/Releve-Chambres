@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.6 (Carte statique)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.7 (Canvas natif)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -360,6 +360,10 @@ function uuid() {
 function getDisplayNameById(id) {
   const c = chambres.find(x => x.id === id);
   return c ? getDisplayName(c) : id;
+}
+
+function estLambert93(x, y) {
+  return (x > 100000 && x < 1200000) && (y > 6000000 && y < 7200000);
 }
 
 /* ============================================================
@@ -1115,7 +1119,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.6`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.7`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1200,89 +1204,176 @@ async function construireSynoptiquePDF() {
 }
 
 /* ============================================================
-   CARTE STATIQUE OSM (remplace html2canvas)
+   CAPTURE DE CARTE VIA LEAFLET NATIF (CANVAS DIRECT)
    ============================================================ */
-function calculerZoom(minLat, maxLat, minLon, maxLon) {
-  const latDiff = Math.abs(maxLat - minLat);
-  const lonDiff = Math.abs(maxLon - minLon);
-  const diff = Math.max(latDiff, lonDiff);
-  if (diff > 1) return 9;
-  if (diff > 0.5) return 10;
-  if (diff > 0.2) return 11;
-  if (diff > 0.1) return 12;
-  if (diff > 0.05) return 13;
-  if (diff > 0.02) return 14;
-  return 15;
-}
-
-async function capturerCarteStatique(chambresGps, widthPx = 1200, heightPx = 800) {
+async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900) {
   return new Promise((resolve) => {
-    if (chambresGps.length === 0) { resolve(null); return; }
+    if (!window.L) { resolve(null); return; }
 
-    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
-    chambresGps.forEach(c => {
-      const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
-      if (!isNaN(lat) && !isNaN(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) {
-        if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
-        if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon;
-      }
-    });
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: -9999px;
+      width: ${widthPx}px;
+      height: ${heightPx}px;
+      background: #ffffff;
+      pointer-events: none;
+    `;
+    document.body.appendChild(container);
 
-    if (minLat === 90) { resolve(null); return; }
+    let map = null;
+    let resolved = false;
 
-    const latMargin = (maxLat - minLat) * 0.1 || 0.001;
-    const lonMargin = (maxLon - minLon) * 0.1 || 0.001;
-    minLat -= latMargin; maxLat += latMargin; minLon -= lonMargin; maxLon += lonMargin;
+    const finish = (dataUrl) => {
+      if (resolved) return;
+      resolved = true;
+      if (map) { try { map.remove(); } catch(e){} map = null; }
+      if (container.parentNode) container.parentNode.removeChild(container);
+      resolve(dataUrl);
+    };
 
-    let markers = '';
-    chambresGps.slice(0, 50).forEach(c => {
-      markers += `&markers=${c.lat},${c.lon},red-pushpin`;
-    });
-
-    const zoom = calculerZoom(minLat, maxLat, minLon, maxLon);
-    const centerLat = (minLat + maxLat) / 2;
-    const centerLon = (minLon + maxLon) / 2;
-    const bgUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${centerLat},${centerLon}&zoom=${zoom}&size=${widthPx}x${heightPx}&maptype=mapnik${markers}`;
-
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-
-      // Reconstruction des étiquettes avec la projection Mercator
-      // Calcul de la bounding box en projection Mercator
-      const latToY = (lat) => Math.log(Math.tan(Math.PI/4 + lat * Math.PI / 360));
-      const yTop = latToY(maxLat);
-      const yBottom = latToY(minLat);
-      const yDiff = yTop - yBottom;
-
-      chambresGps.forEach(c => {
-        const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
-        if (isNaN(lat) || isNaN(lon)) return;
-        const x = ((lon - minLon) / (maxLon - minLon)) * img.width;
-        const y = ((yTop - latToY(lat)) / yDiff) * img.height;
-        
-        const txt = getDisplayName(c);
-        ctx.font = 'bold 10px Arial';
-        const textWidth = ctx.measureText(txt).width;
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = '#c62828';
-        ctx.lineWidth = 1;
-        ctx.fillRect(x - textWidth/2 - 2, y - 22, textWidth + 4, 13);
-        ctx.strokeRect(x - textWidth/2 - 2, y - 22, textWidth + 4, 13);
-        ctx.fillStyle = 'black';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(txt, x, y - 15);
+    try {
+      // Utilisation de preferCanvas pour contourner les restrictions CORS
+      map = L.map(container, {
+        zoomControl: false,
+        attributionControl: false,
+        fadeAnimation: false,
+        zoomAnimation: false,
+        preferCanvas: true
       });
 
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = () => { console.warn("Erreur chargement carte statique :", bgUrl); resolve(null); };
-    img.src = bgUrl;
+      // Fond de carte CartoDB (très fiable, CORS OK)
+      const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        crossOrigin: true
+      }).addTo(map);
+
+      const latLngs = chambresGps
+        .map(c => {
+          const lat = parseFloat(c.lat);
+          const lon = parseFloat(c.lon);
+          if (isNaN(lat) || isNaN(lon)) return null;
+          if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+          if (lat === 0 && lon === 0) return null;
+          return [lat, lon];
+        })
+        .filter(Boolean);
+
+      if (latLngs.length === 0) { finish(null); return; }
+
+      const bounds = L.latLngBounds(latLngs);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+      map.invalidateSize();
+
+      // Tracé de la ligne
+      const chambresTriees = [...chambresGps].sort((a, b) => {
+        const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
+        const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
+        return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
+      });
+      const itineraireCoords = chambresTriees
+        .map(c => [parseFloat(c.lat), parseFloat(c.lon)])
+        .filter(([la, lo]) => !isNaN(la) && !isNaN(lo));
+
+      if (itineraireCoords.length > 1) {
+        L.polyline(itineraireCoords, { color: '#c62828', weight: 2, opacity: 0.6 }).addTo(map);
+      }
+
+      // Points avec étiquettes
+      const labelsPlaced = [];
+      const labelWidth = 40, labelHeight = 16;
+
+      chambresGps.forEach((c) => {
+        const lat = parseFloat(c.lat);
+        const lon = parseFloat(c.lon);
+        if (isNaN(lat) || isNaN(lon)) return;
+
+        L.circleMarker([lat, lon], {
+          radius: 4, fillColor: '#c62828', color: '#ffffff', weight: 1, fillOpacity: 1
+        }).addTo(map);
+
+        const pt = map.latLngToContainerPoint([lat, lon]);
+        let px = 10, py = -10;
+        let collision = true;
+        let attempts = 0;
+
+        while(collision && attempts < 8) {
+          collision = false;
+          const lx = pt.x + px, ly = pt.y + py;
+          for (const placed of labelsPlaced) {
+            if (Math.abs(lx - placed.x) < labelWidth && Math.abs(ly - placed.y) < labelHeight) {
+              collision = true; break;
+            }
+          }
+          if (collision) {
+            attempts++;
+            if (attempts === 1) { px = -50; py = -10; }
+            else if (attempts === 2) { px = 10; py = -25; }
+            else if (attempts === 3) { px = -50; py = -25; }
+            else if (attempts === 4) { px = 10; py = 10; }
+            else if (attempts === 5) { px = -50; py = 10; }
+            else { px = 10 + (attempts * 20); py = 0; }
+          }
+        }
+        labelsPlaced.push({ x: pt.x + px, y: pt.y + py });
+
+        const customIcon = L.divIcon({
+          className: 'custom-label-wrapper',
+          html: `<div style="
+              background: #fff;
+              border: 1px solid #c62828;
+              padding: 1px 4px;
+              border-radius: 3px;
+              font-family: Arial, sans-serif;
+              font-size: 10px;
+              font-weight: bold;
+              color: #000;
+              white-space: nowrap;
+              box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            ">${escapeHTML(getDisplayName(c))}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [-px, -py]
+        });
+        L.marker([lat, lon], { icon: customIcon }).addTo(map);
+
+        if (px !== 10 || py !== -10) {
+          const ptLabel = L.point(pt.x + px, pt.y + py);
+          const latLngLabel = map.containerPointToLatLng(ptLabel);
+          L.polyline([[lat, lon], [latLngLabel.lat, latLngLabel.lng]], { color: '#333', weight: 1, opacity: 0.7 }).addTo(map);
+        }
+      });
+
+      const doCapture = async () => {
+        if (resolved) return;
+        map.invalidateSize();
+        await new Promise(r => setTimeout(r, 2500));
+
+        try {
+          // On cherche le canvas natif de Leaflet
+          const canvas = container.querySelector('canvas');
+          if (canvas) {
+            finish(canvas.toDataURL('image/png'));
+          } else {
+            // Fallback html2canvas si pas de canvas natif
+            const htmlCanvas = await html2canvas(container, {
+              useCORS: true, allowTaint: false, backgroundColor: '#ffffff', scale: 1, logging: false
+            });
+            finish(htmlCanvas.toDataURL('image/png'));
+          }
+        } catch (err) {
+          console.warn('Capture échouée:', err);
+          finish(null);
+        }
+      };
+
+      tileLayer.once('load', () => setTimeout(doCapture, 2500));
+      setTimeout(doCapture, 10000);
+
+    } catch (e) {
+      console.warn('Erreur création carte:', e);
+      finish(null);
+    }
   });
 }
 
@@ -1307,14 +1398,14 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  console.log('🗺️ Téléchargement de la carte statique OSM...');
-  const mapDataUrl = await capturerCarteStatique(chambresGps, 1200, 800);
+  console.log('🗺️ Capture de la carte (Canvas natif)...');
+  const mapDataUrl = await capturerCarteLeaflet(chambresGps, 1400, 900);
 
   const mapRectX = 80, mapRectY = 80;
   const mapRectW = pageW - 160, mapRectH = pageH - 180;
 
   if (mapDataUrl) {
-    const imgRatio = 1200 / 800;
+    const imgRatio = 1400 / 900;
     let drawW = mapRectW;
     let drawH = drawW / imgRatio;
     if (drawH > mapRectH) { drawH = mapRectH; drawW = drawH * imgRatio; }
@@ -1325,14 +1416,15 @@ async function ajouterPageCarteMaps(doc, chambres) {
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.5);
     doc.rect(drawX, drawY, drawW, drawH);
-    console.log('✅ Carte statique intégrée au PDF.');
+    console.log('✅ Carte intégrée au PDF.');
   } else {
     doc.setFillColor(245, 245, 245);
     doc.setDrawColor(180, 180, 180);
     doc.rect(mapRectX, mapRectY, mapRectW, mapRectH, 'FD');
     doc.setFontSize(16);
     doc.setTextColor(200, 0, 0);
-    doc.text("⚠️ Carte non disponible", pageW / 2, mapRectY + mapRectH / 2 - 20, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.text("Carte non disponible", pageW / 2, mapRectY + mapRectH / 2 - 20, { align: 'center' });
     doc.setFontSize(12);
     doc.setTextColor(80, 80, 80);
     doc.setFont('helvetica', 'normal');
