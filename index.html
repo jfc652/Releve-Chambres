@@ -234,7 +234,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.1</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.2</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -496,7 +496,6 @@ async function demanderConfirmationDistance(distanceM, chambre) {
       : Math.round(distanceM) + ' m';
     const couleur = distanceM > 5000 ? '#c62828' : distanceM > 500 ? '#e65100' : '#2e7d32';
     const modal = document.createElement('div');
-    // Z-INDEX A 9999 POUR PASSER AU DESSUS DE TOUT
     modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
     modal.innerHTML = `
       <div style="background:#fff;border-radius:14px;padding:24px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.4);">
@@ -953,7 +952,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.1`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.2`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1215,6 +1214,7 @@ async function importCSV(file){
       let latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
       let lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
       
+      // 1. Tenter d'extraire depuis wkt_geom
       if ((!latVal || !lonVal) && raw['wkt_geom']) {
         const m = String(raw['wkt_geom']).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
         if (m) {
@@ -1222,7 +1222,19 @@ async function importCSV(file){
           lonVal = m[2].replace(',', '.');
         }
       }
+
+      // 2. Tenter d'extraire depuis la colonne WAZE (si toujours vide)
+      if ((!latVal || !lonVal) && (raw['WAZE'] || raw['waze'])) {
+        let wazeStr = raw['WAZE'] || raw['waze'];
+        try { wazeStr = decodeURIComponent(wazeStr); } catch(e){} // Gère le %2C
+        const matchWaze = wazeStr.match(/ll=([-+]?\d*\.?\d+)(?:,|%2C)\s*([-+]?\d*\.?\d+)/i);
+        if (matchWaze) {
+          latVal = matchWaze[1];
+          lonVal = matchWaze[2];
+        }
+      }
       
+      // Nettoyage final (virgules -> points)
       if (latVal) latVal = String(latVal).replace(',', '.');
       if (lonVal) lonVal = String(lonVal).replace(',', '.');
 
@@ -1425,7 +1437,6 @@ document.getElementById('btnGeoLoc').onclick = () => {
       
       if (!best || minD === Infinity) { alert("Impossible de déterminer la chambre."); return; }
       
-      // VÉRIFICATION DE LA DISTANCE ET AFFICHAGE
       if (minD > 500) {
         const shouldOpen = await demanderConfirmationDistance(minD, best);
         if (!shouldOpen) return;
