@@ -233,7 +233,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.8</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.9</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -445,12 +445,10 @@ function estPhotoAutorisee(c, catId) {
     return hasBpe && c.hasBoite !== false;
   }
 
-  // Gestion commune des masques pour les deux modes
   if (['MA','MB','MC','MD'].includes(catId)) {
     const letter = catId.charAt(1);
     const activeMasks = new Set();
     
-    // 1. Lire dans les passages modifiés manuellement
     (c.passages || []).forEach(p => {
       ['masque_in', 'masque_out'].forEach(f => {
         const val = (p[f] || '').trim().toUpperCase();
@@ -458,7 +456,6 @@ function estPhotoAutorisee(c, catId) {
       });
     });
 
-    // 2. Lire aussi dans les données brutes du CSV
     const csvMasqueIn = getRawValue(c, ['MASQUE'], '');
     const csvMasqueOut = getRawValue(c, ['MASQUE B', 'MASQUE_B'], '');
     [csvMasqueIn, csvMasqueOut].forEach(val => {
@@ -467,10 +464,9 @@ function estPhotoAutorisee(c, catId) {
     });
 
     if (activeMasks.size > 0) return activeMasks.has(letter);
-    return true; // Si aucun masque n'est renseigné, on autorise tous les masques par défaut
+    return true;
   }
 
-  // Autres photos
   if (modeTravail === 'aiguillage') {
     return true;
   } else {
@@ -1060,7 +1056,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.8`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.9`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1322,7 +1318,7 @@ async function importCSV(file){
       let latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
       let lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
       
-      // CORRECTION EXTRACTION WKT : WKT est POINT(Longitude Latitude)
+      // EXTRACTION WKT : POINT(Longitude Latitude)
       if ((!latVal || !lonVal) && raw['wkt_geom']) {
         const m = String(raw['wkt_geom']).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
         if (m) {
@@ -1331,6 +1327,7 @@ async function importCSV(file){
         }
       }
       
+      // EXTRACTION WAZE : ll=Latitude,Longitude
       if ((!latVal || !lonVal) && (raw['WAZE'] || raw['waze'])) {
         let wazeStr = raw['WAZE'] || raw['waze'];
         try { wazeStr = decodeURIComponent(wazeStr); } catch(e){}
@@ -1341,8 +1338,26 @@ async function importCSV(file){
         }
       }
       
-      if (latVal) latVal = String(latVal).replace(',', '.');
-      if (lonVal) lonVal = String(lonVal).replace(',', '.');
+      // Nettoyage final
+      const cleanCoord = (v) => { if(!v) return ''; return String(v).replace(',', '.').replace(/[^0-9.\-]/g, ''); };
+      latVal = cleanCoord(latVal);
+      lonVal = cleanCoord(lonVal);
+
+      let fLat = parseFloat(latVal);
+      let fLon = parseFloat(lonVal);
+      
+      if (!isNaN(fLat) && !isNaN(fLon)) {
+          // CORRECTION INTELLIGENTE : En France, si lat < 15 et lon > 40, c'est inversé
+          if (fLat < 15 && fLon > 40) { 
+              const tmp = latVal; latVal = lonVal; lonVal = tmp;
+              fLat = parseFloat(latVal); fLon = parseFloat(lonVal);
+          }
+          if (fLat < -90 || fLat > 90 || fLon < -180 || fLon > 180) {
+              latVal = ''; lonVal = '';
+          }
+      } else {
+          latVal = ''; lonVal = '';
+      }
 
       const bpeVal = getRawValue({raw}, ['BPE', 'bpe'], '');
       const hasBpe = bpeVal && bpeVal.trim() !== '' && bpeVal.toLowerCase() !== 'none' && bpeVal.toLowerCase() !== 'nan';
@@ -1523,7 +1538,13 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
 async function lancerRechercheProche() {
   if (!chambres.length) { showScreen('list'); return; }
   
-  const withGps = chambres.filter(c => !c.done && c.lat && c.lon && !isNaN(parseFloat(c.lat)) && !isNaN(parseFloat(c.lon)));
+  // FILTRE STRICT : On s'assure que les coordonnées sont valides
+  const withGps = chambres.filter(c => {
+     if (c.done) return false;
+     const lat = parseFloat(c.lat);
+     const lon = parseFloat(c.lon);
+     return !isNaN(lat) && !isNaN(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+  });
   
   if (withGps.length === 0) {
     showScreen('list');
@@ -1555,8 +1576,12 @@ async function lancerRechercheProche() {
 
       let best = null, minD = Infinity;
       for (const c of withGps) {
-        const cLat = parseFloat(c.lat);
-        const cLon = parseFloat(c.lon);
+        let cLat = parseFloat(c.lat);
+        let cLon = parseFloat(c.lon);
+        
+        // Heuristique de sécurité si l'inversion a échoué à l'import
+        if (cLat < 15 && cLon > 40) { const tmp = cLat; cLat = cLon; cLon = tmp; }
+
         const d = calculerDistance(uLat, uLon, cLat, cLon);
         if (d < minD) { minD = d; best = c; }
       }
@@ -1569,6 +1594,7 @@ async function lancerRechercheProche() {
         return;
       }
 
+      // CORRECTION DU SEUIL POUR LA POPUP (si > 500 m)
       if (minD > 500) {
         const shouldOpen = await demanderConfirmationDistance(minD, best);
         if (!shouldOpen) {
