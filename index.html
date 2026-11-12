@@ -235,7 +235,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.0</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.1</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1061,7 +1061,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.0`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.1`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1160,41 +1160,49 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(0, 0, 0);
-  doc.text("CARTE DES CHAMBRES GÉOLOCALISÉES", pageW / 2, 40, { align: 'center' });
+  doc.text("CARTE DES CHAMBRES GEOLOCALISEES", pageW / 2, 40, { align: 'center' });
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  // Calcul du centre
-  let sumLat = 0, sumLon = 0;
-  chambresGps.forEach(c => { sumLat += parseFloat(c.lat); sumLon += parseFloat(c.lon); });
-  const centerLat = sumLat / chambresGps.length;
-  const centerLon = sumLon / chambresGps.length;
-
-  // Déterminer le zoom (approximatif)
   let minLat = Math.min(...chambresGps.map(c => parseFloat(c.lat)));
   let maxLat = Math.max(...chambresGps.map(c => parseFloat(c.lat)));
   let minLon = Math.min(...chambresGps.map(c => parseFloat(c.lon)));
   let maxLon = Math.max(...chambresGps.map(c => parseFloat(c.lon)));
   
+  // Zone de dessin
+  const mapRectX = 80;
+  const mapRectY = 80;
+  const mapRectW = pageW - 160;
+  const mapRectH = pageH - 180;
+
+  // Calcul de l'échelle
   let deltaLat = maxLat - minLat;
   let deltaLon = maxLon - minLon;
-  let maxDelta = Math.max(deltaLat, deltaLon);
-  
-  let zoom = 10;
-  if (maxDelta > 2) zoom = 6;
-  else if (maxDelta > 1) zoom = 7;
-  else if (maxDelta > 0.5) zoom = 8;
-  else if (maxDelta > 0.2) zoom = 9;
-  else if (maxDelta > 0.1) zoom = 10;
-  else if (maxDelta > 0.05) zoom = 11;
-  else zoom = 12;
+  if (deltaLat === 0) deltaLat = 0.001;
+  if (deltaLon === 0) deltaLon = 0.001;
 
-  const mapW = 1000, mapH = 600; 
-  let markersStr = chambresGps.slice(0, 15).map(c => `${c.lat},${c.lon},red-pushpin`).join('|');
-  
-  const mapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${centerLat},${centerLon}&zoom=${zoom}&size=${mapW}x${mapH}&maptype=mapnik&markers=${markersStr}`;
+  // Ajout d'une marge de 10%
+  const marginLat = deltaLat * 0.1;
+  const marginLon = deltaLon * 0.1;
+  minLat -= marginLat; maxLat += marginLat;
+  minLon -= marginLon; maxLon += marginLon;
+  deltaLat = maxLat - minLat;
+  deltaLon = maxLon - minLon;
+
+  // Tentative de chargement d'une image de fond (OpenStreetMap)
+  const centerLat = (minLat + maxLat) / 2;
+  const centerLon = (minLon + maxLon) / 2;
+  let zoom = 10;
+  if (Math.max(deltaLat, deltaLon) > 2) zoom = 6;
+  else if (Math.max(deltaLat, deltaLon) > 1) zoom = 7;
+  else if (Math.max(deltaLat, deltaLon) > 0.5) zoom = 8;
+  else if (Math.max(deltaLat, deltaLon) > 0.2) zoom = 9;
+  else if (Math.max(deltaLat, deltaLon) > 0.1) zoom = 10;
+  else zoom = 11;
+
+  let mapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${centerLat},${centerLon}&zoom=${zoom}&size=1000x600&maptype=mapnik`;
   
   let mapDataUrl = null;
   try {
@@ -1202,7 +1210,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
       img.crossOrigin = 'Anonymous';
       img.src = mapUrl;
       
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000)); // Timeout court
       const loadPromise = new Promise((resolve) => {
           img.onload = () => {
               const canvas = document.createElement('canvas');
@@ -1217,56 +1225,73 @@ async function ajouterPageCarteMaps(doc, chambres) {
       mapDataUrl = await Promise.race([loadPromise, timeoutPromise]);
 
       if (mapDataUrl) {
-          const x = (pageW - mapW) / 2;
-          const y = 80;
-          doc.addImage(mapDataUrl, 'PNG', x, y, mapW, mapH);
+          // Si l'image charge, on la place au centre en respectant le ratio
+          const imgRatio = img.width / img.height;
+          let drawW = mapRectW;
+          let drawH = drawW / imgRatio;
+          if (drawH > mapRectH) { drawH = mapRectH; drawW = drawH * imgRatio; }
+          const drawX = mapRectX + (mapRectW - drawW) / 2;
+          const drawY = mapRectY + (mapRectH - drawH) / 2;
+          
+          doc.addImage(mapDataUrl, 'PNG', drawX, drawY, drawW, drawH);
+          doc.setDrawColor(200, 200, 200);
+          doc.rect(drawX, drawY, drawW, drawH);
       }
   } catch (e) {
-      console.warn("Impossible de charger la carte en ligne. Fallback vers la carte manuelle.", e);
+      console.warn("Impossible de charger la carte. Fallback vers la carte manuelle.");
       mapDataUrl = null;
   }
 
   if (!mapDataUrl) {
-      // Fallback : Dessin manuel des points sur un fond blanc
-      doc.setDrawColor(200, 200, 200);
-      doc.setFillColor(250, 250, 250);
-      doc.rect(100, 80, pageW - 200, 500, 'FD');
+      // FALLBACK : Dessin manuel d'une grille et des points
+      doc.setDrawColor(220, 220, 220);
+      doc.setFillColor(252, 252, 252);
+      doc.rect(mapRectX, mapRectY, mapRectW, mapRectH, 'FD');
       
-      doc.setFontSize(12);
+      // Dessiner une grille légère
+      doc.setDrawColor(235, 235, 235);
+      const steps = 10;
+      for (let i = 1; i < steps; i++) {
+          const x = mapRectX + (mapRectW / steps) * i;
+          const y = mapRectY + (mapRectH / steps) * i;
+          doc.line(x, mapRectY, x, mapRectY + mapRectH);
+          doc.line(mapRectX, y, mapRectX + mapRectW, y);
+      }
+
+      // Texte explicatif
+      doc.setFontSize(10);
       doc.setTextColor(150, 150, 150);
-      doc.text("(Image de la carte indisponible. Affichage des points géographiques.)", pageW / 2, 300, { align: 'center' });
+      doc.text("(Fond de carte indisponible. Affichage schématique des points.)", mapRectX + mapRectW / 2, mapRectY + mapRectH - 10, { align: 'center' });
 
-      const pad = 50;
-      const mapRectW = pageW - 200 - pad * 2;
-      const mapRectH = 500 - pad * 2;
-      
-      if (deltaLat === 0) deltaLat = 0.001;
-      if (deltaLon === 0) deltaLon = 0.001;
-
+      // Tracer les points
       chambresGps.forEach(c => {
           const lat = parseFloat(c.lat);
           const lon = parseFloat(c.lon);
-          const px = 100 + pad + ((lon - minLon) / deltaLon) * mapRectW;
-          const py = 80 + 500 - pad - ((lat - minLat) / deltaLat) * mapRectH;
           
-          doc.setFillColor(255, 0, 0);
+          // Convertir lat/lon en X/Y
+          const px = mapRectX + ((lon - minLon) / deltaLon) * mapRectW;
+          // L'axe Y est inversé (Lat max en haut, Lat min en bas)
+          const py = mapRectY + mapRectH - ((lat - minLat) / deltaLat) * mapRectH;
+          
+          // Dessiner le point
+          doc.setFillColor(200, 30, 30);
           doc.setDrawColor(0, 0, 0);
           doc.circle(px, py, 3, 'FD');
+          
+          // Nom de la chambre
           doc.setFontSize(6);
           doc.setTextColor(0, 0, 0);
           doc.text(getDisplayName(c), px + 5, py + 2);
       });
   }
-  
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Les points rouges indiquent la position des chambres.", pageW / 2, pageH - 40, { align: 'center' });
-  
+
+  // Lien Google Maps pour le trajet
   let gmapsUrl = `https://www.google.com/maps/dir/`;
   if (chambresGps.length > 0) {
       chambresGps.slice(0, 10).forEach(c => { gmapsUrl += `${c.lat},${c.lon}/`; });
+      doc.setFontSize(10);
       doc.setTextColor(0, 0, 255);
-      doc.textWithLink("🗺️ Ouvrir l'itinéraire dans Google Maps (10 premières chambres)", pageW / 2, pageH - 20, { align: 'center', url: gmapsUrl });
+      doc.textWithLink("🗺️ Ouvrir l'itinéraire dans Google Maps (10 premières chambres)", pageW / 2, pageH - 40, { align: 'center', url: gmapsUrl });
   }
 }
 
