@@ -1198,7 +1198,6 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
       return;
     }
 
-    // Le conteneur est placé hors de l'écran pour forcer le navigateur à charger les tuiles
     const container = document.createElement('div');
     container.style.cssText = `
       position: absolute;
@@ -1239,7 +1238,6 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         zoomSnap: 0.5
       });
 
-      // Tuiles OpenStreetMap standard (gratuites, sans clé API)
       const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
@@ -1252,7 +1250,6 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
 
       map.invalidateSize();
 
-      // Nouveau système : Marqueur personnalisé fusionnant le point et l'étiquette
       chambresGps.forEach(c => {
         const lat = parseFloat(c.lat);
         const lon = parseFloat(c.lon);
