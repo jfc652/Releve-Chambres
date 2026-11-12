@@ -111,7 +111,6 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 </style>
 
 <script>
-// Erreur globale : toast non-bloquant au lieu d'alert()
 window.onerror = function(msg, url, line, col, err) {
   console.error("⚠️ ERREUR JS - Ligne " + line + ": " + msg, { url, line, col, err });
   try {
@@ -259,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.3 (correctifs)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.4 (correctif GPS)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -348,7 +347,6 @@ let pendingLat = '', pendingLon = '';
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
 const couleursHex = { 'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] };
 
-// Polyfill UUID
 function uuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -359,10 +357,14 @@ function uuid() {
   });
 }
 
-// FIX: fonction manquante (crash export CSV)
 function getDisplayNameById(id) {
   const c = chambres.find(x => x.id === id);
   return c ? getDisplayName(c) : id;
+}
+
+// Détection coordonnées Lambert 93
+function estLambert93(x, y) {
+  return (x > 100000 && x < 1200000) && (y > 6000000 && y < 7200000);
 }
 
 /* ============================================================
@@ -487,7 +489,6 @@ function estPhotoAutorisee(c, catId) {
   if (catId.startsWith('CAS_')) {
     const bpeOrigine = getRawValue(c, ['BPE', 'bpe'], '');
     const hasBpe = bpeOrigine && bpeOrigine.trim() !== '' && bpeOrigine.toLowerCase() !== 'none' && bpeOrigine.toLowerCase() !== 'nan';
-    // FIX: cohérent avec showCassettes = hasBpe || forceShowSoudure
     return (hasBpe || c.forceShowSoudure) && c.hasBoite !== false;
   }
 
@@ -706,7 +707,7 @@ function parseCSV(text){
         else {row.push(cur);rows.push(row);row=[];cur='';}
       }
       else if(c==='\r'){
-        if(n==='\n'){ /* géré au prochain tour */ }
+        if(n==='\n'){ /* skip */ }
         else if(inQ){cur+='\r';}
       }
       else cur+=c;
@@ -1119,7 +1120,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.3`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.4`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1259,7 +1260,6 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         crossOrigin: true
       }).addTo(map);
 
-      // FIX: Validation stricte des coordonnées AVANT fitBounds
       const latLngs = chambresGps
         .map(c => {
           const lat = parseFloat(c.lat);
@@ -1280,7 +1280,6 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
       map.invalidateSize();
 
-      // Tracé du chemin
       const chambresTriees = [...chambresGps].sort((a, b) => {
         const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
         const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
@@ -1299,7 +1298,6 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         }).addTo(map);
       }
 
-      // Étiquettes anti-collision
       const labelsPlaced = [];
       const labelWidth = 40;
       const labelHeight = 16;
@@ -1307,10 +1305,8 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
       chambresGps.forEach((c) => {
         const lat = parseFloat(c.lat);
         const lon = parseFloat(c.lon);
-        // FIX: Skip points invalides
         if (isNaN(lat) || isNaN(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return;
 
-        // Point rouge exact GPS
         L.circleMarker([lat, lon], {
           radius: 4,
           fillColor: '#c62828',
@@ -1455,7 +1451,6 @@ async function ajouterPageCarteMaps(doc, chambres) {
       console.warn('Erreur insertion image carte:', e);
     }
   } else {
-    // FIX: Fallback HONNÊTE (plus de faux positionnement linéaire)
     doc.setFillColor(245, 245, 245);
     doc.setDrawColor(180, 180, 180);
     doc.rect(mapRectX, mapRectY, mapRectW, mapRectH, 'FD');
@@ -1470,7 +1465,6 @@ async function ajouterPageCarteMaps(doc, chambres) {
     doc.text("Les positions GPS restent disponibles dans le CSV et via le lien Google Maps ci-dessous.", pageW / 2, mapRectY + mapRectH / 2 + 40, { align: 'center' });
   }
 
-  // Lien Google Maps
   if (chambresGps.length > 0) {
     let gmapsUrl = `https://www.google.com/maps/dir/`;
     const maxPoints = Math.min(chambresGps.length, 50);
@@ -1614,7 +1608,6 @@ async function genererSynoptiquePDF() {
     const res = await construireSynoptiquePDF();
     if (!res) { alert("Aucune chambre ou jsPDF non disponible."); return; }
     const fname = `Dossier_Complet_TOP_SAT_${res.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`;
-    // FIX: utiliser blob au lieu de save() pour iOS
     const blob = res.doc.output('blob');
     try {
       if (navigator.canShare && navigator.canShare({ files: [new File([blob], fname, { type: 'application/pdf' })] })) {
@@ -1670,15 +1663,24 @@ async function importCSV(file){
     const ordreIdx = headers.findIndex(h => /^ORDRE$/i.test(h.trim()));
     const refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
     const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
+    const codeCh1Idx = headers.findIndex(h => /^CODE_CH1$/i.test(h.trim()));
     
     const wazeIdx = headers.findIndex(h => /^WAZE$/i.test(h.trim()));
     const wktIdx = headers.findIndex(h => /^wkt_geom$/i.test(h.trim()));
     const latIdx = headers.findIndex(h => /^(LATITUDE|LAT|Y)$/i.test(h.trim()));
     const lonIdx = headers.findIndex(h => /^(LONGITUDE|LON|LNG|X)$/i.test(h.trim()));
 
-    const makeId = (raw) => { const p = [codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '', refIdx >= 0 ? (raw[headers[refIdx]] || '') : '', ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '']; const id = p.filter(Boolean).join('|'); return id || ('CH-' + Math.random().toString(36).slice(2, 8).toUpperCase()); };
+    const makeId = (raw) => { 
+      const ch2 = codeCh2Idx >= 0 ? (raw[headers[codeCh2Idx]] || '') : '';
+      const ref = refIdx >= 0 ? (raw[headers[refIdx]] || '') : '';
+      const ordre = ordreIdx >= 0 ? (raw[headers[ordreIdx]] || '') : '';
+      const ch1 = codeCh1Idx >= 0 ? (raw[headers[codeCh1Idx]] || '') : '';
+      const id = [ch2, ref, ordre].filter(Boolean).join('|'); 
+      return id || ('CH-' + ch1.replace(/[^A-Za-z0-9]/g, '_') + '-' + Math.random().toString(36).slice(2, 6).toUpperCase()); 
+    };
     
     const mapChambres = new Map();
+    let gpsCount = 0;
     for (const r of dataRows) {
       if (r.length < 2) continue;
       const raw = {}; headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
@@ -1687,51 +1689,63 @@ async function importCSV(file){
       
       let latVal = '', lonVal = '';
 
-      // 1. WAZE
+      // ============================================================
+      // PRIORITÉ 1 : WAZE (contient les vraies coordonnées GPS WGS84)
+      // ============================================================
       if (wazeIdx >= 0 && r[wazeIdx]) {
-        let wazeStr = r[wazeIdx];
+        let wazeStr = String(r[wazeIdx]).trim();
         try { wazeStr = decodeURIComponent(wazeStr); } catch(e){}
-        const matchWaze = wazeStr.match(/ll=([-+]?\d*\.?\d+)(?:,|%2C)\s*([-+]?\d*\.?\d+)/i);
+        
+        const matchWaze = wazeStr.match(/ll=([-+]?\d+\.?\d*)\s*[,%2C]+\s*([-+]?\d+\.?\d*)/i);
         if (matchWaze) {
-          latVal = matchWaze[1];
-          lonVal = matchWaze[2];
-        }
-      }
-
-      // 2. WKT
-      if ((!latVal || !lonVal) && wktIdx >= 0 && r[wktIdx]) {
-        const m = String(r[wktIdx]).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
-        if (m) {
-          const v1 = parseFloat(m[1].replace(',', '.'));
-          const v2 = parseFloat(m[2].replace(',', '.'));
-          if (Math.abs(v1) > 40 && Math.abs(v2) < 40) {
-            latVal = m[1]; lonVal = m[2];
-          } else if (Math.abs(v1) < 40 && Math.abs(v2) > 40) {
-            lonVal = m[1]; latVal = m[2];
-          } else {
-            lonVal = m[1]; latVal = m[2];
+          const fLat = parseFloat(matchWaze[1]);
+          const fLon = parseFloat(matchWaze[2]);
+          if (!isNaN(fLat) && !isNaN(fLon) && Math.abs(fLat) <= 90 && Math.abs(fLon) <= 180 && fLat !== 0) {
+            latVal = String(fLat);
+            lonVal = String(fLon);
+            gpsCount++;
           }
         }
       }
 
-      // 3. LAT/LON
+      // ============================================================
+      // PRIORITÉ 2 : Colonnes LATITUDE / LONGITUDE explicites
+      // ============================================================
       if ((!latVal || !lonVal) && latIdx >= 0 && lonIdx >= 0) {
-        const vLat = String(r[latIdx] || '').replace(',', '.');
-        const vLon = String(r[lonIdx] || '').replace(',', '.');
+        const vLat = String(r[latIdx] || '').replace(',', '.').trim();
+        const vLon = String(r[lonIdx] || '').replace(',', '.').trim();
         const fLat = parseFloat(vLat);
         const fLon = parseFloat(vLon);
-        if (!isNaN(fLat) && !isNaN(fLon)) {
-          if (Math.abs(fLat) <= 90 && Math.abs(fLon) <= 180) {
-            latVal = vLat; lonVal = vLon;
-          } else {
-            if (Math.abs(fLon) <= 90 && Math.abs(fLat) <= 180) {
-              latVal = vLon; lonVal = vLat;
+        if (!isNaN(fLat) && !isNaN(fLon) && Math.abs(fLat) <= 90 && Math.abs(fLon) <= 180 && fLat !== 0) {
+          latVal = vLat; lonVal = vLon;
+        }
+      }
+
+      // ============================================================
+      // PRIORITÉ 3 : WKT classique UNIQUEMENT (ignorer MultiPoint Z = Lambert)
+      // ============================================================
+      if ((!latVal || !lonVal) && wktIdx >= 0 && r[wktIdx]) {
+        const wktStr = String(r[wktIdx]).trim();
+        // Ignorer les MultiPoint Z (Lambert 93, pas GPS)
+        if (!/MultiPoint/i.test(wktStr)) {
+          const m = wktStr.match(/POINT\s*\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/i);
+          if (m) {
+            const v1 = parseFloat(m[1].replace(',', '.'));
+            const v2 = parseFloat(m[2].replace(',', '.'));
+            if (!isNaN(v1) && !isNaN(v2)) {
+              if (Math.abs(v1) > 40 && Math.abs(v1) <= 90 && Math.abs(v2) <= 40) {
+                latVal = m[1]; lonVal = m[2];
+              } else if (Math.abs(v1) <= 40 && Math.abs(v2) > 40 && Math.abs(v2) <= 90) {
+                lonVal = m[1]; latVal = m[2];
+              }
             }
           }
         }
       }
 
-      // 4. Nettoyage
+      // ============================================================
+      // Nettoyage + validation finale
+      // ============================================================
       const cleanCoord = (v) => {
         if (!v) return '';
         const s = String(v).replace(',', '.').replace(/[^0-9.\-]/g, '');
@@ -1747,6 +1761,16 @@ async function importCSV(file){
           Math.abs(fLatCheck) > 90 || Math.abs(fLonCheck) > 180 ||
           (fLatCheck === 0 && fLonCheck === 0)) {
         latVal = ''; lonVal = '';
+      }
+      
+      // Vérif finale : rejeter si ça ressemble à du Lambert 93
+      if (latVal && lonVal) {
+        const nx = parseFloat(latVal);
+        const ny = parseFloat(lonVal);
+        if (estLambert93(nx, ny) || estLambert93(ny, nx)) {
+          console.warn(`⚠️ Coordonnées Lambert détectées pour ${raw.CODE_CH1 || id} — ignorées`);
+          latVal = ''; lonVal = '';
+        }
       }
 
       const bpeVal = getRawValue({raw}, ['BPE', 'bpe'], '');
@@ -1782,7 +1806,11 @@ async function importCSV(file){
     await dbClear(); chambres = newC;
     for (const c of chambres) await dbPut(c);
     trierChambres(); updateHomeStats(); updateImportLock();
-    alert(`${chambres.length} chambre(s) prête(s).`);
+    
+    let msg = `${chambres.length} chambre(s) prête(s).`;
+    if (gpsCount > 0) msg += `\n📍 ${gpsCount} coordonnées GPS extraites depuis Waze.`;
+    else msg += `\n⚠️ Aucune coordonnée GPS trouvée.`;
+    alert(msg);
   } catch(err) { alert("Erreur d'importation : \n" + err.message); }
   finally { showOverlay(false); }
 }
@@ -1912,7 +1940,6 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   chambres.splice(idx + 1, 0, nC); 
   await dbPut(nC); 
   updateHomeStats(); 
-  // FIX: pas de trierChambres() pour respecter l'ordre d'insertion visuel
   document.getElementById('modalAddChambre').style.display = 'none';
   alert(`Chambre ${nId} ajoutée (ORDRE_GEO ${nG}).`);
 };
@@ -1949,7 +1976,6 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
   } catch(e) { console.error("Erreur init : " + e.message); }
 })();
 
-/* -------------------- BOUTON FUSIONNÉ -------------------- */
 async function lancerRechercheProche() {
   if (!chambres.length) { showScreen('list'); return; }
   
