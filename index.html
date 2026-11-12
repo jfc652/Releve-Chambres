@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.4 (correctif GPS)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.5 (correctif GPS final)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -362,7 +362,6 @@ function getDisplayNameById(id) {
   return c ? getDisplayName(c) : id;
 }
 
-// Détection coordonnées Lambert 93
 function estLambert93(x, y) {
   return (x > 100000 && x < 1200000) && (y > 6000000 && y < 7200000);
 }
@@ -1120,7 +1119,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.4`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.5`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1681,6 +1680,8 @@ async function importCSV(file){
     
     const mapChambres = new Map();
     let gpsCount = 0;
+    let gpsWaze = 0, gpsLatLon = 0, gpsWkt = 0;
+
     for (const r of dataRows) {
       if (r.length < 2) continue;
       const raw = {}; headers.forEach((h, i) => raw[h] = (r[i] || '').trim());
@@ -1688,89 +1689,76 @@ async function importCSV(file){
       const id = makeId(raw);
       
       let latVal = '', lonVal = '';
+      let source = '';
 
       // ============================================================
-      // PRIORITÉ 1 : WAZE (contient les vraies coordonnées GPS WGS84)
+      // EXTRACTION INTELLIGENTE DES COORDONNÉES
       // ============================================================
+
+      // 1. WAZE
       if (wazeIdx >= 0 && r[wazeIdx]) {
         let wazeStr = String(r[wazeIdx]).trim();
         try { wazeStr = decodeURIComponent(wazeStr); } catch(e){}
-        
         const matchWaze = wazeStr.match(/ll=([-+]?\d+\.?\d*)\s*[,%2C]+\s*([-+]?\d+\.?\d*)/i);
         if (matchWaze) {
-          const fLat = parseFloat(matchWaze[1]);
-          const fLon = parseFloat(matchWaze[2]);
-          if (!isNaN(fLat) && !isNaN(fLon) && Math.abs(fLat) <= 90 && Math.abs(fLon) <= 180 && fLat !== 0) {
-            latVal = String(fLat);
-            lonVal = String(fLon);
-            gpsCount++;
+          const v1 = parseFloat(matchWaze[1]);
+          const v2 = parseFloat(matchWaze[2]);
+          if (!isNaN(v1) && !isNaN(v2)) {
+            if (Math.abs(v1) <= 90 && Math.abs(v2) <= 180 && v1 !== 0) {
+              if (v1 > 40 && v2 < 40) { latVal = v1; lonVal = v2; }
+              else if (v1 < 40 && v2 > 40) { latVal = v2; lonVal = v1; }
+              else { latVal = v1; lonVal = v2; }
+              if (latVal && lonVal) { source = 'WAZE'; gpsWaze++; }
+            }
           }
         }
       }
 
-      // ============================================================
-      // PRIORITÉ 2 : Colonnes LATITUDE / LONGITUDE explicites
-      // ============================================================
+      // 2. LAT / LON explicites
       if ((!latVal || !lonVal) && latIdx >= 0 && lonIdx >= 0) {
         const vLat = String(r[latIdx] || '').replace(',', '.').trim();
         const vLon = String(r[lonIdx] || '').replace(',', '.').trim();
-        const fLat = parseFloat(vLat);
-        const fLon = parseFloat(vLon);
-        if (!isNaN(fLat) && !isNaN(fLon) && Math.abs(fLat) <= 90 && Math.abs(fLon) <= 180 && fLat !== 0) {
-          latVal = vLat; lonVal = vLon;
+        const v1 = parseFloat(vLat);
+        const v2 = parseFloat(vLon);
+        if (!isNaN(v1) && !isNaN(v2)) {
+          if (v1 > 40 && v2 < 40) { latVal = v1; lonVal = v2; }
+          else if (v1 < 40 && v2 > 40) { latVal = v2; lonVal = v1; }
+          else { latVal = v1; lonVal = v2; }
+          if (latVal && lonVal) { source = 'LAT_LON'; gpsLatLon++; }
         }
       }
 
-      // ============================================================
-      // PRIORITÉ 3 : WKT classique UNIQUEMENT (ignorer MultiPoint Z = Lambert)
-      // ============================================================
+      // 3. WKT (Uniquement si ce n'est PAS du Lambert MultiPoint)
       if ((!latVal || !lonVal) && wktIdx >= 0 && r[wktIdx]) {
         const wktStr = String(r[wktIdx]).trim();
-        // Ignorer les MultiPoint Z (Lambert 93, pas GPS)
         if (!/MultiPoint/i.test(wktStr)) {
           const m = wktStr.match(/POINT\s*\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/i);
           if (m) {
             const v1 = parseFloat(m[1].replace(',', '.'));
             const v2 = parseFloat(m[2].replace(',', '.'));
             if (!isNaN(v1) && !isNaN(v2)) {
-              if (Math.abs(v1) > 40 && Math.abs(v1) <= 90 && Math.abs(v2) <= 40) {
-                latVal = m[1]; lonVal = m[2];
-              } else if (Math.abs(v1) <= 40 && Math.abs(v2) > 40 && Math.abs(v2) <= 90) {
-                lonVal = m[1]; latVal = m[2];
-              }
+              if (v1 > 40 && v2 < 40) { latVal = v1; lonVal = v2; }
+              else if (v1 < 40 && v2 > 40) { latVal = v2; lonVal = v1; }
+              else { latVal = v1; lonVal = v2; }
+              if (latVal && lonVal) { source = 'WKT'; gpsWkt++; }
             }
           }
         }
       }
 
-      // ============================================================
-      // Nettoyage + validation finale
-      // ============================================================
-      const cleanCoord = (v) => {
-        if (!v) return '';
-        const s = String(v).replace(',', '.').replace(/[^0-9.\-]/g, '');
-        const n = parseFloat(s);
-        return isNaN(n) ? '' : s;
-      };
-      latVal = cleanCoord(latVal);
-      lonVal = cleanCoord(lonVal);
-
-      const fLatCheck = parseFloat(latVal);
-      const fLonCheck = parseFloat(lonVal);
-      if (isNaN(fLatCheck) || isNaN(fLonCheck) || 
-          Math.abs(fLatCheck) > 90 || Math.abs(fLonCheck) > 180 ||
-          (fLatCheck === 0 && fLonCheck === 0)) {
-        latVal = ''; lonVal = '';
-      }
+      // --- VALIDATION FINALE ---
+      const fLat = parseFloat(latVal);
+      const fLon = parseFloat(lonVal);
       
-      // Vérif finale : rejeter si ça ressemble à du Lambert 93
-      if (latVal && lonVal) {
-        const nx = parseFloat(latVal);
-        const ny = parseFloat(lonVal);
-        if (estLambert93(nx, ny) || estLambert93(ny, nx)) {
-          console.warn(`⚠️ Coordonnées Lambert détectées pour ${raw.CODE_CH1 || id} — ignorées`);
+      if (!isNaN(fLat) && !isNaN(fLon)) {
+        if (Math.abs(fLat) > 90 || Math.abs(fLon) > 180 || (fLat === 0 && fLon === 0)) {
           latVal = ''; lonVal = '';
+        } else {
+          if (fLat > 100000 || fLon > 100000) { latVal = ''; lonVal = ''; }
+          else { gpsCount++; }
         }
+      } else {
+        latVal = ''; lonVal = '';
       }
 
       const bpeVal = getRawValue({raw}, ['BPE', 'bpe'], '');
@@ -1784,9 +1772,12 @@ async function importCSV(file){
         passages: [{ id: uuid(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] 
       });
     }
+    
     if (mapChambres.size === 0) throw new Error("Aucune chambre valide.");
+    
     const existingDb = new Map(chambres.map(c => [c.id, c]));
     const safeKeys = ['COMMUNE','PROPRIETAI','CODE_CH2','REF_CHAMBR','ORDRE','WAZE','FCI','ADRESSE','ETIQUETTE_2','NUM_VOIE','DIST_CHAMB','wkt_geom','WKT_GEOM','BPE','CODE_CH1','CAPACITE','LATITUDE','LONGITUDE'];
+    
     const newC = Array.from(mapChambres.values()).map(nC => { 
       const oC = existingDb.get(nC.id); 
       if (oC) { 
@@ -1807,10 +1798,19 @@ async function importCSV(file){
     for (const c of chambres) await dbPut(c);
     trierChambres(); updateHomeStats(); updateImportLock();
     
-    let msg = `${chambres.length} chambre(s) prête(s).`;
-    if (gpsCount > 0) msg += `\n📍 ${gpsCount} coordonnées GPS extraites depuis Waze.`;
-    else msg += `\n⚠️ Aucune coordonnée GPS trouvée.`;
-    alert(msg);
+    let msg = `${chambres.length} chambres importées.\n`;
+    msg += `📍 ${gpsCount} coordonnées GPS valides trouvées :\n`;
+    if (gpsWaze > 0) msg += `   • ${gpsWaze} via WAZE\n`;
+    if (gpsLatLon > 0) msg += `   • ${gpsLatLon} via LAT/LON\n`;
+    if (gpsWkt > 0) msg += `   • ${gpsWkt} via WKT POINT\n`;
+    
+    if (gpsCount === 0) {
+      msg += `\n⚠️ ATTENTION : Aucune coordonnée GPS n'a pu être extraite.\nVérifiez votre CSV.`;
+      alert(msg);
+    } else {
+      alert(msg);
+    }
+
   } catch(err) { alert("Erreur d'importation : \n" + err.message); }
   finally { showOverlay(false); }
 }
