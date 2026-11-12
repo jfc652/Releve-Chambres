@@ -96,42 +96,20 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .toast-notif { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#2e7d32; color:#fff; padding:14px 22px; border-radius:10px; font-weight:600; z-index:9999; box-shadow:0 6px 20px rgba(0,0,0,0.35); font-size:15px; animation: toastIn .3s ease-out; max-width:90%; text-align:center; }
 @keyframes toastIn { from { opacity:0; transform:translate(-50%, -20px); } to { opacity:1; transform:translate(-50%, 0); } }
 
-/* Style pour les marqueurs de la carte PDF (fusion point + étiquette) */
-.custom-pin-label {
-  position: relative;
-  width: 0;
-  height: 0;
+/* Style pour les tooltips de la carte PDF */
+.leaflet-tooltip-custom {
+  background: #ffffff !important;
+  border: 1px solid #c62828 !important;
+  border-radius: 4px !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+  font-size: 11px !important;
+  font-family: Arial, sans-serif !important;
+  padding: 2px 6px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+  white-space: nowrap !important;
 }
-.custom-pin-label .pin-dot {
-  position: absolute;
-  top: -6px;
-  left: -6px;
-  width: 12px;
-  height: 12px;
-  background-color: #c62828;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.6);
-  z-index: 1000;
-}
-.custom-pin-label .pin-label {
-  position: absolute;
-  top: -30px;
-  left: 10px;
-  background: #ffffff;
-  border: 1px solid #c62828;
-  border-radius: 4px;
-  color: #000000;
-  font-weight: bold;
-  font-size: 11px;
-  font-family: Arial, sans-serif;
-  padding: 2px 6px;
-  white-space: nowrap;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.4);
-  z-index: 1001;
-  display: block !important;
-  visibility: visible !important;
-}
+.leaflet-tooltip-custom::before { display: none !important; }
 </style>
 
 <script>
@@ -1238,8 +1216,9 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         attributionControl: false,
         fadeAnimation: false,
         zoomAnimation: false,
-        preferCanvas: false,
-        zoomSnap: 0.5
+        preferCanvas: true,
+        zoomSnap: 0.5,
+        renderer: L.canvas()
       });
 
       const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -1257,20 +1236,29 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         const lat = parseFloat(c.lat);
         const lon = parseFloat(c.lon);
         
-        const customIcon = L.divIcon({
-          className: 'custom-pin-label',
-          html: `<div class="pin-dot"></div><div class="pin-label">${escapeHTML(getDisplayName(c))}</div>`,
-          iconSize: [0, 0],
-          iconAnchor: [0, 0]
-        });
+        const marker = L.circleMarker([lat, lon], {
+          radius: 6,
+          fillColor: '#c62828',
+          color: '#ffffff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 1
+        }).addTo(map);
 
-        L.marker([lat, lon], { icon: customIcon }).addTo(map);
+        marker.bindTooltip(escapeHTML(getDisplayName(c)), {
+          permanent: true,
+          direction: 'right',
+          offset: [8, 0],
+          className: 'leaflet-tooltip-custom'
+        }).openTooltip();
       });
 
       const doCapture = async () => {
         if (resolved) return;
         map.invalidateSize();
-        await new Promise(r => setTimeout(r, 2000)); // Attente augmentée
+        
+        await new Promise(r => setTimeout(r, 2500)); 
+
         try {
           const canvas = await html2canvas(container, {
             useCORS: true,
@@ -1278,8 +1266,7 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
             backgroundColor: '#ffffff',
             scale: 1,
             logging: false,
-            imageTimeout: 15000,
-            removeContainer: true
+            imageTimeout: 15000
           });
           finish(canvas.toDataURL('image/png'));
         } catch (err) {
@@ -1290,10 +1277,10 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
 
       tileLayer.once('load', () => {
         if (timeoutHandle) { clearTimeout(timeoutHandle); timeoutHandle = null; }
-        setTimeout(doCapture, 3000);
+        setTimeout(doCapture, 3500);
       });
 
-      timeoutHandle = setTimeout(doCapture, 12000);
+      timeoutHandle = setTimeout(doCapture, 15000);
 
     } catch (e) {
       console.warn('Erreur création carte Leaflet:', e);
@@ -1585,6 +1572,8 @@ async function importCSV(file){
     const refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
     const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
     
+    const wazeIdx = headers.findIndex(h => /^WAZE$/i.test(h.trim()));
+    const wktIdx = headers.findIndex(h => /^wkt_geom$/i.test(h.trim()));
     const latIdx = headers.findIndex(h => /^(LATITUDE|LAT|Y)$/i.test(h.trim()));
     const lonIdx = headers.findIndex(h => /^(LONGITUDE|LON|LNG|X)$/i.test(h.trim()));
 
@@ -1597,24 +1586,37 @@ async function importCSV(file){
       if (!raw['ORDRE_GEO']) { const o = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : ''; if (o) raw['ORDRE_GEO'] = makeOrdreGeo(o); }
       const id = makeId(raw);
       
-      let latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
-      let lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
-      
-      if ((!latVal || !lonVal) && raw['wkt_geom']) {
-        const m = String(raw['wkt_geom']).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
-        if (m) {
-          lonVal = m[1].replace(',', '.');
-          latVal = m[2].replace(',', '.');
-        }
-      }
-      
-      if ((!latVal || !lonVal) && (raw['WAZE'] || raw['waze'])) {
-        let wazeStr = raw['WAZE'] || raw['waze'];
+      let latVal = '', lonVal = '';
+
+      if (wazeIdx >= 0 && r[wazeIdx]) {
+        let wazeStr = r[wazeIdx];
         try { wazeStr = decodeURIComponent(wazeStr); } catch(e){}
         const matchWaze = wazeStr.match(/ll=([-+]?\d*\.?\d+)(?:,|%2C)\s*([-+]?\d*\.?\d+)/i);
         if (matchWaze) {
           latVal = matchWaze[1];
           lonVal = matchWaze[2];
+        }
+      }
+
+      if ((!latVal || !lonVal) && wktIdx >= 0 && r[wktIdx]) {
+        const m = String(r[wktIdx]).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
+        if (m) {
+          const val1 = parseFloat(m[1].replace(',', '.'));
+          const val2 = parseFloat(m[2].replace(',', '.'));
+          if (val1 > 40 && val2 < 40) { latVal = m[1]; lonVal = m[2]; }
+          else { lonVal = m[1]; latVal = m[2]; }
+        }
+      }
+
+      if ((!latVal || !lonVal) && latIdx >= 0 && lonIdx >= 0) {
+        const vX = r[lonIdx] || '';
+        const vY = r[latIdx] || ''; 
+        const fX = parseFloat(vX.replace(',', '.'));
+        const fY = parseFloat(vY.replace(',', '.'));
+        
+        if (!isNaN(fX) && !isNaN(fY)) {
+          if (fX > 40 && fY < 40) { latVal = vX; lonVal = vY; }
+          else { latVal = vY; lonVal = vX; }
         }
       }
       
@@ -1626,10 +1628,6 @@ async function importCSV(file){
       let fLon = parseFloat(lonVal);
       
       if (!isNaN(fLat) && !isNaN(fLon)) {
-          if (fLat < 15 && fLon > 40) { 
-              const tmp = latVal; latVal = lonVal; lonVal = tmp;
-              fLat = parseFloat(latVal); fLon = parseFloat(lonVal);
-          }
           if (fLat < -90 || fLat > 90 || fLon < -180 || fLon > 180) {
               latVal = ''; lonVal = '';
           }
