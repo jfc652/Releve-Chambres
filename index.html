@@ -95,6 +95,19 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 #headerChrono.paused { background:rgba(255,171,64,0.5); }
 .toast-notif { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#2e7d32; color:#fff; padding:14px 22px; border-radius:10px; font-weight:600; z-index:9999; box-shadow:0 6px 20px rgba(0,0,0,0.35); font-size:15px; animation: toastIn .3s ease-out; max-width:90%; text-align:center; }
 @keyframes toastIn { from { opacity:0; transform:translate(-50%, -20px); } to { opacity:1; transform:translate(-50%, 0); } }
+
+/* Leaflet tooltips personnalisés */
+.leaflet-tooltip-custom {
+  background: rgba(255,255,255,0.95) !important;
+  border: 1px solid #c62828 !important;
+  border-radius: 4px !important;
+  color: #000 !important;
+  font-weight: bold !important;
+  font-size: 11px !important;
+  padding: 2px 6px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+}
+.leaflet-tooltip-custom::before { display: none !important; }
 </style>
 
 <script>
@@ -111,6 +124,15 @@ window.addEventListener('unhandledrejection', function(e) {
   alert(errMsg);
 });
 </script>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- html2canvas pour capturer la carte -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -1145,6 +1167,124 @@ async function construireSynoptiquePDF() {
   return { doc, nomProjet, nbPages: doc.internal.getNumberOfPages(), nbChambres: donnees.length };
 }
 
+/* ============================================================
+   CAPTURE LOCALE DE CARTE AVEC LEAFLET + HTML2CANVAS
+   ============================================================ */
+async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900) {
+  return new Promise((resolve) => {
+    if (!window.L || !window.html2canvas) {
+      console.warn('Leaflet ou html2canvas non chargé.');
+      resolve(null);
+      return;
+    }
+
+    const container = document.createElement('div');
+    container.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: ${widthPx}px;
+      height: ${heightPx}px;
+      z-index: -1;
+      opacity: 0.01;
+      background: #ffffff;
+      pointer-events: none;
+    `;
+    document.body.appendChild(container);
+
+    let map = null;
+    let timeoutHandle = null;
+    let resolved = false;
+
+    const cleanup = () => {
+      if (timeoutHandle) { clearTimeout(timeoutHandle); timeoutHandle = null; }
+      if (map) { try { map.remove(); } catch(e){} map = null; }
+      if (container.parentNode) container.parentNode.removeChild(container);
+    };
+
+    const finish = (dataUrl) => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(dataUrl);
+    };
+
+    try {
+      map = L.map(container, {
+        zoomControl: false,
+        attributionControl: true,
+        fadeAnimation: false,
+        zoomAnimation: false,
+        preferCanvas: false,
+        zoomSnap: 0.5
+      });
+
+      const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19,
+        crossOrigin: true
+      }).addTo(map);
+
+      const latLngs = chambresGps.map(c => [parseFloat(c.lat), parseFloat(c.lon)]);
+      const bounds = L.latLngBounds(latLngs);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
+
+      map.invalidateSize();
+
+      chambresGps.forEach(c => {
+        const lat = parseFloat(c.lat);
+        const lon = parseFloat(c.lon);
+        L.circleMarker([lat, lon], {
+          radius: 6,
+          fillColor: '#c62828',
+          color: '#000000',
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 0.9
+        }).addTo(map).bindTooltip(getDisplayName(c), {
+          permanent: true,
+          direction: 'right',
+          offset: [8, 0],
+          className: 'leaflet-tooltip-custom'
+        });
+      });
+
+      const doCapture = async () => {
+        if (resolved) return;
+        await new Promise(r => setTimeout(r, 800));
+        try {
+          const canvas = await html2canvas(container, {
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: '#ffffff',
+            scale: 1,
+            logging: false,
+            imageTimeout: 5000,
+            width: widthPx,
+            height: heightPx
+          });
+          finish(canvas.toDataURL('image/png'));
+        } catch (err) {
+          console.warn('Capture Leaflet échouée:', err);
+          finish(null);
+        }
+      };
+
+      tileLayer.once('load', () => {
+        if (timeoutHandle) { clearTimeout(timeoutHandle); timeoutHandle = null; }
+        setTimeout(doCapture, 1200);
+      });
+
+      timeoutHandle = setTimeout(doCapture, 8000);
+
+    } catch (e) {
+      console.warn('Erreur création carte Leaflet:', e);
+      finish(null);
+    }
+  });
+}
+
 async function ajouterPageCarteMaps(doc, chambres) {
   const chambresGps = chambres.filter(c => {
      const lat = parseFloat(c.lat);
@@ -1156,146 +1296,114 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.addPage('a3', 'landscape');
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(0, 0, 0);
   doc.text("CARTE DES CHAMBRES GEOLOCALISEES", pageW / 2, 40, { align: 'center' });
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  let minLat = Math.min(...chambresGps.map(c => parseFloat(c.lat)));
-  let maxLat = Math.max(...chambresGps.map(c => parseFloat(c.lat)));
-  let minLon = Math.min(...chambresGps.map(c => parseFloat(c.lon)));
-  let maxLon = Math.max(...chambresGps.map(c => parseFloat(c.lon)));
-  
-  // Zone de dessin
-  const mapRectX = 80;
-  const mapRectY = 80;
-  const mapRectW = pageW - 160;
-  const mapRectH = pageH - 180;
+  // -----------------------------------------------------------------
+  // CAPTURE LOCALE AVEC LEAFLET + HTML2CANVAS
+  // -----------------------------------------------------------------
+  console.log('🗺️ Capture de la carte en cours (Leaflet + html2canvas)...');
+  const capturedW = 1400;
+  const capturedH = 900;
+  let mapDataUrl = await capturerCarteLeaflet(chambresGps, capturedW, capturedH);
 
-  // Calcul de l'échelle
-  let deltaLat = maxLat - minLat;
-  let deltaLon = maxLon - minLon;
-  if (deltaLat === 0) deltaLat = 0.001;
-  if (deltaLon === 0) deltaLon = 0.001;
+  const mapRectX = 80, mapRectY = 80;
+  const mapRectW = pageW - 160, mapRectH = pageH - 180;
 
-  // Ajout d'une marge de 10%
-  const marginLat = deltaLat * 0.1;
-  const marginLon = deltaLon * 0.1;
-  minLat -= marginLat; maxLat += marginLat;
-  minLon -= marginLon; maxLon += marginLon;
-  deltaLat = maxLat - minLat;
-  deltaLon = maxLon - minLon;
+  if (mapDataUrl) {
+    try {
+      const imgRatio = capturedW / capturedH;
+      let drawW = mapRectW;
+      let drawH = drawW / imgRatio;
+      if (drawH > mapRectH) { drawH = mapRectH; drawW = drawH * imgRatio; }
+      const drawX = mapRectX + (mapRectW - drawW) / 2;
+      const drawY = mapRectY + (mapRectH - drawH) / 2;
 
-  // Tentative de chargement d'une image de fond (OpenStreetMap)
-  const centerLat = (minLat + maxLat) / 2;
-  const centerLon = (minLon + maxLon) / 2;
-  let zoom = 10;
-  if (Math.max(deltaLat, deltaLon) > 2) zoom = 6;
-  else if (Math.max(deltaLat, deltaLon) > 1) zoom = 7;
-  else if (Math.max(deltaLat, deltaLon) > 0.5) zoom = 8;
-  else if (Math.max(deltaLat, deltaLon) > 0.2) zoom = 9;
-  else if (Math.max(deltaLat, deltaLon) > 0.1) zoom = 10;
-  else zoom = 11;
-
-  // Ajout des marqueurs dans l'URL pour que la carte les affiche directement
-  const markersStr = chambresGps.slice(0, 15).map(c => `${c.lat},${c.lon},red-pushpin`).join('|');
-  
-  let mapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${centerLat},${centerLon}&zoom=${zoom}&size=1000x600&maptype=mapnik&markers=${markersStr}`;
-  
-  let mapDataUrl = null;
-  try {
-      const img = new Image();
-      img.crossOrigin = 'Anonymous';
-      img.src = mapUrl;
-      
-      // Augmentation du timeout à 5 secondes pour laisser le temps à la carte de charger sur mobile
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000));
-      const loadPromise = new Promise((resolve) => {
-          img.onload = () => {
-              const canvas = document.createElement('canvas');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              canvas.getContext('2d').drawImage(img, 0, 0);
-              resolve(canvas.toDataURL('image/png'));
-          };
-          img.onerror = () => resolve(null);
-      });
-
-      mapDataUrl = await Promise.race([loadPromise, timeoutPromise]);
-
-      if (mapDataUrl) {
-          // Si l'image charge, on la place au centre en respectant le ratio
-          const imgRatio = img.width / img.height;
-          let drawW = mapRectW;
-          let drawH = drawW / imgRatio;
-          if (drawH > mapRectH) { drawH = mapRectH; drawW = drawH * imgRatio; }
-          const drawX = mapRectX + (mapRectW - drawW) / 2;
-          const drawY = mapRectY + (mapRectH - drawH) / 2;
-          
-          doc.addImage(mapDataUrl, 'PNG', drawX, drawY, drawW, drawH);
-          doc.setDrawColor(200, 200, 200);
-          doc.rect(drawX, drawY, drawW, drawH);
-      }
-  } catch (e) {
-      console.warn("Impossible de charger la carte. Fallback vers la carte manuelle.");
+      doc.addImage(mapDataUrl, 'PNG', drawX, drawY, drawW, drawH);
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.rect(drawX, drawY, drawW, drawH);
+      console.log('✅ Carte Leaflet intégrée au PDF.');
+    } catch (e) {
+      console.warn('Erreur insertion image carte:', e);
       mapDataUrl = null;
+    }
   }
 
+  // -----------------------------------------------------------------
+  // FALLBACK : Grille manuelle si la capture a échoué
+  // -----------------------------------------------------------------
   if (!mapDataUrl) {
-      // FALLBACK : Dessin manuel d'une grille et des points
-      doc.setDrawColor(220, 220, 220);
-      doc.setFillColor(252, 252, 252);
-      doc.rect(mapRectX, mapRectY, mapRectW, mapRectH, 'FD');
-      
-      // Dessiner une grille légère
-      doc.setDrawColor(235, 235, 235);
-      const steps = 10;
-      for (let i = 1; i < steps; i++) {
-          const x = mapRectX + (mapRectW / steps) * i;
-          const y = mapRectY + (mapRectH / steps) * i;
-          doc.line(x, mapRectY, x, mapRectY + mapRectH);
-          doc.line(mapRectX, y, mapRectX + mapRectW, y);
-      }
+    console.warn('⚠️ Fallback vers la carte manuelle.');
 
-      // Texte explicatif
-      doc.setFontSize(10);
-      doc.setTextColor(150, 150, 150);
-      doc.text("(Fond de carte indisponible. Affichage schématique des points.)", mapRectX + mapRectW / 2, mapRectY + mapRectH - 10, { align: 'center' });
+    let minLat = Math.min(...chambresGps.map(c => parseFloat(c.lat)));
+    let maxLat = Math.max(...chambresGps.map(c => parseFloat(c.lat)));
+    let minLon = Math.min(...chambresGps.map(c => parseFloat(c.lon)));
+    let maxLon = Math.max(...chambresGps.map(c => parseFloat(c.lon)));
 
-      // Tracer les points
-      chambresGps.forEach(c => {
-          const lat = parseFloat(c.lat);
-          const lon = parseFloat(c.lon);
-          
-          // Convertir lat/lon en X/Y
-          const px = mapRectX + ((lon - minLon) / deltaLon) * mapRectW;
-          // L'axe Y est inversé (Lat max en haut, Lat min en bas)
-          const py = mapRectY + mapRectH - ((lat - minLat) / deltaLat) * mapRectH;
-          
-          // Dessiner le point
-          doc.setFillColor(200, 30, 30);
-          doc.setDrawColor(0, 0, 0);
-          doc.circle(px, py, 3, 'FD');
-          
-          // Nom de la chambre
-          doc.setFontSize(6);
-          doc.setTextColor(0, 0, 0);
-          doc.text(getDisplayName(c), px + 5, py + 2);
-      });
+    let deltaLat = maxLat - minLat || 0.001;
+    let deltaLon = maxLon - minLon || 0.001;
+    const marginLat = deltaLat * 0.1, marginLon = deltaLon * 0.1;
+    minLat -= marginLat; maxLat += marginLat;
+    minLon -= marginLon; maxLon += marginLon;
+    deltaLat = maxLat - minLat; deltaLon = maxLon - minLon;
+
+    doc.setDrawColor(220, 220, 220);
+    doc.setFillColor(252, 252, 252);
+    doc.rect(mapRectX, mapRectY, mapRectW, mapRectH, 'FD');
+
+    const steps = 10;
+    for (let i = 1; i < steps; i++) {
+        const x = mapRectX + (mapRectW / steps) * i;
+        const y = mapRectY + (mapRectH / steps) * i;
+        doc.line(x, mapRectY, x, mapRectY + mapRectH);
+        doc.line(mapRectX, y, mapRectX + mapRectW, y);
+    }
+
+    doc.setFontSize(10);
+    doc.setTextColor(150, 150, 150);
+    doc.text("(Fond de carte indisponible. Affichage schématique des points.)",
+             mapRectX + mapRectW / 2, mapRectY + mapRectH - 10, { align: 'center' });
+
+    chambresGps.forEach(c => {
+        const lat = parseFloat(c.lat);
+        const lon = parseFloat(c.lon);
+        const px = mapRectX + ((lon - minLon) / deltaLon) * mapRectW;
+        const py = mapRectY + mapRectH - ((lat - minLat) / deltaLat) * mapRectH;
+
+        doc.setFillColor(200, 30, 30);
+        doc.setDrawColor(0, 0, 0);
+        doc.circle(px, py, 3, 'FD');
+
+        doc.setFontSize(6);
+        doc.setTextColor(0, 0, 0);
+        doc.text(getDisplayName(c), px + 5, py + 2);
+    });
   }
 
-  // Lien Google Maps pour le trajet (SANS EMOJI)
-  let gmapsUrl = `https://www.google.com/maps/dir/`;
+  // -----------------------------------------------------------------
+  // LIEN GOOGLE MAPS (jusqu'à 50 chambres pour éviter les URL trop longues)
+  // -----------------------------------------------------------------
   if (chambresGps.length > 0) {
-      chambresGps.slice(0, 10).forEach(c => { gmapsUrl += `${c.lat},${c.lon}/`; });
+      let gmapsUrl = `https://www.google.com/maps/dir/`;
+      const maxPoints = Math.min(chambresGps.length, 50);
+      for (let i = 0; i < maxPoints; i++) {
+          gmapsUrl += `${chambresGps[i].lat},${chambresGps[i].lon}/`;
+      }
       doc.setFontSize(10);
       doc.setTextColor(0, 0, 255);
-      doc.textWithLink("Ouvrir l'itinéraire dans Google Maps (10 premières chambres)", pageW / 2, pageH - 40, { align: 'center', url: gmapsUrl });
+      doc.textWithLink(
+        `Ouvrir l'itinéraire dans Google Maps (${maxPoints} chambres)`,
+        pageW / 2, pageH - 40,
+        { align: 'center', url: gmapsUrl }
+      );
   }
 }
 
@@ -1484,7 +1592,6 @@ async function importCSV(file){
       let latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
       let lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
       
-      // EXTRACTION WKT : POINT(Longitude Latitude)
       if ((!latVal || !lonVal) && raw['wkt_geom']) {
         const m = String(raw['wkt_geom']).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
         if (m) {
@@ -1493,7 +1600,6 @@ async function importCSV(file){
         }
       }
       
-      // EXTRACTION WAZE : ll=Latitude,Longitude
       if ((!latVal || !lonVal) && (raw['WAZE'] || raw['waze'])) {
         let wazeStr = raw['WAZE'] || raw['waze'];
         try { wazeStr = decodeURIComponent(wazeStr); } catch(e){}
@@ -1504,7 +1610,6 @@ async function importCSV(file){
         }
       }
       
-      // Nettoyage final
       const cleanCoord = (v) => { if(!v) return ''; return String(v).replace(',', '.').replace(/[^0-9.\-]/g, ''); };
       latVal = cleanCoord(latVal);
       lonVal = cleanCoord(lonVal);
@@ -1513,7 +1618,6 @@ async function importCSV(file){
       let fLon = parseFloat(lonVal);
       
       if (!isNaN(fLat) && !isNaN(fLon)) {
-          // CORRECTION INTELLIGENTE : En France, si lat < 15 et lon > 40, c'est inversé
           if (fLat < 15 && fLon > 40) { 
               const tmp = latVal; latVal = lonVal; lonVal = tmp;
               fLat = parseFloat(latVal); fLon = parseFloat(lonVal);
@@ -1704,7 +1808,6 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
 async function lancerRechercheProche() {
   if (!chambres.length) { showScreen('list'); return; }
   
-  // FILTRE STRICT : On s'assure que les coordonnées sont valides
   const withGps = chambres.filter(c => {
      if (c.done) return false;
      const lat = parseFloat(c.lat);
@@ -1745,7 +1848,6 @@ async function lancerRechercheProche() {
         let cLat = parseFloat(c.lat);
         let cLon = parseFloat(c.lon);
         
-        // Heuristique de sécurité si l'inversion a échoué à l'import
         if (cLat < 15 && cLon > 40) { const tmp = cLat; cLat = cLon; cLon = tmp; }
 
         const d = calculerDistance(uLat, uLon, cLat, cLon);
@@ -1760,7 +1862,6 @@ async function lancerRechercheProche() {
         return;
       }
 
-      // CORRECTION DU SEUIL POUR LA POPUP (si > 500 m)
       if (minD > 500) {
         const shouldOpen = await demanderConfirmationDistance(minD, best);
         if (!shouldOpen) {
