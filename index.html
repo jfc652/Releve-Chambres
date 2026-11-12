@@ -181,16 +181,16 @@ window.addEventListener('unhandledrejection', function(e) {
       <ul id="transfertsList" style="margin:5px 0 0 20px; padding:0;"></ul>
     </div>
     <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px; background:#e0e0e0; color:#333; border:1px solid #ccc;">➕ Ajouter une nouvelle chambre</button>
-    <button id="startBtn" class="btn" style="margin-top:8px;">Commencer le relevé →</button>
-    <button id="btnGeoLoc" class="btn" style="margin-top:8px; background:#e65100;">📍 Chambre la plus proche</button>
+    <!-- BOUTON FUSIONNÉ -->
+    <button id="startBtn" class="btn" style="margin-top:8px; background:#e65100;">🚀 Démarrer le relevé (GPS)</button>
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
 
   <div class="card" id="chronoCard" style="display:none;">
     <h2 style="margin-top:0;font-size:17px;">⏱️ Chronomètre de chantier</h2>
-    <p class="small">Le chrono démarre à la première pression sur <b>📍 Chambre la plus proche</b>. La chambre est chronométrée depuis son ouverture jusqu'à la prise de la <b>dernière photo requise</b>, puis validée automatiquement.</p>
+    <p class="small">Le chrono démarre à la première pression sur <b>🚀 Démarrer le relevé</b>. La chambre est chronométrée depuis son ouverture jusqu'à la prise de la <b>dernière photo requise</b>, puis validée automatiquement.</p>
     <div class="chrono-display" id="chronoDisplay">00:00</div>
-    <div class="chrono-status" id="chronoStatus">En attente du premier clic 📍</div>
+    <div class="chrono-status" id="chronoStatus">En attente du démarrage</div>
     <div style="margin-top:10px;">
       <button id="btnChronoReset" class="btn btn-danger" style="padding:10px;font-size:13px;">🔄 Réinitialiser le chrono</button>
     </div>
@@ -234,7 +234,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.2</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.3</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -401,7 +401,7 @@ function updateChronoUI() {
     if (header) { header.textContent = '⏸️ ' + timeStr; header.style.display = 'inline-block'; header.classList.add('paused'); }
   } else {
     if (disp) { disp.textContent = '00:00'; disp.classList.remove('paused'); }
-    if (status) status.textContent = 'En attente du premier clic 📍';
+    if (status) status.textContent = 'En attente du démarrage';
     if (header) header.style.display = 'none';
   }
 }
@@ -952,7 +952,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.2`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.3`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1214,7 +1214,6 @@ async function importCSV(file){
       let latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
       let lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
       
-      // 1. Tenter d'extraire depuis wkt_geom
       if ((!latVal || !lonVal) && raw['wkt_geom']) {
         const m = String(raw['wkt_geom']).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
         if (m) {
@@ -1222,11 +1221,10 @@ async function importCSV(file){
           lonVal = m[2].replace(',', '.');
         }
       }
-
-      // 2. Tenter d'extraire depuis la colonne WAZE (si toujours vide)
+      
       if ((!latVal || !lonVal) && (raw['WAZE'] || raw['waze'])) {
         let wazeStr = raw['WAZE'] || raw['waze'];
-        try { wazeStr = decodeURIComponent(wazeStr); } catch(e){} // Gère le %2C
+        try { wazeStr = decodeURIComponent(wazeStr); } catch(e){}
         const matchWaze = wazeStr.match(/ll=([-+]?\d*\.?\d+)(?:,|%2C)\s*([-+]?\d*\.?\d+)/i);
         if (matchWaze) {
           latVal = matchWaze[1];
@@ -1234,7 +1232,6 @@ async function importCSV(file){
         }
       }
       
-      // Nettoyage final (virgules -> points)
       if (latVal) latVal = String(latVal).replace(',', '.');
       if (lonVal) lonVal = String(lonVal).replace(',', '.');
 
@@ -1312,7 +1309,6 @@ document.getElementById('newProjectBtn').onclick = nouveauProjet;
 document.getElementById('newProjectBtnInline').onclick = nouveauProjet;
 document.getElementById('csvInput').onchange=async e=>{ const f=e.target.files[0]; if(!f)return; await importCSV(f); e.target.value=''; };
 document.getElementById('btnChronoReset').onclick = chronoReset;
-document.getElementById('startBtn').onclick=()=>{trierChambres();renderList();showScreen('list');};
 document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
 document.getElementById('insertAfterSelect').onchange = updateReferenceInfo;
@@ -1398,30 +1394,42 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
   } catch(e) { console.error("Erreur init : " + e.message); }
 })();
 
-/* -------------------- GÉOLOCALISATION -------------------- */
-document.getElementById('btnGeoLoc').onclick = () => {
-  if (!chambres.length) { alert("Aucune chambre chargée."); return; }
+/* -------------------- BOUTON FUSIONNÉ : DÉMARRER LE RELEVÉ (GPS) -------------------- */
+document.getElementById('startBtn').onclick = () => {
+  if (!chambres.length) { alert("Aucune chambre chargée. Importez un CSV."); return; }
+  
+  trierChambres();
+  renderList(); // Toujours prêt en arrière-plan pour le fallback
+
   if (!chrono.running && !chrono.pausedAt && chrono.accumulated === 0) chronoStart();
-  
+
   const withGps = chambres.filter(c => !c.done && c.lat && c.lon && !isNaN(parseFloat(c.lat)) && !isNaN(parseFloat(c.lon)));
-  
+
   if (withGps.length === 0) {
+    showScreen('list');
     const allDone = chambres.every(c => c.done);
     if (allDone) alert("🎉 Toutes les chambres sont validées !");
-    else alert("Aucune chambre NON validée n'a de GPS.");
+    else alert("Aucune chambre NON validée n'a de GPS.\nAffichage de la liste complète.");
     return;
   }
+
   showOverlay(true);
-  if (!navigator.geolocation) { showOverlay(false); alert("Géolocalisation non supportée."); return; }
-  
+  if (!navigator.geolocation) {
+    showOverlay(false);
+    showScreen('list');
+    alert("La géolocalisation n'est pas supportée par votre appareil.\nAffichage de la liste complète.");
+    return;
+  }
+
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
       const uLat = parseFloat(pos.coords.latitude);
       const uLon = parseFloat(pos.coords.longitude);
-      
+
       if (isNaN(uLat) || isNaN(uLon)) {
         showOverlay(false);
-        alert("Votre GPS a renvoyé une position invalide.");
+        showScreen('list');
+        alert("Votre GPS a renvoyé une position invalide.\nAffichage de la liste.");
         return;
       }
 
@@ -1432,14 +1440,21 @@ document.getElementById('btnGeoLoc').onclick = () => {
         const d = calculerDistance(uLat, uLon, cLat, cLon);
         if (d < minD) { minD = d; best = c; }
       }
-      
+
       showOverlay(false);
-      
-      if (!best || minD === Infinity) { alert("Impossible de déterminer la chambre."); return; }
-      
+
+      if (!best || minD === Infinity) {
+        showScreen('list');
+        alert("Impossible de déterminer la chambre la plus proche.\nAffichage de la liste.");
+        return;
+      }
+
       if (minD > 500) {
         const shouldOpen = await demanderConfirmationDistance(minD, best);
-        if (!shouldOpen) return;
+        if (!shouldOpen) {
+          showScreen('list'); // L'utilisateur annule -> bascule sur la liste
+          return;
+        }
       } else {
         showToast(`📍 Chambre à ${Math.round(minD)} m`, '#2e7d32', 2500);
       }
@@ -1452,7 +1467,8 @@ document.getElementById('btnGeoLoc').onclick = () => {
     },
     (err) => {
       showOverlay(false);
-      alert("Impossible de récupérer votre position GPS.\nVérifiez que le GPS est activé et que vous avez autorisé le navigateur.\n\nErreur : " + err.message);
+      showScreen('list'); // Erreur GPS -> bascule sur la liste
+      alert("Impossible de récupérer votre position GPS.\nAffichage de la liste des chambres.\n\nErreur : " + err.message);
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
