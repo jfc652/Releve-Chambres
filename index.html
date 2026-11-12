@@ -1216,7 +1216,7 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         attributionControl: false,
         fadeAnimation: false,
         zoomAnimation: false,
-        preferCanvas: false, // On repasse en SVG/DOM pour bien gérer les étiquettes
+        preferCanvas: false,
         zoomSnap: 0.5
       });
 
@@ -1246,7 +1246,7 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         lineJoin: 'round'
       }).addTo(map);
 
-      // 2. Ajout des points et des étiquettes avec trait de renvoi
+      // 2. Ajout des points et des étiquettes
       chambresGps.forEach((c, index) => {
         const lat = parseFloat(c.lat);
         const lon = parseFloat(c.lon);
@@ -1261,28 +1261,18 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
           fillOpacity: 1
         }).addTo(map);
 
-        // On alterne le côté de l'étiquette pour éviter les chevauchements
+        // On alterne le côté de l'étiquette
         const isRight = index % 2 === 0;
         
-        // Création de l'icône avec l'étiquette et le trait
+        // On calcule une position décalée pour l'étiquette (approx. 15 mètres)
+        const offsetLat = isRight ? 0 : -0.0001; 
+        const offsetLon = isRight ? 0.0002 : -0.0002;
+
+        // Création de l'étiquette
         const customIcon = L.divIcon({
           className: 'custom-label-wrapper',
           html: `
-            <div class="label-line" style="
-              position: absolute; 
-              top: 0; 
-              left: ${isRight ? '0' : 'auto'}; 
-              right: ${isRight ? 'auto' : '0'};
-              width: 25px; 
-              height: 1px; 
-              background: #333;
-              transform: translateY(-50%);
-              ${isRight ? 'transform-origin: left center;' : 'transform-origin: right center;'}
-            "></div>
             <div class="label-text" style="
-              position: absolute;
-              top: -10px;
-              ${isRight ? 'left: 28px;' : 'right: 28px;'}
               background: #fff;
               border: 1px solid #c62828;
               padding: 1px 4px;
@@ -1299,7 +1289,18 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
           iconAnchor: [0, 0]
         });
 
-        L.marker([lat, lon], { icon: customIcon }).addTo(map);
+        // On place l'étiquette
+        L.marker([lat + offsetLat, lon + offsetLon], { icon: customIcon }).addTo(map);
+
+        // On trace le trait de renvoi entre le point et l'étiquette
+        L.polyline([
+          [lat, lon], 
+          [lat + offsetLat, lon + offsetLon]
+        ], {
+          color: '#333',
+          weight: 1,
+          opacity: 0.8
+        }).addTo(map);
       });
 
       const doCapture = async () => {
