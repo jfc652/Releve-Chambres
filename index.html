@@ -141,11 +141,11 @@ window.addEventListener('unhandledrejection', function(e) {
     <p class="small">Le mode de travail est indépendant du projet : vous pouvez changer à tout moment sans perdre vos données.</p>
     <div class="mode-selector">
       <button class="mode-btn" id="modeAiguillage" data-mode="aiguillage">
-        <h3>🔧 Aiguillage (Étude)</h3>
+        <h3>🔧 ÉTUDES</h3>
         <p>Masques, alvéoles, vue d'ensemble. Pas de mires ni de boîtes.</p>
       </button>
       <button class="mode-btn" id="modeFoa" data-mode="foa">
-        <h3>📋 FOA (Occupation Alvéoles)</h3>
+        <h3>📋 TIRAGE & Racco & FOA</h3>
         <p>Mires, câbles, boîtes. Masques pré-remplis (modifiables si besoin).</p>
       </button>
     </div>
@@ -181,7 +181,6 @@ window.addEventListener('unhandledrejection', function(e) {
       <ul id="transfertsList" style="margin:5px 0 0 20px; padding:0;"></ul>
     </div>
     <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px; background:#e0e0e0; color:#333; border:1px solid #ccc;">➕ Ajouter une nouvelle chambre</button>
-    <!-- BOUTON FUSIONNÉ -->
     <button id="startBtn" class="btn" style="margin-top:8px; background:#e65100;">🚀 Démarrer le relevé</button>
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
   </div>
@@ -234,7 +233,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.4</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.6</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -317,7 +316,7 @@ let editingId = null;
 let editPendingLat = '', editPendingLon = '';
 let logoGauche = null, logoDroite = null;
 let _liveChamberInterval = null;
-let hasStartedReleve = false; // Nouvelle variable pour gérer le 1er clic
+let hasStartedReleve = false;
 
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
 const couleursHex = { 'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] };
@@ -437,45 +436,94 @@ function showToast(msg, color = '#2e7d32', duration = 2500) {
 }
 
 /* ============================================================
-   Photos requises & auto-validation
+   Photos autorisées & auto-validation
    ============================================================ */
-function getRequiredPhotoCatsForRoom(c) {
-  const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
-  const activeMasks = new Set();
-  if (modeTravail === 'aiguillage') {
-    (c.passages || []).forEach(p => {
-      ['masque_in', 'masque_out'].forEach(f => {
-        const val = (p[f] || '').trim().toUpperCase();
-        if (val) { const letter = val.charAt(0); if (['A','B','C','D'].includes(letter)) activeMasks.add(letter); }
-      });
-    });
+function estPhotoAutorisee(c, catId) {
+  if (catId.startsWith('CAS_')) {
+    const bpeOrigine = getRawValue(c, ['BPE', 'bpe'], '');
+    const hasBpe = bpeOrigine && bpeOrigine.trim() !== '' && bpeOrigine.toLowerCase() !== 'none' && bpeOrigine.toLowerCase() !== 'nan';
+    return hasBpe && c.hasBoite !== false;
   }
-  const hasBoite = c.hasBoite !== false;
-  const required = [];
-  currentCats.forEach(cat => {
-    let visible = true;
-    if (modeTravail === 'aiguillage') {
-      if (['MA','MB','MC','MD'].includes(cat.id)) {
-        const letter = cat.id.charAt(1);
-        if (activeMasks.size > 0) visible = activeMasks.has(letter);
+
+  if (modeTravail === 'aiguillage') {
+    if (['MA','MB','MC','MD'].includes(catId)) {
+      const letter = catId.charAt(1);
+      const activeMasks = new Set();
+      (c.passages || []).forEach(p => {
+        ['masque_in', 'masque_out'].forEach(f => {
+          const val = (p[f] || '').trim().toUpperCase();
+          if (val) { const l = val.charAt(0); if (['A','B','C','D'].includes(l)) activeMasks.add(l); }
+        });
+      });
+      if (activeMasks.size > 0) return activeMasks.has(letter);
+      return true;
+    }
+    return true;
+  } else {
+    // Mode FOA / Tirage
+    const bpeOrigine = getRawValue(c, ['BPE', 'bpe'], '');
+    const hasBpe = bpeOrigine && bpeOrigine.trim() !== '' && bpeOrigine.toLowerCase() !== 'none' && bpeOrigine.toLowerCase() !== 'nan';
+    
+    // Si pas de BPE du tout, on n'autorise que les photos de câbles / étiquettes
+    if (!hasBpe) {
+      if (['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(catId)) {
+        return false;
       }
-    } else {
-      if (!hasBoite) {
-        if (['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(cat.id)) visible = false;
+      return true; // Garde ETIQ_CABLE, CABLE, VUE_ENSEMBLE
+    }
+    
+    // Si BPE existe, on vérifie si la boîte est cochée ou non
+    const hasBoite = c.hasBoite !== false;
+    if (!hasBoite) {
+      if (['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(catId)) {
+        return false;
       }
     }
-    if (visible) required.push(cat.id);
+    return true;
+  }
+}
+
+function getRequiredPhotoCatsForRoom(c) {
+  const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
+  const required = [];
+  currentCats.forEach(cat => {
+    if (estPhotoAutorisee(c, cat.id)) required.push(cat.id);
   });
   return required;
 }
+
 function allRequiredPhotosTaken(c) {
   const required = getRequiredPhotoCatsForRoom(c);
   if (required.length === 0) return false;
   return required.every(id => (c.photos[id] || []).length > 0);
 }
+
+async function nettoyerPhotosNonAutorisees(c) {
+  let modif = false;
+  const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA];
+  for (const cat of allCats) {
+    if (!estPhotoAutorisee(c, cat.id) && c.photos[cat.id] && c.photos[cat.id].length > 0) {
+      c.photos[cat.id] = [];
+      modif = true;
+    }
+  }
+  // Nettoyage des cassettes
+  Object.keys(c.photos).forEach(k => {
+    if (k.startsWith('CAS_') && !estPhotoAutorisee(c, k) && c.photos[k] && c.photos[k].length > 0) {
+      c.photos[k] = [];
+      modif = true;
+    }
+  });
+  if (modif) await dbPut(c);
+  return modif;
+}
+
 async function tryAutoValidateOnLastPhoto(c) {
   if (c.done) return false;
   if (!allRequiredPhotosTaken(c)) return false;
+  
+  await nettoyerPhotosNonAutorisees(c);
+
   if (c._timeStart !== null && c._timeStart !== undefined) {
     const sessionSec = Math.round((getActiveTime() - c._timeStart) / 1000);
     c.timeSpent = (c.timeSpent || 0) + sessionSec;
@@ -643,7 +691,14 @@ function generateCSV(){
       case 'tempsCumul': return (c.chronoCumul !== null && c.chronoCumul !== undefined) ? formatTime(c.chronoCumul * 1000) : '';
       default: return '';
     }};
-    const row = allHeaders.map(h => { if (h.startsWith('Nb_')) return (c.photos[h.replace('Nb_', '')] || []).length; const logical = logicalByHeader.get(h); if (logical) return valFor(logical); return c.raw[h] || ''; });
+    const row = allHeaders.map(h => {
+      if (h.startsWith('Nb_')) {
+        const catId = h.replace('Nb_', '');
+        if (!estPhotoAutorisee(c, catId)) return 0; // <--- CORRECTION EXPORT CSV
+        return (c.photos[catId] || []).length;
+      }
+      const logical = logicalByHeader.get(h); if (logical) return valFor(logical); return c.raw[h] || '';
+    });
     lines.push(row.map(v=>esc(v,d)).join(d));
   }
   return lines.join('\r\n');
@@ -816,13 +871,8 @@ function openDetail(id){
   const photoGrid = document.getElementById('photoGrid');
   const renderPhotoGrid = () => {
     const currentCats = modeTravail === 'aiguillage' ? PHOTO_CATS_AIGUILLAGE : PHOTO_CATS_FOA;
-    let activeMasks = new Set();
-    if(modeTravail === 'aiguillage') { cont.querySelectorAll('input[data-field="masque_in"], input[data-field="masque_out"]').forEach(inp => { const val = inp.value.trim().toUpperCase(); if(val) { const letter = val.charAt(0); if(['A','B','C','D'].includes(letter)) activeMasks.add(letter); } }); }
-    const hasBoite = document.getElementById('boiteToggle').checked;
     photoGrid.innerHTML = currentCats.map(cat => {
-      let visible = true;
-      if(modeTravail === 'aiguillage') { if(['MA','MB','MC','MD'].includes(cat.id)) { const letter = cat.id.charAt(1); if (activeMasks.size > 0) visible = activeMasks.has(letter); } }
-      else { if(!hasBoite) { if(['MIRE_LG', 'MIRE_L', 'MIRE_P', 'ETIQ_BOITE', 'BOITE', 'VUE_DESSUS_CH'].includes(cat.id)) { visible = false; } } }
+      let visible = estPhotoAutorisee(c, cat.id);
       if(!visible) return '';
       return `<div class="photo-wrapper" data-cat-wrapper="${cat.id}">${photoSlot(cat, c.photos[cat.id])}</div>`;
     }).join('');
@@ -860,15 +910,36 @@ function openDetail(id){
   cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ inp.oninput = (e) => { const passId = inp.dataset.pass; const field = inp.dataset.field; const passage = c.passages.find(x => x.id === passId); if(passage) { passage[field] = e.target.value; dbPut(c); if(modeTravail === 'aiguillage') renderPhotoGrid(); } }; });
   document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: crypto.randomUUID(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c); openDetail(id); });
   cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c); openDetail(id); } }; });
-  document.getElementById('boiteToggle').onchange = (e) => { c.hasBoite = e.target.checked; document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block'; document.getElementById('cassettesCard').style.display = (c.hasBoite || c.forceShowSoudure) ? 'block' : 'none'; const s = document.getElementById('souduresConfigCard'); if (s) s.style.display = c.hasBoite ? 'block' : 'none'; dbPut(c); if(c.hasBoite) renderCassettes(); };
+  document.getElementById('boiteToggle').onchange = (e) => {
+    c.hasBoite = e.target.checked;
+    document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block';
+    document.getElementById('cassettesCard').style.display = (c.hasBoite || c.forceShowSoudure) ? 'block' : 'none';
+    const s = document.getElementById('souduresConfigCard');
+    if (s) s.style.display = c.hasBoite ? 'block' : 'none';
+    dbPut(c);
+    if(c.hasBoite) renderCassettes();
+    renderPhotoGrid();
+  };
   document.getElementById('bpeDestinationSelect').onchange = (e) => { c.bpeDestination = e.target.value; dbPut(c); };
   document.getElementById('nonPoseeToggle').onchange = (e) => { c.boiteNonPosee = e.target.checked; dbPut(c); };
   document.getElementById('notesInput').oninput = (e) => { c.notes = e.target.value; dbPut(c); };
-  document.getElementById('validateBtn').onclick = async () => { if (!c.done) { if (c._timeStart !== null && c._timeStart !== undefined) { const sec = Math.round((getActiveTime() - c._timeStart) / 1000); c.timeSpent = (c.timeSpent || 0) + sec; c.chronoCumul = Math.round(getActiveTime() / 1000); } c._timeStart = null; c.done = true; } else { c.done = false; c._timeStart = null; } await dbPut(c); openDetail(id); };
+  document.getElementById('validateBtn').onclick = async () => {
+    if (!c.done) {
+      await nettoyerPhotosNonAutorisees(c);
+      if (c._timeStart !== null && c._timeStart !== undefined) {
+        const sec = Math.round((getActiveTime() - c._timeStart) / 1000);
+        c.timeSpent = (c.timeSpent || 0) + sec;
+        c.chronoCumul = Math.round(getActiveTime() / 1000);
+      }
+      c._timeStart = null; c.done = true;
+    } else {
+      c.done = false; c._timeStart = null;
+    }
+    await dbPut(c); openDetail(id);
+  };
   
-  // Modification : le bouton "Chambre suivante" utilise le GPS
   document.getElementById('nextBtn').onclick=()=>{
-    hasStartedReleve = true; // Assure que la logique GPS est active
+    hasStartedReleve = true;
     lancerRechercheProche();
   };
 
@@ -959,7 +1030,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.4`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.6`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1299,8 +1370,23 @@ async function exportAll(){
     const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA]; const uC = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
     for(const c of chambres){
       const fn = (getRawValue(c, ['CODE_CH1'], '') || c.id).replace(/[^A-Za-z0-9_-]/g,'_'); const bn = (c.raw['BPE'] || 'Sans_Boite').replace(/[^A-Za-z0-9_-]/g,'_');
-      uC.forEach(cat => { const f = cat.id; const ps = c.photos[f] || []; ps.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${fn}/${f}/${f}_${n}.jpg`, p.blob); }); });
-      Object.keys(c.photos).forEach(k => { if (k.startsWith('CAS_')) { const cn = k.replace('_', ''); const ps = c.photos[k] || []; ps.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${fn}/${bn}/${cn}/${cn}_${n}.jpg`, p.blob); }); } });
+      
+      // Export sécurisé des photos classiques
+      uC.forEach(cat => { 
+        const f = cat.id; 
+        if (!estPhotoAutorisee(c, f)) return; // <--- CORRECTION
+        const ps = c.photos[f] || []; 
+        ps.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${fn}/${f}/${f}_${n}.jpg`, p.blob); }); 
+      });
+      
+      // Export sécurisé des cassettes
+      Object.keys(c.photos).forEach(k => { 
+        if (k.startsWith('CAS_')) { 
+          if (!estPhotoAutorisee(c, 'BOITE')) return; // <--- CORRECTION : pas de CAS si pas de boite
+          const cn = k.replace('_', ''); const ps = c.photos[k] || []; 
+          ps.forEach((p, i) => { const n = String(i + 1).padStart(2, '0'); zip.file(`photos/${fn}/${bn}/${cn}/${cn}_${n}.jpg`, p.blob); }); 
+        } 
+      });
     }
     const blob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
     const fname = 'TOP_SAT_SERVICES_Releve_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.zip';
@@ -1454,7 +1540,7 @@ async function lancerRechercheProche() {
       if (minD > 500) {
         const shouldOpen = await demanderConfirmationDistance(minD, best);
         if (!shouldOpen) {
-          showScreen('list'); // L'utilisateur annule -> bascule sur la liste
+          showScreen('list');
           return;
         }
       } else {
