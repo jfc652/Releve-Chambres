@@ -1169,7 +1169,7 @@ async function construireSynoptiquePDF() {
 
 /* ============================================================
    CAPTURE LOCALE DE CARTE AVEC LEAFLET + HTML2CANVAS
-   Correction : Déplacement hors écran pour forcer le chargement des tuiles
+   Correction : Déplacement hors écran + tuiles OpenStreetMap standard
    ============================================================ */
 async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900) {
   return new Promise((resolve) => {
@@ -1179,8 +1179,7 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
       return;
     }
 
-    // MODIFICATION : On place le conteneur hors de l'écran (left: -9999px) 
-    // au lieu de le rendre transparent, pour forcer le téléchargement des tuiles.
+    // Le conteneur est placé hors de l'écran pour forcer le navigateur à charger les tuiles
     const container = document.createElement('div');
     container.style.cssText = `
       position: absolute;
@@ -1215,15 +1214,15 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
       map = L.map(container, {
         zoomControl: false,
         attributionControl: true,
-        fadeAnimation: false, // Désactive les animations pour une capture nette
+        fadeAnimation: false,
         zoomAnimation: false,
         preferCanvas: false,
         zoomSnap: 0.5
       });
 
-      const tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap © CARTO',
-        subdomains: 'abcd',
+      // Tuiles OpenStreetMap standard (gratuites, sans clé API)
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
         crossOrigin: true
       }).addTo(map);
@@ -1254,13 +1253,8 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
 
       const doCapture = async () => {
         if (resolved) return;
-        
-        // On force un rafraîchissement de la carte avant la capture
         map.invalidateSize();
-        
-        // Attente supplémentaire pour être sûr que le navigateur mobile a peint les tuiles
-        await new Promise(r => setTimeout(r, 1500)); 
-
+        await new Promise(r => setTimeout(r, 1500));
         try {
           const canvas = await html2canvas(container, {
             useCORS: true,
@@ -1268,7 +1262,7 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
             backgroundColor: '#ffffff',
             scale: 1,
             logging: false,
-            imageTimeout: 10000 // Augmenté à 10s
+            imageTimeout: 10000
           });
           finish(canvas.toDataURL('image/png'));
         } catch (err) {
@@ -1277,13 +1271,11 @@ async function capturerCarteLeaflet(chambresGps, widthPx = 1400, heightPx = 900)
         }
       };
 
-      // On attend que le fond de carte soit chargé, puis on patiente 2,5s
       tileLayer.once('load', () => {
         if (timeoutHandle) { clearTimeout(timeoutHandle); timeoutHandle = null; }
-        setTimeout(doCapture, 2500); 
+        setTimeout(doCapture, 2500);
       });
 
-      // Timeout global de sécurité : 10 secondes maximum
       timeoutHandle = setTimeout(doCapture, 10000);
 
     } catch (e) {
@@ -1314,9 +1306,6 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  // -----------------------------------------------------------------
-  // CAPTURE LOCALE AVEC LEAFLET + HTML2CANVAS
-  // -----------------------------------------------------------------
   console.log('🗺️ Capture de la carte en cours (Leaflet + html2canvas)...');
   const capturedW = 1400;
   const capturedH = 900;
@@ -1345,9 +1334,6 @@ async function ajouterPageCarteMaps(doc, chambres) {
     }
   }
 
-  // -----------------------------------------------------------------
-  // FALLBACK : Grille manuelle si la capture a échoué
-  // -----------------------------------------------------------------
   if (!mapDataUrl) {
     console.warn('⚠️ Fallback vers la carte manuelle.');
 
@@ -1396,9 +1382,6 @@ async function ajouterPageCarteMaps(doc, chambres) {
     });
   }
 
-  // -----------------------------------------------------------------
-  // LIEN GOOGLE MAPS (jusqu'à 50 chambres pour éviter les URL trop longues)
-  // -----------------------------------------------------------------
   if (chambresGps.length > 0) {
       let gmapsUrl = `https://www.google.com/maps/dir/`;
       const maxPoints = Math.min(chambresGps.length, 50);
