@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.8 (Yandex Static)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 15.9 (Tuiles Canvas)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -360,10 +360,6 @@ function uuid() {
 function getDisplayNameById(id) {
   const c = chambres.find(x => x.id === id);
   return c ? getDisplayName(c) : id;
-}
-
-function estLambert93(x, y) {
-  return (x > 100000 && x < 1200000) && (y > 6000000 && y < 7200000);
 }
 
 /* ============================================================
@@ -1119,7 +1115,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.8`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 15.9`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1204,10 +1200,10 @@ async function construireSynoptiquePDF() {
 }
 
 /* ============================================================
-   CAPTURE CARTE STATIQUE YANDEX (fond de carte + points)
+   CAPTURE CARTE - TUILES CARTO ASSEMBLÉES DANS UN CANVAS
    ============================================================ */
-async function capturerCarteYandex(chambresGps, widthPx = 1200, heightPx = 800) {
-  return new Promise((resolve) => {
+async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800) {
+  return new Promise(async (resolve) => {
     if (chambresGps.length === 0) { resolve(null); return; }
 
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
@@ -1225,9 +1221,8 @@ async function capturerCarteYandex(chambresGps, widthPx = 1200, heightPx = 800) 
     const lonMargin = (maxLon - minLon) * 0.1 || 0.001;
     minLat -= latMargin; maxLat += latMargin; minLon -= lonMargin; maxLon += lonMargin;
 
-    const centerLat = ((minLat + maxLat) / 2).toFixed(6);
-    const centerLon = ((minLon + maxLon) / 2).toFixed(6);
-
+    const centerLat = (minLat + maxLat) / 2;
+    const centerLon = (minLon + maxLon) / 2;
     const latDiff = maxLat - minLat;
     let zoom = 12;
     if (latDiff > 1) zoom = 9;
@@ -1236,52 +1231,82 @@ async function capturerCarteYandex(chambresGps, widthPx = 1200, heightPx = 800) 
     else if (latDiff > 0.05) zoom = 13;
     else if (latDiff > 0.02) zoom = 14;
 
-    let ptString = '';
-    chambresGps.slice(0, 50).forEach((c, i) => {
-      ptString += `${c.lon},${c.lat},pm2rdm${i + 1},`;
+    const tileSize = 256;
+    const numTilesX = Math.ceil(widthPx / tileSize) + 1;
+    const numTilesY = Math.ceil(heightPx / tileSize) + 1;
+
+    const lon2tile = (lon, z) => Math.floor((lon + 180) / 360 * Math.pow(2, z));
+    const lat2tile = (lat, z) => Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, z));
+
+    const centerTileX = lon2tile(centerLon, zoom);
+    const centerTileY = lat2tile(centerLat, zoom);
+
+    const startTileX = centerTileX - Math.floor(numTilesX / 2);
+    const startTileY = centerTileY - Math.floor(numTilesY / 2);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = numTilesX * tileSize;
+    canvas.height = numTilesY * tileSize;
+    const ctx = canvas.getContext('2d');
+
+    const tilePromises = [];
+    for (let y = 0; y < numTilesY; y++) {
+      for (let x = 0; x < numTilesX; x++) {
+        const tileX = startTileX + x;
+        const tileY = startTileY + y;
+        const url = `https://a.basemaps.cartocdn.com/light_all/${zoom}/${tileX}/${tileY}.png`;
+        tilePromises.push(new Promise((res) => {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.onload = () => { ctx.drawImage(img, x * tileSize, y * tileSize); res(); };
+          img.onerror = () => res();
+          img.src = url;
+        }));
+      }
+    }
+
+    await Promise.all(tilePromises);
+
+    chambresGps.forEach(c => {
+      const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
+      if (isNaN(lat) || isNaN(lon)) return;
+      const n = Math.pow(2, zoom);
+      const tileX = (lon + 180) / 360 * n;
+      const tileY = (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n;
+      const px = (tileX - startTileX) * tileSize;
+      const py = (tileY - startTileY) * tileSize;
+
+      ctx.beginPath();
+      ctx.arc(px, py, 5, 0, 2 * Math.PI);
+      ctx.fillStyle = '#c62828';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      const txt = getDisplayName(c);
+      ctx.font = 'bold 10px Arial';
+      const textWidth = ctx.measureText(txt).width;
+      ctx.fillStyle = 'white';
+      ctx.strokeStyle = '#c62828';
+      ctx.lineWidth = 1;
+      ctx.fillRect(px - textWidth/2 - 2, py - 22, textWidth + 4, 14);
+      ctx.strokeRect(px - textWidth/2 - 2, py - 22, textWidth + 4, 14);
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(txt, px, py - 15);
     });
-    ptString = ptString.slice(0, -1);
 
-    const bgUrl = `https://static-maps.yandex.ru/1.x/?ll=${centerLon},${centerLat}&z=${zoom}&size=${widthPx},${heightPx}&l=map&pt=${ptString}`;
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = widthPx;
+    finalCanvas.height = heightPx;
+    const finalCtx = finalCanvas.getContext('2d');
+    const offsetX = (canvas.width - widthPx) / 2;
+    const offsetY = (canvas.height - heightPx) / 2;
+    finalCtx.drawImage(canvas, -offsetX, -offsetY);
 
-    const img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width; canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-
-      // Étiquettes dessinées par-dessus (projection Mercator)
-      const latToY = (lat) => Math.log(Math.tan(Math.PI/4 + lat * Math.PI / 360));
-      const yTop = latToY(maxLat);
-      const yBottom = latToY(minLat);
-      const yDiff = yTop - yBottom;
-
-      chambresGps.forEach(c => {
-        const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
-        if (isNaN(lat) || isNaN(lon)) return;
-        const x = ((lon - minLon) / (maxLon - minLon)) * img.width;
-        const y = ((yTop - latToY(lat)) / yDiff) * img.height;
-
-        const txt = getDisplayName(c);
-        ctx.font = 'bold 10px Arial';
-        const textWidth = ctx.measureText(txt).width;
-        ctx.fillStyle = 'white';
-        ctx.strokeStyle = '#c62828';
-        ctx.lineWidth = 1;
-        ctx.fillRect(x - textWidth/2 - 2, y - 22, textWidth + 4, 14);
-        ctx.strokeRect(x - textWidth/2 - 2, y - 22, textWidth + 4, 14);
-        ctx.fillStyle = 'black';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(txt, x, y - 15);
-      });
-
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.onerror = () => { console.warn("Erreur chargement carte Yandex"); resolve(null); };
-    img.src = bgUrl;
+    resolve(finalCanvas.toDataURL('image/png'));
   });
 }
 
@@ -1306,8 +1331,8 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  console.log('🗺️ Téléchargement de la carte statique Yandex...');
-  const mapDataUrl = await capturerCarteYandex(chambresGps, 1200, 800);
+  console.log('🗺️ Assemblage des tuiles CartoDB...');
+  const mapDataUrl = await capturerCarteTuiles(chambresGps, 1200, 800);
 
   const mapRectX = 80, mapRectY = 80;
   const mapRectW = pageW - 160, mapRectH = pageH - 180;
