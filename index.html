@@ -93,7 +93,7 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .chrono-status { text-align:center; font-size:14px; color:#666; margin-bottom:10px; font-weight:600; }
 #headerChrono { font-family:'Courier New',monospace; font-size:13px; font-weight:bold; background:rgba(255,255,255,0.25); padding:4px 10px; border-radius:6px; white-space:nowrap; }
 #headerChrono.paused { background:rgba(255,171,64,0.5); }
-.toast-notif { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#2e7d32; color:#fff; padding:14px 22px; border-radius:10px; font-weight:600; z-index:300; box-shadow:0 6px 20px rgba(0,0,0,0.35); font-size:15px; animation: toastIn .3s ease-out; max-width:90%; text-align:center; }
+.toast-notif { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#2e7d32; color:#fff; padding:14px 22px; border-radius:10px; font-weight:600; z-index:9999; box-shadow:0 6px 20px rgba(0,0,0,0.35); font-size:15px; animation: toastIn .3s ease-out; max-width:90%; text-align:center; }
 @keyframes toastIn { from { opacity:0; transform:translate(-50%, -20px); } to { opacity:1; transform:translate(-50%, 0); } }
 </style>
 
@@ -234,7 +234,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.0</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 14.1</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -496,7 +496,8 @@ async function demanderConfirmationDistance(distanceM, chambre) {
       : Math.round(distanceM) + ' m';
     const couleur = distanceM > 5000 ? '#c62828' : distanceM > 500 ? '#e65100' : '#2e7d32';
     const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:400;padding:16px;';
+    // Z-INDEX A 9999 POUR PASSER AU DESSUS DE TOUT
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;';
     modal.innerHTML = `
       <div style="background:#fff;border-radius:14px;padding:24px;max-width:400px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.4);">
         <div style="font-size:52px;margin-bottom:8px;">📍</div>
@@ -952,7 +953,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.0`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 14.1`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1055,7 +1056,6 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text(`Chambre : ${chambreNom} | Commune : ${commune} | Code : ${codeSite}`, pageW / 2, 55, { align: 'center' });
       if (adresse) doc.text(`Adresse : ${adresse}`, pageW / 2, 68, { align: 'center' });
       doc.text(`Tube ${t} / ${nbTubes} - ${new Date().toLocaleDateString('fr-FR')}`, pageW / 2, 81, { align: 'center' });
-      // DÉCALAGE DU LOGO DE DROITE POUR ÉVITER LE CHEVAUCHEMENT
       if (logoG && logoG.dataUrl) try { doc.addImage(logoG.dataUrl, logoG.format, 30, 85, 50, 25); } catch(e){}
       if (logoD && logoD.dataUrl) try { doc.addImage(logoD.dataUrl, logoD.format, pageW - 80, 120, 50, 25); } catch(e){}
 
@@ -1200,7 +1200,6 @@ async function importCSV(file){
     const refIdx = headers.findIndex(h => /^REF_CHAMBR$/i.test(h.trim()));
     const codeCh2Idx = headers.findIndex(h => /^CODE_CH2$/i.test(h.trim()));
     
-    // ⚠️ DÉTECTION ROBUSTE DES COORDONNÉES GPS
     const latIdx = headers.findIndex(h => /^(LATITUDE|LAT|Y)$/i.test(h.trim()));
     const lonIdx = headers.findIndex(h => /^(LONGITUDE|LON|LNG|X)$/i.test(h.trim()));
 
@@ -1213,11 +1212,9 @@ async function importCSV(file){
       if (!raw['ORDRE_GEO']) { const o = ordreIdx >= 0 ? (r[ordreIdx] || '').trim() : ''; if (o) raw['ORDRE_GEO'] = makeOrdreGeo(o); }
       const id = makeId(raw);
       
-      // Récupération des coordonnées GPS du CSV
       let latVal = latIdx >= 0 ? (r[latIdx] || '').trim() : '';
       let lonVal = lonIdx >= 0 ? (r[lonIdx] || '').trim() : '';
       
-      // Si vide, on tente d'extraire du wkt_geom (très courant)
       if ((!latVal || !lonVal) && raw['wkt_geom']) {
         const m = String(raw['wkt_geom']).match(/\(\s*([-+]?\d+(?:[.,]\d+)?)\s+([-+]?\d+(?:[.,]\d+)?)/);
         if (m) {
@@ -1226,13 +1223,12 @@ async function importCSV(file){
         }
       }
       
-      // Nettoyage final (virgules -> points)
       if (latVal) latVal = String(latVal).replace(',', '.');
       if (lonVal) lonVal = String(lonVal).replace(',', '.');
 
       if (!mapChambres.has(id)) mapChambres.set(id, { 
         id, raw, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: '', 
-        lat: latVal, lon: lonVal, // Affectation
+        lat: latVal, lon: lonVal,
         forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, _timeStart: null, timeSpent: null, chronoCumul: null,
         photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((a, c) => { a[c.id] = []; return a; }, {}), ...PHOTO_CATS_FOA.reduce((a, c) => { a[c.id] = []; return a; }, {}) },
         passages: [{ id: crypto.randomUUID(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] 
@@ -1260,7 +1256,7 @@ async function importCSV(file){
     await dbClear(); chambres = newC;
     for (const c of chambres) await dbPut(c);
     trierChambres(); updateHomeStats(); updateImportLock();
-    alert(`${chambres.length} chambre(s) prête(s).\n\nVérifiez la console si le GPS ne s'affiche pas.`);
+    alert(`${chambres.length} chambre(s) prête(s).`);
   } catch(err) { alert("Erreur d'importation : \n" + err.message); }
   finally { showOverlay(false); }
 }
@@ -1400,26 +1396,53 @@ document.getElementById('btnGeoLoc').onclick = () => {
   if (withGps.length === 0) {
     const allDone = chambres.every(c => c.done);
     if (allDone) alert("🎉 Toutes les chambres sont validées !");
-    else alert("Aucune chambre NON validée n'a de GPS. Assurez-vous que le CSV importé contient bien les colonnes LATITUDE et LONGITUDE.");
+    else alert("Aucune chambre NON validée n'a de GPS.");
     return;
   }
   showOverlay(true);
   if (!navigator.geolocation) { showOverlay(false); alert("Géolocalisation non supportée."); return; }
+  
   navigator.geolocation.getCurrentPosition(
     async (pos) => {
-      const uLat = pos.coords.latitude, uLon = pos.coords.longitude;
-      let best = null, minD = Infinity;
-      for (const c of withGps) { const d = calculerDistance(uLat, uLon, parseFloat(c.lat), parseFloat(c.lon)); if (d < minD) { minD = d; best = c; } }
-      showOverlay(false);
-      if (!best) { alert("Impossible de déterminer la chambre."); return; }
+      const uLat = parseFloat(pos.coords.latitude);
+      const uLon = parseFloat(pos.coords.longitude);
       
-      let open = true;
-      if (minD > 500) open = await demanderConfirmationDistance(minD, best);
-      if (!open) return;
-      if (!best.done && (best._timeStart === null || best._timeStart === undefined)) { best._timeStart = getActiveTime(); await dbPut(best); }
+      if (isNaN(uLat) || isNaN(uLon)) {
+        showOverlay(false);
+        alert("Votre GPS a renvoyé une position invalide.");
+        return;
+      }
+
+      let best = null, minD = Infinity;
+      for (const c of withGps) {
+        const cLat = parseFloat(c.lat);
+        const cLon = parseFloat(c.lon);
+        const d = calculerDistance(uLat, uLon, cLat, cLon);
+        if (d < minD) { minD = d; best = c; }
+      }
+      
+      showOverlay(false);
+      
+      if (!best || minD === Infinity) { alert("Impossible de déterminer la chambre."); return; }
+      
+      // VÉRIFICATION DE LA DISTANCE ET AFFICHAGE
+      if (minD > 500) {
+        const shouldOpen = await demanderConfirmationDistance(minD, best);
+        if (!shouldOpen) return;
+      } else {
+        showToast(`📍 Chambre à ${Math.round(minD)} m`, '#2e7d32', 2500);
+      }
+
+      if (!best.done && (best._timeStart === null || best._timeStart === undefined)) {
+        best._timeStart = getActiveTime();
+        await dbPut(best);
+      }
       openDetail(best.id);
     },
-    (err) => { showOverlay(false); alert("Impossible de récupérer votre position GPS.\n\nErreur : " + err.message); },
+    (err) => {
+      showOverlay(false);
+      alert("Impossible de récupérer votre position GPS.\nVérifiez que le GPS est activé et que vous avez autorisé le navigateur.\n\nErreur : " + err.message);
+    },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 };
