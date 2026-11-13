@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 16.1 (Carte + Tronçons)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 16.2 (Zoom 1/1000)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1115,7 +1115,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 16.1`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 16.2`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1200,9 +1200,9 @@ async function construireSynoptiquePDF() {
 }
 
 /* ============================================================
-   CAPTURE CARTE - TUILES OPENSTREETMAP ASSEMBLÉES DANS UN CANVAS
+   CAPTURE CARTE - TUILES OPENSTREETMAP (ZOOM FORCÉ POSSIBLE)
    ============================================================ */
-async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800) {
+async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, zoomForce = null) {
   return new Promise(async (resolve) => {
     if (chambresGps.length === 0) { resolve(null); return; }
 
@@ -1223,13 +1223,21 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800) 
 
     const centerLat = (minLat + maxLat) / 2;
     const centerLon = (minLon + maxLon) / 2;
-    const latDiff = maxLat - minLat;
+    
+    // Calcul du zoom
     let zoom = 12;
-    if (latDiff > 1) zoom = 9;
-    else if (latDiff > 0.5) zoom = 10;
-    else if (latDiff > 0.2) zoom = 11;
-    else if (latDiff > 0.05) zoom = 13;
-    else if (latDiff > 0.02) zoom = 14;
+    if (zoomForce !== null) {
+      zoom = zoomForce;
+    } else {
+      const latDiff = maxLat - minLat;
+      if (latDiff > 1) zoom = 9;
+      else if (latDiff > 0.5) zoom = 10;
+      else if (latDiff > 0.2) zoom = 11;
+      else if (latDiff > 0.05) zoom = 13;
+      else if (latDiff > 0.02) zoom = 14;
+      else if (latDiff > 0.01) zoom = 15;
+      else zoom = 16;
+    }
 
     const tileSize = 256;
     const numTilesX = Math.ceil(widthPx / tileSize) + 1;
@@ -1321,7 +1329,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  // 1. PAGE GLOBALE
+  // 1. PAGE GLOBALE (zoom automatique pour tout voir)
   doc.addPage('a3', 'landscape');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
@@ -1331,8 +1339,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  console.log('🗺️ Génération de la carte globale...');
-  const mapDataUrl = await capturerCarteTuiles(chambresGps, 1200, 800);
+  const mapDataUrl = await capturerCarteTuiles(chambresGps, 1200, 800); // null = auto
 
   const mapRectX = 80, mapRectY = 80;
   const mapRectW = pageW - 160, mapRectH = pageH - 180;
@@ -1351,7 +1358,6 @@ async function ajouterPageCarteMaps(doc, chambres) {
     doc.rect(drawX, drawY, drawW, drawH);
   }
 
-  // Lien Google Maps sur la page globale
   let gmapsUrl = `https://www.google.com/maps/dir/`;
   const maxPoints = Math.min(chambresGps.length, 50);
   for (let i = 0; i < maxPoints; i++) {
@@ -1361,7 +1367,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setTextColor(0, 0, 255);
   doc.textWithLink(`Ouvrir l'itinéraire complet dans Google Maps (${maxPoints} chambres)`, pageW / 2, pageH - 40, { align: 'center', url: gmapsUrl });
 
-  // 2. PAGES DÉTAILLÉES (Tronçons)
+  // 2. PAGES DÉTAILLÉES (Tronçons avec zoom FORCÉ à 18 pour l'échelle 1/500 - 1/1000)
   const tronconTaille = 20;
   const chambresTriees = [...chambresGps].sort((a, b) => {
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
@@ -1384,7 +1390,10 @@ async function ajouterPageCarteMaps(doc, chambres) {
     doc.setFont('helvetica', 'normal');
     doc.text(`Chambres du ${paquet[0].raw['CODE_CH1'] || '?'} au ${paquet[paquet.length - 1].raw['CODE_CH1'] || '?'}`, pageW / 2, 60, { align: 'center' });
 
-    const zoomDataUrl = await capturerCarteTuiles(paquet, 1200, 800);
+    // ZOOM FORCÉ À 18 pour l'échelle 1/1000
+    // Essayez 17 pour 1/2000, ou 19 pour 1/500
+    const ZOOM_DETAILLE = 18;
+    const zoomDataUrl = await capturerCarteTuiles(paquet, 1200, 800, ZOOM_DETAILLE);
 
     if (zoomDataUrl) {
       const imgRatio = 1200 / 800;
