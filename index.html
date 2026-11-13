@@ -19,6 +19,7 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-secondary { background:#ccc; color:#333; }
 .btn-success { background:#2e7d32; }
 .btn-danger { background:#c62828; }
+.btn-excel { background:#1d6f42; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
 .btn-waze { background:#33ccff; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-bottom:8px;}
 .btn-maps { background:#4285F4; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%;}
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
@@ -134,6 +135,8 @@ window.addEventListener('unhandledrejection', function(e) {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Ajout de la librairie SheetJS pour l'export Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -205,7 +208,8 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px; background:#e0e0e0; color:#333; border:1px solid #ccc;">➕ Ajouter une nouvelle chambre</button>
     <button id="startBtn" class="btn" style="margin-top:8px; background:#e65100;">🚀 Démarrer le relevé</button>
-    <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP + CSV)</button>
+    <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP complet)</button>
+    <button id="exportExcelBtn" class="btn btn-excel">📊 Exporter Excel (Boîtes / Cassettes)</button>
   </div>
 
   <div class="card" id="chronoCard" style="display:none;">
@@ -258,7 +262,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.6 (Corrections tracés & Netteté Maps)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.7 (Excel & Statuts Fibres)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -344,12 +348,7 @@ let _liveChamberInterval = null;
 let hasStartedReleve = false;
 let pendingLat = '', pendingLon = '';
 
-// ==========================================================
-// CORRECTION FORMAT PDF ET RESOLUTION
-// ==========================================================
-// Modifiez ici pour passer de "A4" à "A3" selon votre besoin
 const FORMAT_PDF = "A4"; 
-// ==========================================================
 
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
 const couleursHex = { 'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] };
@@ -369,9 +368,6 @@ function getDisplayNameById(id) {
   return c ? getDisplayName(c) : id;
 }
 
-/* ============================================================
-   LOGO PAGE D'ACCUEIL
-   ============================================================ */
 function chargerLogoAccueil() {
   try {
     const saved = localStorage.getItem('logo_accueil');
@@ -409,9 +405,6 @@ function bindLogoUpload() {
   };
 }
 
-/* ============================================================
-   CHRONOMÈTRE
-   ============================================================ */
 let chrono = { startTime: null, accumulated: 0, running: false, pausedAt: null };
 let chronoInterval = null;
 
@@ -484,9 +477,6 @@ function showToast(msg, color = '#2e7d32', duration = 2500) {
   setTimeout(() => toast.remove(), duration + 400);
 }
 
-/* ============================================================
-   Photos autorisées & auto-validation
-   ============================================================ */
 function estPhotoAutorisee(c, catId) {
   if (catId.startsWith('CAS_')) {
     const bpeOrigine = getRawValue(c, ['BPE', 'bpe'], '');
@@ -590,9 +580,6 @@ async function tryAutoValidateOnLastPhoto(c) {
   return true;
 }
 
-/* ============================================================
-   Modal confirmation distance GPS
-   ============================================================ */
 async function demanderConfirmationDistance(distanceM, chambre) {
   return new Promise((resolve) => {
     const distStr = distanceM > 1000
@@ -625,7 +612,6 @@ async function demanderConfirmationDistance(distanceM, chambre) {
   });
 }
 
-/* -------------------- Persistance -------------------- */
 function saveHeaders() { try { localStorage.setItem('releve_headers', JSON.stringify(headers)); } catch(e){} }
 function loadHeaders() { const s = localStorage.getItem('releve_headers'); if (s) { try { headers = JSON.parse(s); } catch(e){ headers = []; } } }
 function saveMode() { try { localStorage.setItem(MODE_KEY, modeTravail); } catch(e){} }
@@ -774,6 +760,70 @@ function generateCSV(){
     lines.push(row.map(v=>esc(v,d)).join(d));
   }
   return lines.join('\r\n');
+}
+
+// ==========================================
+// GÉNÉRATION EXCEL (BPE)
+// ==========================================
+function generateExcelExport() {
+  if (typeof XLSX === 'undefined') return null;
+  const wb = XLSX.utils.book_new();
+  const validBoxes = chambres.filter(c => {
+      const bpe = getRawValue(c, ['BPE', 'bpe'], '');
+      const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
+      return hasBpe && c.hasBoite !== false;
+  });
+
+  if (validBoxes.length === 0) return null;
+
+  validBoxes.forEach(c => {
+      const bpeName = getRawValue(c, ['BPE', 'bpe'], 'SANS_NOM');
+      // Nettoyage du nom de l'onglet (max 31 chars, pas de caractères spéciaux)
+      let baseSheetName = bpeName.substring(0, 28).replace(/[\\\/\?\*\[\]\:]/g, '_').trim();
+      if (!baseSheetName) baseSheetName = "Boite";
+      
+      let sheetName = baseSheetName;
+      let counter = 1;
+      while (wb.SheetNames.includes(sheetName)) {
+          sheetName = `${baseSheetName}_${counter}`;
+          counter++;
+      }
+
+      const data = [
+          ["Chambre", getDisplayName(c)],
+          ["BPE", bpeName],
+          ["Capacité", c.capacite || 48],
+          ["Commune", getRawValue(c, ['COMMUNE'], '')],
+          [],
+          ["Cassette (Tube)", "Fibre", "Statut", "Tube Dest.", "Fibre Dest.", "Câble Sortant", "Destination"]
+      ];
+
+      const cap = parseInt(c.capacite, 10) || 48;
+      const nbTubes = Math.ceil(cap / 12);
+      const nextBox = validBoxes.find(b => b.raw['ORDRE'] > c.raw['ORDRE']);
+      const cableOut = nextBox ? getRawValue(nextBox, ['CABLE'], '') : '';
+      const destBox = nextBox ? getRawValue(nextBox, ['BPE'], '') : '';
+
+      for (let t = 1; t <= nbTubes; t++) {
+          const tubeData = c.splicingData && c.splicingData[t] ? c.splicingData[t] : { droit: true, fibers: [] };
+          for (let f = 0; f < 12; f++) {
+              const fib = tubeData.fibers[f] || { status: 'soude', destTube: t, destFib: f + 1 };
+              const isSpliced = (fib.status === 'soude' || fib.status === 'passage');
+              data.push([
+                  `T${t}`, `F${f+1}`, fib.status, 
+                  isSpliced ? fib.destTube : '',
+                  isSpliced ? fib.destFib : '',
+                  isSpliced ? cableOut : '',
+                  isSpliced ? destBox : ''
+              ]);
+          }
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 }
 
 async function compress(file,maxDim=1600,q=0.8){
@@ -965,21 +1015,45 @@ function openDetail(id){
     cassettesGrid.querySelectorAll('[data-del-cat]').forEach(b => { b.onclick = async (e) => { e.stopPropagation(); e.preventDefault(); if (!confirm(`Supprimer la photo ${b.dataset.delCat.replace('_',' ')} ?`)) return; c.photos[b.dataset.delCat] = []; await dbPut(c); openDetail(id); }; });
   };
   if (showCassettes) renderCassettes();
+  
   const renderSouduresConfig = () => {
     const grid = document.getElementById('souduresConfigGrid'); if(!grid) return; let html = '';
     for (let t = 1; t <= nbTubes; t++) {
       const tubeData = c.splicingData[t]; const isDroit = tubeData.droit;
       html += `<div class="splice-tube-block" data-tube="${t}"><div class="splice-tube-header"><span>Tube ${t} (${couleursNoms[t-1] || 'Couleur ' + t})</span><label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label></div><table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>Tube Dest.</th><th>Fibre Dest.</th></tr></thead><tbody>`;
-      for (let f = 0; f < 12; f++) { const fib = tubeData.fibers[f]; const disabled = (isDroit || fib.status !== 'soude') ? 'disabled' : '';
-        html += `<tr><td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td><td><select class="fib-status" data-tube="${t}" data-fib="${f}" ${isDroit ? 'disabled' : ''}><option value="soude" ${fib.status === 'soude' ? 'selected' : ''}>Soudé</option><option value="attente" ${fib.status === 'attente' ? 'selected' : ''}>Attente</option><option value="passage" ${fib.status === 'passage' ? 'selected' : ''}>Passage</option></select></td><td><input type="number" min="1" max="${nbTubes}" class="fib-dest-tube" data-tube="${t}" data-fib="${f}" value="${fib.destTube}" ${disabled}></td><td><input type="number" min="1" max="12" class="fib-dest-fib" data-tube="${t}" data-fib="${f}" value="${fib.destFib}" ${disabled}></td></tr>`; }
+      for (let f = 0; f < 12; f++) { 
+        const fib = tubeData.fibers[f]; 
+        const isTerminal = ['attente', 'actif', 'service', 'morte', 'reserve'].includes(fib.status);
+        const disabled = (isDroit || isTerminal) ? 'disabled' : '';
+        
+        html += `<tr><td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td>
+        <td>
+          <select class="fib-status" data-tube="${t}" data-fib="${f}" ${isDroit ? 'disabled' : ''}>
+            <option value="soude" ${fib.status === 'soude' ? 'selected' : ''}>Soudé</option>
+            <option value="passage" ${fib.status === 'passage' ? 'selected' : ''}>Passage</option>
+            <option value="attente" ${fib.status === 'attente' ? 'selected' : ''}>En attente</option>
+            <option value="actif" ${fib.status === 'actif' ? 'selected' : ''}>Actif</option>
+            <option value="service" ${fib.status === 'service' ? 'selected' : ''}>Service Internet</option>
+            <option value="reserve" ${fib.status === 'reserve' ? 'selected' : ''}>En réserve</option>
+            <option value="morte" ${fib.status === 'morte' ? 'selected' : ''}>Fibre morte</option>
+          </select>
+        </td>
+        <td><input type="number" min="1" max="${nbTubes}" class="fib-dest-tube" data-tube="${t}" data-fib="${f}" value="${fib.destTube}" ${disabled}></td>
+        <td><input type="number" min="1" max="12" class="fib-dest-fib" data-tube="${t}" data-fib="${f}" value="${fib.destFib}" ${disabled}></td>
+        </tr>`; 
+      }
       html += `</tbody></table></div>`;
     }
     grid.innerHTML = html;
+    
     grid.querySelectorAll('.droit-toggle').forEach(chk => { chk.onchange = async (e) => { const t = parseInt(e.target.dataset.tube); c.splicingData[t].droit = e.target.checked; if (e.target.checked) c.splicingData[t].fibers = Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1 })); await dbPut(c); renderSouduresConfig(); }; });
+    
     grid.querySelectorAll('.fib-status').forEach(sel => { sel.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].status = e.target.value; await dbPut(c); renderSouduresConfig(); }; });
+    
     grid.querySelectorAll('.fib-dest-tube, .fib-dest-fib').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); const val = parseInt(e.target.value) || 1; if (inp.classList.contains('fib-dest-tube')) c.splicingData[t].fibers[f].destTube = val; else c.splicingData[t].fibers[f].destFib = val; await dbPut(c); }; });
   };
   if (showBoxSettings) renderSouduresConfig();
+  
   const toggleSoudureBtn = document.getElementById('toggleSoudureBtn');
   if (toggleSoudureBtn) toggleSoudureBtn.onclick = async () => { c.forceShowSoudure = !c.forceShowSoudure; await dbPut(c); openDetail(id); };
   document.getElementById('capaciteSelect')?.addEventListener('change', async (e) => { c.capacite = parseInt(e.target.value, 10); await dbPut(c); openDetail(id); });
@@ -1109,7 +1183,6 @@ async function construireSynoptiquePDF() {
   const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0), cableML = infraML * 1.10 + nbBoites;
   const stats = { nbChambres, nbBoites, infraML, cableML };
   
-  // Modification pour le format A4 ou A3
   const formatPapier = FORMAT_PDF === "A4" ? "a4" : "a3";
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: formatPapier });
   
@@ -1126,7 +1199,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.6`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.7`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1199,7 +1272,6 @@ async function construireSynoptiquePDF() {
     return positions;
   }
   
-  // Adaptation des points par ligne en fonction du format (A4 = moins de points que A3)
   const pointsParLigne = FORMAT_PDF === "A4" ? 7 : 10; 
   const espacementY = FORMAT_PDF === "A4" ? 60 : 70;
   const espacementX = (W - 100) / pointsParLigne, startX = 70, startY = H - 160;
@@ -1213,7 +1285,6 @@ async function construireSynoptiquePDF() {
     dessinerEntetePied(numPage, nbPages); dessinerLegendeStats(40, 170);
     if (optFCI) dessinerZonesFCI(positions);
     
-    // Renvoi Entrée (Début de page)
     if (numPage > 1 && positions.length) { 
         const prevIndex = debut - 1;
         const prevChambre = donnees[prevIndex];
@@ -1249,7 +1320,6 @@ async function construireSynoptiquePDF() {
       dessinerPoint(p.x, p.y, p.row, p.globalI);
     }
     
-    // Renvoi Sortie (Fin de page)
     if (numPage < nbPages && positions.length && fin < donnees.length) { 
         const last = positions[positions.length - 1]; 
         const currChambre = donnees[fin - 1]; 
@@ -1271,14 +1341,10 @@ async function construireSynoptiquePDF() {
   return { doc, nomProjet, nbPages: doc.internal.getNumberOfPages(), nbChambres: donnees.length };
 }
 
-/* ============================================================
-   CAPTURE CARTE - HAUTE RÉSOLUTION ET CORRECTIONS
-   ============================================================ */
 async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121, zoomForce = null, dessinerLigne = false, chambreAmont = null) {
   return new Promise(async (resolve) => {
     if (chambresGps.length === 0) { resolve(null); return; }
 
-    // Facteur d'échelle pour la netteté
     const scale = widthPx / 2000;
 
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
@@ -1368,7 +1434,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
     });
 
-    // 1. Tracé CYAN avec longueurs
     if (dessinerLigne && chambresTriees.length > 1) {
       ctx.strokeStyle = 'rgba(0, 188, 212, 0.8)';
       ctx.lineWidth = 2 * scale;
@@ -1387,8 +1452,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       ctx.textBaseline = 'middle';
       
       for (let i = 1; i < chambresTriees.length; i++) {
-        // === CORRECTION MAJEURE ICI ===
-        // La longueur se trouve sur la chambre de DÉPART (prevC)
         const prevC = chambresTriees[i - 1];
         const currC = chambresTriees[i];
         const etiq2 = getRawValue(prevC, ['ETIQUETTE_2', 'etiquette_2'], '');
@@ -1414,7 +1477,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       }
     }
 
-    // 2. Chambre amont en gris
     if (chambreAmont) {
       const p = proj(chambreAmont);
       ctx.beginPath();
@@ -1431,7 +1493,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       ctx.fillText(`${getDisplayName(chambreAmont)} (préc.)`, p.x, p.y - 10 * scale);
     }
 
-    // 3. Chambres (BPE en vert, autres en rouge)
     chambresGps.forEach(c => {
       if (isNaN(parseFloat(c.lat)) || isNaN(parseFloat(c.lon))) return;
       const p = proj(c);
@@ -1476,7 +1537,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       }
     });
 
-    // 4. RECADRAGE AVEC RATIO (Adapté au format A4 ou A3 défini)
     const tousLesPoints = toutesChambres.map(c => proj(c));
     let minPx = Infinity, maxPx = -Infinity, minPy = Infinity, maxPy = -Infinity;
     tousLesPoints.forEach(p => {
@@ -1492,7 +1552,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
     let cropW = Math.min(canvas.width - cropX, (maxPx - minPx) + 2 * padding);
     let cropH = Math.min(canvas.height - cropY, (maxPy - minPy) + 2 * padding);
 
-    // On force le ratio selon le format demandé
     const pdfRatio = widthPx / heightPx;
     const currentRatio = cropW / cropH;
 
@@ -1533,15 +1592,12 @@ async function ajouterPageCarteMaps(doc, chambres) {
   const pageH = doc.internal.pageSize.getHeight();
   
   const isA4 = FORMAT_PDF === "A4";
-  // Augmentation drastique de la résolution pour la netteté
   const imgW = isA4 ? 3000 : 4000; 
   const imgH = isA4 ? Math.round(3000 / 1.414) : Math.round(4000 / 1.414); 
 
-  // Zone réservée à la carte : elle occupe TOUT l'espace disponible
   const mapRectX = 40, mapRectY = 80;
   const mapRectW = pageW - 80, mapRectH = pageH - 160;
 
-  // 1. PAGE GLOBALE
   doc.addPage(FORMAT_PDF === "A4" ? "a4" : "a3", 'landscape');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(isA4 ? 14 : 18);
@@ -1569,8 +1625,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setTextColor(0, 0, 255);
   doc.textWithLink(`Ouvrir l'itinéraire complet dans Google Maps (${maxPoints} chambres)`, pageW / 2, pageH - 40, { align: 'center', url: gmapsUrl });
 
-  // 2. PAGES DÉTAILLÉES (Tronçons)
-  const tronconTaille = isA4 ? 12 : 20; // Moins de chambres par page en A4 pour que ce soit lisible
+  const tronconTaille = isA4 ? 12 : 20;
   const chambresTriees = [...chambresGps].sort((a, b) => {
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
     const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
@@ -1631,7 +1686,7 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       doc.addPage('a4', 'landscape'); const pageW = doc.internal.pageSize.getWidth();
       doc.setFontSize(7); doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setDrawColor(200,200,200); doc.setFillColor(255,255,255); doc.rect(30, 30, 100, 50);
       doc.text('Épissure (Soudé)', 35, 40); doc.setFont('helvetica','bold'); doc.setTextColor(255,0,0); doc.text('---*---', 100, 40);
-      doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); doc.text('Passage', 35, 50); doc.text('---=>---', 100, 50); doc.text('En attente', 35, 60); doc.text('---o', 100, 60); doc.text('Fibre morte', 35, 70); doc.text('---//---', 100, 70);
+      doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); doc.text('Passage', 35, 50); doc.text('---=>---', 100, 50); doc.text('En attente', 35, 60); doc.text('---o', 100, 60); doc.text('Fibre morte', 35, 70); doc.text('---X---', 100, 70);
       doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(0,0,0); doc.text(`PLAN DE SOUDURES - ${nomBoite}`, pageW / 2, 40, { align: 'center' });
       doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.text(`Chambre : ${chambreNom} | Commune : ${commune} | Code : ${codeSite}`, pageW / 2, 55, { align: 'center' });
       if (adresse) doc.text(`Adresse : ${adresse}`, pageW / 2, 68, { align: 'center' });
@@ -1692,7 +1747,15 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
       for (let f = 0; f < 12; f++) {
         const rowY = startY + rowHeight + (f * rowHeight); const rgb = couleursHex[couleursNoms[f]]; const textColor = getTextColor(rgb);
         let fibData = isDroit ? { status: 'soude', destTube: t, destFib: f + 1 } : (tubeData.fibers[f] || { status: 'soude', destTube: t, destFib: f + 1 });
-        if (isEndOfLine && fibData.status === 'soude') fibData.status = 'attente';
+        
+        let typeStr = '---*---'; 
+        if (fibData.status === 'attente') typeStr = '---o'; 
+        else if (fibData.status === 'passage') typeStr = '---=>---';
+        else if (fibData.status === 'actif') typeStr = '---A---';
+        else if (fibData.status === 'service') typeStr = '---S---';
+        else if (fibData.status === 'reserve') typeStr = '---R---';
+        else if (fibData.status === 'morte') typeStr = '---X---';
+
         currentX = startX;
         for (let i = 0; i < colWidths.length; i++) {
           if (i !== 2 && i !== 6) doc.rect(currentX, rowY, colWidths[i], rowHeight);
@@ -1704,13 +1767,31 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
         doc.text(truncateText(nomBoite, colWidths[0]-5, doc, 7.5), currentX + colWidths[0]/2, rowY + 14, { align: 'center' }); currentX += colWidths[0];
         doc.text(truncateText(cableIn, colWidths[1]-5, doc, 7.5), currentX + 5, rowY + 14); currentX += colWidths[1]; currentX += colWidths[2];
         doc.setTextColor(textColor[0], textColor[1], textColor[2]); doc.setFont('helvetica','bold'); doc.text(`F${f+1}`, currentX + colWidths[3]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); currentX += colWidths[3];
-        let typeStr = '---*---'; if (fibData.status === 'attente') typeStr = '---o'; else if (fibData.status === 'passage') typeStr = '---=>---';
-        doc.setFont('helvetica','bold'); if (fibData.status === 'soude') doc.setTextColor(255,0,0); doc.text(typeStr, currentX + colWidths[4]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); currentX += colWidths[4];
-        if (fibData.status === 'soude' || fibData.status === 'passage') { let dF = fibData.status === 'passage' ? (f + 1) : fibData.destFib; const dRgb = couleursHex[couleursNoms[dF - 1]]; const dTc = getTextColor(dRgb); doc.setFont('helvetica','bold'); doc.setTextColor(dTc[0], dTc[1], dTc[2]); doc.text(`F${dF}`, currentX + colWidths[5]/2, rowY + 14, { align: 'center' }); doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); }
+        
+        doc.setFont('helvetica','bold'); 
+        if (fibData.status === 'soude') doc.setTextColor(255,0,0);
+        else if (fibData.status === 'morte') doc.setTextColor(128,128,128);
+        doc.text(typeStr, currentX + colWidths[4]/2, rowY + 14, { align: 'center' }); 
+        doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); currentX += colWidths[4];
+        
+        if (fibData.status === 'soude' || fibData.status === 'passage') { 
+            let dF = fibData.status === 'passage' ? (f + 1) : fibData.destFib; 
+            const dRgb = couleursHex[couleursNoms[dF - 1]]; const dTc = getTextColor(dRgb); 
+            doc.setFont('helvetica','bold'); doc.setTextColor(dTc[0], dTc[1], dTc[2]); doc.text(`F${dF}`, currentX + colWidths[5]/2, rowY + 14, { align: 'center' }); 
+            doc.setFont('helvetica','normal'); doc.setTextColor(0,0,0); 
+        }
         currentX += colWidths[5]; currentX += colWidths[6];
+        
         if (fibData.status === 'soude') { doc.text(truncateText(cableOut, colWidths[7]-5, doc, 7.5), currentX + 5, rowY + 14); doc.text(truncateText(destination, colWidths[8]-5, doc, 7.5), currentX + colWidths[7] + 5, rowY + 14); }
         else if (fibData.status === 'passage') { doc.text(truncateText(cableIn, colWidths[7]-5, doc, 7.5), currentX + 5, rowY + 14); doc.text(truncateText(destination, colWidths[8]-5, doc, 7.5), currentX + colWidths[7] + 5, rowY + 14); }
-        else if (fibData.status === 'attente') { doc.text('EN ATTENTE', currentX + colWidths[7] + 5, rowY + 14); }
+        else if (fibData.status !== 'soude') { 
+            let lbl = 'EN ATTENTE'; 
+            if (fibData.status === 'actif') lbl = 'ACTIF'; 
+            else if (fibData.status === 'service') lbl = 'SERVICE INTERNET'; 
+            else if (fibData.status === 'reserve') lbl = 'EN RÉSERVE'; 
+            else if (fibData.status === 'morte') lbl = 'FIBRE MORTE'; 
+            doc.text(lbl, currentX + colWidths[7] + 5, rowY + 14); 
+        }
       }
       const tubeHeight = 12 * rowHeight, tubeStartY = startY + rowHeight;
       const tubeX = startX + colWidths[0] + colWidths[1]; const tColor = couleursHex[couleursNoms[t-1] || 'Bleu']; const tTc = getTextColor(tColor);
@@ -1956,6 +2037,13 @@ async function exportAll(){
     trierParOrdreGeo();
     const zip=new JSZip();
     zip.file('releve_chambres.csv', '\uFEFF' + generateCSV());
+    
+    // EXCEL DANS LE ZIP
+    try {
+        const excelData = generateExcelExport();
+        if (excelData) zip.file('Inventaire_Boites.xlsx', excelData);
+    } catch(e) { console.warn("Excel non généré :", e); }
+
     try { const pr = await construireSynoptiquePDF(); if (pr) { const pb = pr.doc.output('blob'); const pn = `Dossier_Complet_${pr.nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}.pdf`; zip.file(pn, pb); } } catch(e) { console.warn("PDF non généré :", e); }
     const allCats = [...PHOTO_CATS_AIGUILLAGE, ...PHOTO_CATS_FOA]; const uC = Array.from(new Set(allCats.map(c => c.id))).map(id => allCats.find(c => c.id === id));
     for(const c of chambres){
@@ -1988,6 +2076,28 @@ async function exportAll(){
   finally{showOverlay(false);}
 }
 
+async function exportExcelOnly() {
+    if (!chambres.length) { alert('Rien à exporter.'); return; }
+    try {
+        const data = generateExcelExport();
+        if (!data) { alert("Aucune boîte à exporter (vérifiez que les champs BPE sont remplis et que les boîtes sont cochées)."); return; }
+        const blob = new Blob([data], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+        const fname = 'Inventaire_Boites_' + new Date().toISOString().slice(0,10) + '.xlsx';
+        const file = new File([blob], fname, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        try { 
+            if (navigator.canShare && navigator.canShare({ files: [file] })) { 
+                await navigator.share({ files: [file], title: 'Inventaire Boîtes', text: 'Fichier Excel' }); 
+            } else throw new Error("Partage non supporté"); 
+        } catch (err) { 
+            if (err && err.name === 'AbortError') { return; }
+            const u = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = u; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(u), 60000); alert("Fichier Excel téléchargé."); 
+        }
+    } catch(e) {
+        alert("Erreur de génération Excel : " + e.message);
+    }
+}
+
 document.querySelectorAll('.mode-btn').forEach(btn => { 
   btn.onclick = () => { 
     modeTravail = btn.dataset.mode; 
@@ -2003,6 +2113,7 @@ document.getElementById('newProjectBtnInline').onclick = nouveauProjet;
 document.getElementById('csvInput').onchange=async e=>{ const f=e.target.files[0]; if(!f)return; await importCSV(f); e.target.value=''; };
 document.getElementById('btnChronoReset').onclick = chronoReset;
 document.getElementById('exportBtn').onclick=exportAll;
+document.getElementById('exportExcelBtn').onclick=exportExcelOnly;
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
 document.getElementById('insertAfterSelect').onchange = updateReferenceInfo;
 
