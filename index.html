@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.5 (Corrections tracés & A4)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.6 (Corrections tracés & Netteté Maps)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1126,7 +1126,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.5`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.6`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1163,8 +1163,25 @@ async function construireSynoptiquePDF() {
       setTextColor([Math.round(r * 0.6 * 255), Math.round(g * 0.6 * 255), Math.round(b * 0.6 * 255)]); setFont('Helvetica-Bold', 9); drawText(label, xMin - pad + 5, yMax + pad + 12); setTextColor(COL.black);
     }
   }
-  function dessinerRenvoiSortie(x, y, longueur, pageSuivante) { setDrawColor(COL.red); setFillColor(COL.red); doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0); drawLine(x, y - 8, x, y - 18); doc.setLineDashPattern([], 0); doc.setLineWidth(1.2); doc.triangle(x, flipY(y - 22), x - 3, flipY(y - 18), x + 3, flipY(y - 18), 'F'); setFont('Helvetica-Bold', 6); drawText(`Suite P.${pageSuivante}`, x, y - 28, 'center'); drawText(`(${longueur} m)`, x, y - 35, 'center'); }
-  function dessinerRenvoiEntree(x, y, longueur, pagePrecedente) { setDrawColor(COL.red); setFillColor(COL.red); doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0); drawLine(x, y + 8, x, y + 16); doc.setLineDashPattern([], 0); doc.setLineWidth(1.2); doc.triangle(x, flipY(y + 5), x - 3, flipY(y + 9), x + 3, flipY(y + 9), 'F'); setFont('Helvetica-Bold', 6); drawText(`Suite P.${pagePrecedente}`, x, y + 20, 'center'); drawText(`(${longueur} m)`, x, y + 26, 'center'); }
+  
+  function dessinerRenvoiSortie(x, y, longueur, pageSuivante, nomChambreActuelle, nomChambreSuivante) {
+      setDrawColor(COL.red); setFillColor(COL.red); doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
+      drawLine(x, y - 8, x, y - 18); doc.setLineDashPattern([], 0);
+      doc.setLineWidth(1.2); doc.triangle(x, flipY(y - 22), x - 3, flipY(y - 18), x + 3, flipY(y - 18), 'F');
+      setFont('Helvetica-Bold', 6);
+      drawText(`Vers ${nomChambreSuivante} (P.${pageSuivante})`, x + 15, y - 18, 'left');
+      drawText(`(${longueur} m)`, x + 15, y - 12, 'left');
+  }
+  
+  function dessinerRenvoiEntree(x, y, longueur, pagePrecedente, nomChambrePrecedente, nomChambreActuelle) {
+      setDrawColor(COL.red); setFillColor(COL.red); doc.setLineWidth(1); doc.setLineDashPattern([2, 2], 0);
+      drawLine(x, y + 8, x, y + 16); doc.setLineDashPattern([], 0);
+      doc.setLineWidth(1.2); doc.triangle(x, flipY(y + 5), x - 3, flipY(y + 9), x + 3, flipY(y + 9), 'F');
+      setFont('Helvetica-Bold', 6);
+      drawText(`Depuis ${nomChambrePrecedente} (P.${pagePrecedente})`, x + 15, y + 16, 'left');
+      drawText(`(${longueur} m)`, x + 15, y + 22, 'left');
+  }
+
   function couleurPoint(ref, bpe) { const r = String(ref).toUpperCase(), b = String(bpe).toUpperCase(); if (b.includes('PBC') || r.includes('PBC')) return COL.turquoise; if (r.includes('PEC')) return COL.red; if (r.includes('PDB')) return COL.blue; if (b) return COL.purple; return COL.black; }
   function dessinerPoint(cx, cy, row, globalI) {
     const ch = row.CODE_CH1 || '', bpe = row.BPE || '', ref = row.REF_CHAMBR || '', wkt = row.wkt_geom || '', nomCable = row.CABLE || '';
@@ -1195,14 +1212,53 @@ async function construireSynoptiquePDF() {
     if (numPage > 1) doc.addPage(formatPapier, 'landscape');
     dessinerEntetePied(numPage, nbPages); dessinerLegendeStats(40, 170);
     if (optFCI) dessinerZonesFCI(positions);
-    if (numPage > 1 && positions.length) { const prevL = positions[0].row.ETIQUETTE_2 || '0'; if (parseFloatSafe(prevL) > 0) dessinerRenvoiEntree(positions[0].x, positions[0].y, prevL, numPage - 1); }
+    
+    // Renvoi Entrée (Début de page)
+    if (numPage > 1 && positions.length) { 
+        const prevIndex = debut - 1;
+        const prevChambre = donnees[prevIndex];
+        const currChambre = donnees[debut];
+        const longueur = prevChambre.ETIQUETTE_2 || '0'; 
+        if (parseFloatSafe(longueur) > 0) {
+            dessinerRenvoiEntree(positions[0].x, positions[0].y, longueur, numPage - 1, prevChambre.CODE_CH1, currChambre.CODE_CH1); 
+        }
+    }
+    
     for (let idx = 0; idx < positions.length; idx++) {
       const p = positions[idx];
-      if (idx > 0) { const prev = positions[idx - 1]; const prevL = prev.row.ETIQUETTE_2 || '0'; const isLast = (p.globalI === donnees.length - 1); const skip = isLast && ['0','0.0','','None'].includes(String(prevL).trim());
-        if (!skip) { setDrawColor(COL.orange); doc.setLineWidth(1.5); const nv = (idx % pointsParLigne === 0); if (nv) { const my = p.y + espacementY / 2; drawLine(prev.x, prev.y, prev.x, my); drawLine(prev.x, my, p.x, my); drawLine(p.x, my, p.x, p.y); } else drawLine(prev.x, prev.y, p.x, p.y); setTextColor(COL.black); setFont('Helvetica-Bold', 6); const mx = (prev.x + p.x) / 2, my2 = (prev.y + p.y) / 2; drawText(`${prevL}m`, mx, my2 + 4, 'center'); } }
+      if (idx > 0) { 
+          const prev = positions[idx - 1]; 
+          const prevL = prev.row.ETIQUETTE_2 || '0'; 
+          const isLast = (p.globalI === donnees.length - 1); 
+          const skip = isLast && ['0','0.0','','None'].includes(String(prevL).trim());
+          if (!skip) { 
+              setDrawColor(COL.orange); doc.setLineWidth(1.5); const nv = (idx % pointsParLigne === 0); 
+              if (nv) { 
+                  const my = p.y + espacementY / 2; 
+                  drawLine(prev.x, prev.y, prev.x, my); 
+                  drawLine(prev.x, my, p.x, my); 
+                  drawLine(p.x, my, p.x, p.y); 
+              } else {
+                  drawLine(prev.x, prev.y, p.x, p.y); 
+              }
+              setTextColor(COL.black); setFont('Helvetica-Bold', 6); 
+              const mx = (prev.x + p.x) / 2, my2 = (prev.y + p.y) / 2; 
+              drawText(`${prevL}m`, mx, my2 + 4, 'center'); 
+          } 
+      }
       dessinerPoint(p.x, p.y, p.row, p.globalI);
     }
-    if (numPage < nbPages && positions.length && fin < donnees.length) { const last = positions[positions.length - 1]; const nextL = donnees[fin].ETIQUETTE_2 || '0'; if (parseFloatSafe(nextL) > 0) dessinerRenvoiSortie(last.x, last.y, nextL, numPage + 1); }
+    
+    // Renvoi Sortie (Fin de page)
+    if (numPage < nbPages && positions.length && fin < donnees.length) { 
+        const last = positions[positions.length - 1]; 
+        const currChambre = donnees[fin - 1]; 
+        const nextChambre = donnees[fin];
+        const longueur = currChambre.ETIQUETTE_2 || '0'; 
+        if (parseFloatSafe(longueur) > 0) {
+            dessinerRenvoiSortie(last.x, last.y, longueur, numPage + 1, currChambre.CODE_CH1, nextChambre.CODE_CH1); 
+        }
+    }
   }
   
   if (optSoudures) {
@@ -1216,11 +1272,14 @@ async function construireSynoptiquePDF() {
 }
 
 /* ============================================================
-   CAPTURE CARTE - CORRIGÉE (Logique longueur + A4/A3)
+   CAPTURE CARTE - HAUTE RÉSOLUTION ET CORRECTIONS
    ============================================================ */
-async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250, zoomForce = null, dessinerLigne = false, chambreAmont = null) {
+async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121, zoomForce = null, dessinerLigne = false, chambreAmont = null) {
   return new Promise(async (resolve) => {
     if (chambresGps.length === 0) { resolve(null); return; }
+
+    // Facteur d'échelle pour la netteté
+    const scale = widthPx / 2000;
 
     let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
     const toutesChambres = chambreAmont ? [chambreAmont, ...chambresGps] : chambresGps;
@@ -1312,8 +1371,8 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
     // 1. Tracé CYAN avec longueurs
     if (dessinerLigne && chambresTriees.length > 1) {
       ctx.strokeStyle = 'rgba(0, 188, 212, 0.8)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
+      ctx.lineWidth = 2 * scale;
+      ctx.setLineDash([6 * scale, 4 * scale]);
       ctx.beginPath();
       chambresTriees.forEach((c, i) => {
         const p = proj(c);
@@ -1323,33 +1382,32 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
       ctx.stroke();
       ctx.setLineDash([]);
 
-      ctx.font = 'bold 9px Arial';
+      ctx.font = 'bold ' + (9 * scale) + 'px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       
       for (let i = 1; i < chambresTriees.length; i++) {
-        const c = chambresTriees[i];
-        
-        // =========================================================
-        // CORRECTION LOGIQUE LONGUEUR : On lit l'étiquette de la chambre d'ARRIVÉE (c) et non de la chambre de DÉPART.
-        // =========================================================
-        const etiq2 = getRawValue(c, ['ETIQUETTE_2', 'etiquette_2'], '');
+        // === CORRECTION MAJEURE ICI ===
+        // La longueur se trouve sur la chambre de DÉPART (prevC)
+        const prevC = chambresTriees[i - 1];
+        const currC = chambresTriees[i];
+        const etiq2 = getRawValue(prevC, ['ETIQUETTE_2', 'etiquette_2'], '');
         
         if (etiq2 && !isNaN(parseFloat(etiq2))) {
-          const p1 = proj(chambresTriees[i - 1]);
-          const p2 = proj(c);
+          const p1 = proj(prevC);
+          const p2 = proj(currC);
           const mx = (p1.x + p2.x) / 2;
           const my = (p1.y + p2.y) / 2;
           const dx = p2.x - p1.x, dy = p2.y - p1.y;
           const len = Math.sqrt(dx*dx + dy*dy) || 1;
-          const offset = 18;
+          const offset = 18 * scale;
           const nx = -dy / len * offset;
           const ny = dx / len * offset;
           const txt = `${parseFloat(etiq2)}m`;
           const tw = ctx.measureText(txt).width;
 
           ctx.fillStyle = 'rgba(0, 188, 212, 0.85)';
-          ctx.fillRect(mx + nx - tw/2 - 2, my + ny - 6, tw + 4, 12);
+          ctx.fillRect(mx + nx - tw/2 - 2 * scale, my + ny - 6 * scale, tw + 4 * scale, 12 * scale);
           ctx.fillStyle = 'white';
           ctx.fillText(txt, mx + nx, my + ny);
         }
@@ -1360,17 +1418,17 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
     if (chambreAmont) {
       const p = proj(chambreAmont);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+      ctx.arc(p.x, p.y, 4 * scale, 0, 2 * Math.PI);
       ctx.fillStyle = '#888888';
       ctx.fill();
       ctx.strokeStyle = '#333333';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1 * scale;
       ctx.stroke();
-      ctx.font = 'bold 8px Arial';
+      ctx.font = 'bold ' + (8 * scale) + 'px Arial';
       ctx.fillStyle = '#555555';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${getDisplayName(chambreAmont)} (préc.)`, p.x, p.y - 10);
+      ctx.fillText(`${getDisplayName(chambreAmont)} (préc.)`, p.x, p.y - 10 * scale);
     }
 
     // 3. Chambres (BPE en vert, autres en rouge)
@@ -1383,38 +1441,38 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
       const couleurPoint = hasBpe ? '#2e7d32' : '#c62828';
 
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+      ctx.arc(p.x, p.y, 4 * scale, 0, 2 * Math.PI);
       ctx.fillStyle = couleurPoint;
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1.5 * scale;
       ctx.stroke();
 
       const txt = getDisplayName(c);
-      ctx.font = 'bold 8px Arial';
+      ctx.font = 'bold ' + (8 * scale) + 'px Arial';
       const textWidth = ctx.measureText(txt).width;
       ctx.fillStyle = 'white';
       ctx.strokeStyle = couleurPoint;
-      ctx.lineWidth = 1;
-      ctx.fillRect(p.x - textWidth/2 - 2, p.y - 16, textWidth + 4, 10);
-      ctx.strokeRect(p.x - textWidth/2 - 2, p.y - 16, textWidth + 4, 10);
+      ctx.lineWidth = 1 * scale;
+      ctx.fillRect(p.x - textWidth/2 - 2 * scale, p.y - 16 * scale, textWidth + 4 * scale, 10 * scale);
+      ctx.strokeRect(p.x - textWidth/2 - 2 * scale, p.y - 16 * scale, textWidth + 4 * scale, 10 * scale);
       ctx.fillStyle = 'black';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(txt, p.x, p.y - 11);
+      ctx.fillText(txt, p.x, p.y - 11 * scale);
 
       if (hasBpe) {
         const txtBpe = bpe.length > 20 ? bpe.substring(0, 18) + '…' : bpe;
-        ctx.font = 'bold 7px Arial';
+        ctx.font = 'bold ' + (7 * scale) + 'px Arial';
         const twBpe = ctx.measureText(txtBpe).width;
         ctx.fillStyle = 'rgba(232, 245, 233, 0.95)';
-        ctx.fillRect(p.x + 6, p.y + 2, twBpe + 4, 9);
+        ctx.fillRect(p.x + 6 * scale, p.y + 2 * scale, twBpe + 4 * scale, 9 * scale);
         ctx.strokeStyle = '#2e7d32';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(p.x + 6, p.y + 2, twBpe + 4, 9);
+        ctx.lineWidth = 0.5 * scale;
+        ctx.strokeRect(p.x + 6 * scale, p.y + 2 * scale, twBpe + 4 * scale, 9 * scale);
         ctx.fillStyle = '#1b5e20';
         ctx.textAlign = 'left';
-        ctx.fillText(txtBpe, p.x + 8, p.y + 7);
+        ctx.fillText(txtBpe, p.x + 8 * scale, p.y + 7 * scale);
       }
     });
 
@@ -1428,7 +1486,7 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
       if (p.y > maxPy) maxPy = p.y;
     });
 
-    const padding = 40;
+    const padding = 40 * scale;
     let cropX = Math.max(0, minPx - padding);
     let cropY = Math.max(0, minPy - padding);
     let cropW = Math.min(canvas.width - cropX, (maxPx - minPx) + 2 * padding);
@@ -1474,11 +1532,10 @@ async function ajouterPageCarteMaps(doc, chambres) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   
-  // Calcul des dimensions de l'image en fonction du format
-  // Si A4, on augmente la résolution (pixels) pour garder une bonne qualité d'impression sur une plus petite surface.
   const isA4 = FORMAT_PDF === "A4";
-  const imgW = isA4 ? 2400 : 3000; 
-  const imgH = isA4 ? Math.round(2400 / (pageW / pageH)) : Math.round(3000 / (pageW / pageH));
+  // Augmentation drastique de la résolution pour la netteté
+  const imgW = isA4 ? 3000 : 4000; 
+  const imgH = isA4 ? Math.round(3000 / 1.414) : Math.round(4000 / 1.414); 
 
   // Zone réservée à la carte : elle occupe TOUT l'espace disponible
   const mapRectX = 40, mapRectY = 80;
