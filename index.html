@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.0 (Carte enrichie)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.1 (Lignes droites + zoom 19)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1115,7 +1115,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.0`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.1`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1200,7 +1200,7 @@ async function construireSynoptiquePDF() {
 }
 
 /* ============================================================
-   CAPTURE CARTE - TUILES OPENSTREETMAP (LIGNE ROUTIÈRE + ZOOM INTELLIGENT)
+   CAPTURE CARTE - TUILES OPENSTREETMAP (LIGNE DROITE + ZOOM INTELLIGENT)
    ============================================================ */
 async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, zoomForce = null, dessinerLigne = false, chambreAmont = null) {
   return new Promise(async (resolve) => {
@@ -1310,44 +1310,39 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
       return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
     });
 
-    // 1. Tracé des liaisons (routier via OSRM)
+    // 1. Tracé des liaisons (lignes droites, discrètes)
     if (dessinerLigne && chambresTriees.length > 1) {
-      const coordsStr = chambresTriees.map(c => `${c.lon},${c.lat}`).join(';');
-      try {
-        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
-        const resp = await fetch(osrmUrl);
-        const data = await resp.json();
-        if (data.routes && data.routes.length > 0) {
-          const coords = data.routes[0].geometry.coordinates;
-          ctx.beginPath();
-          ctx.strokeStyle = '#c62828';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([5, 5]);
-          coords.forEach((pt, i) => {
-            const lon = pt[0], lat = pt[1];
-            const tileX = (lon + 180) / 360 * n;
-            const tileY = (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n;
-            const px = (tileX - startTileX) * tileSize;
-            const py = (tileY - startTileY) * tileSize;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          });
-          ctx.stroke();
-          ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(198, 40, 40, 0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      chambresTriees.forEach((c, i) => {
+        const p = proj(c);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Ajout des longueurs (ETIQUETTE_2) au milieu de chaque segment
+      ctx.font = 'bold 7px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 1; i < chambresTriees.length; i++) {
+        const c = chambresTriees[i];
+        const etiq2 = getRawValue(c, ['ETIQUETTE_2', 'etiquette_2'], '');
+        if (etiq2 && !isNaN(parseFloat(etiq2))) {
+          const p1 = proj(chambresTriees[i - 1]);
+          const p2 = proj(c);
+          const mx = (p1.x + p2.x) / 2;
+          const my = (p1.y + p2.y) / 2;
+          const txt = `${parseFloat(etiq2)}m`;
+          const tw = ctx.measureText(txt).width;
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.fillRect(mx - tw/2 - 1, my - 5, tw + 2, 10);
+          ctx.fillStyle = '#c62828';
+          ctx.fillText(txt, mx, my);
         }
-      } catch (e) {
-        console.warn("OSRM échoué, tracé direct", e);
-        ctx.beginPath();
-        ctx.strokeStyle = '#c62828';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        chambresTriees.forEach((c, i) => {
-          const p = proj(c);
-          if (i === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.stroke();
-        ctx.setLineDash([]);
       }
     }
 
@@ -1368,7 +1363,7 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
       ctx.fillText(`${getDisplayName(chambreAmont)} (préc.)`, p.x, p.y - 10);
     }
 
-    // 3. Affichage des chambres du tronçon (BPE en vert, autres en rouge)
+    // 3. Affichage des chambres (BPE en vert, autres en rouge)
     chambresGps.forEach(c => {
       if (isNaN(parseFloat(c.lat)) || isNaN(parseFloat(c.lon))) return;
       const p = proj(c);
@@ -1378,7 +1373,7 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
       const couleurPoint = hasBpe ? '#2e7d32' : '#c62828';
 
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+      ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
       ctx.fillStyle = couleurPoint;
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
@@ -1391,12 +1386,12 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
       ctx.fillStyle = 'white';
       ctx.strokeStyle = couleurPoint;
       ctx.lineWidth = 1;
-      ctx.fillRect(p.x - textWidth/2 - 2, p.y - 18, textWidth + 4, 12);
-      ctx.strokeRect(p.x - textWidth/2 - 2, p.y - 18, textWidth + 4, 12);
+      ctx.fillRect(p.x - textWidth/2 - 2, p.y - 16, textWidth + 4, 10);
+      ctx.strokeRect(p.x - textWidth/2 - 2, p.y - 16, textWidth + 4, 10);
       ctx.fillStyle = 'black';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(txt, p.x, p.y - 12);
+      ctx.fillText(txt, p.x, p.y - 11);
     });
 
     const finalCanvas = document.createElement('canvas');
@@ -1460,7 +1455,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setTextColor(0, 0, 255);
   doc.textWithLink(`Ouvrir l'itinéraire complet dans Google Maps (${maxPoints} chambres)`, pageW / 2, pageH - 40, { align: 'center', url: gmapsUrl });
 
-  // 2. PAGES DÉTAILLÉES (Tronçons avec zoom 19 et chambre amont)
+  // 2. PAGES DÉTAILLÉES
   const tronconTaille = 20;
   const chambresTriees = [...chambresGps].sort((a, b) => {
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
@@ -1484,8 +1479,8 @@ async function ajouterPageCarteMaps(doc, chambres) {
     doc.setFont('helvetica', 'normal');
     doc.text(`Chambres du ${paquet[0].raw['CODE_CH1'] || '?'} au ${paquet[paquet.length - 1].raw['CODE_CH1'] || '?'}`, pageW / 2, 60, { align: 'center' });
 
-    // Zoom 19 (~1/500) avec report de la chambre amont
-    const ZOOM_DETAILLE = 19;
+    // Zoom adaptatif : 19 par défaut, 20 si le paquet est petit (moins de 10 chambres)
+    const ZOOM_DETAILLE = paquet.length < 10 ? 20 : 19;
     const zoomDataUrl = await capturerCarteTuiles(paquet, 1200, 800, ZOOM_DETAILLE, true, chambreAmont);
 
     if (zoomDataUrl) {
