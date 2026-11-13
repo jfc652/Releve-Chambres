@@ -20,6 +20,7 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-success { background:#2e7d32; }
 .btn-danger { background:#c62828; }
 .btn-excel { background:#1d6f42; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
+.btn-rop { background:#f57c00; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
 .btn-waze { background:#33ccff; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-bottom:8px;}
 .btn-maps { background:#4285F4; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%;}
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
@@ -211,6 +212,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="startBtn" class="btn" style="margin-top:8px; background:#e65100;">🚀 Démarrer le relevé</button>
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP complet)</button>
     <button id="exportExcelBtn" class="btn btn-excel">📊 Exporter Excel (Boîtes / Cassettes)</button>
+    <button id="ropBtn" class="btn btn-rop">📍 Générer ROP (Route Optique sur Maps)</button>
   </div>
 
   <div class="card" id="chronoCard" style="display:none;">
@@ -263,13 +265,27 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.2 (Corrections couleurs & tube)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.3 (ROP Maps & Logique Soudure)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
 <section id="screen-detail" class="hidden"><div id="detailContainer"></div></section>
 
 </main>
+
+<!-- Modal ROP Maps -->
+<div id="modalROP" class="modal-overlay" style="z-index: 9999; display: none;">
+  <div class="modal-content" style="max-width: 900px; width: 95%; height: 85vh; display: flex; flex-direction: column;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <h3 style="margin: 0;">📍 ROP - Route Optique</h3>
+      <button id="closeRopBtn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #c62828;">&times;</button>
+    </div>
+    <div id="ropMap" style="flex: 1; border-radius: 8px; border: 1px solid #ccc;"></div>
+    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+      <b>Légende :</b> Les lignes correspondent aux liens optiques. La couleur et l'épaisseur indiquent la fibre utilisée. (Rouge = F1, Bleu = F2, etc.)
+    </div>
+  </div>
+</div>
 
 <div id="modalAddChambre" class="modal-overlay"><div class="modal-content">
   <h3 style="margin-top:0;">Ajouter une chambre</h3>
@@ -348,6 +364,7 @@ let logoGauche = null, logoDroite = null;
 let _liveChamberInterval = null;
 let hasStartedReleve = false;
 let pendingLat = '', pendingLon = '';
+let ropMap = null;
 
 const FORMAT_PDF = "A4"; 
 
@@ -356,6 +373,11 @@ const couleursHex = {
   'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 
   'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 
   'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] 
+};
+const couleursCSS = { 
+  'Rouge': '#FF0000', 'Bleu': '#0000FF', 'Vert': '#008000', 'Jaune': '#FFFF00', 
+  'Violet': '#800080', 'Blanc': '#FFFFFF', 'Orange': '#FFA500', 'Gris': '#808080', 
+  'Marron': '#8B4513', 'Noir': '#000000', 'Turquoise': '#40E0D0', 'Rose': '#FFC0CB' 
 };
 
 function uuid() {
@@ -887,8 +909,8 @@ function generateExcelExport() {
                   { v: t, s: getTubeStyle(t) },
                   { v: f + 1, s: getTubeStyle(f + 1) },
                   { v: statusStr, s: getStatusStyle(statusStr) },
-                  { v: isSpliced ? fib.destFib : '', s: isSpliced ? getTubeStyle(fib.destFib) : defaultStyle },
-                  { v: isSpliced ? fib.destTube : '', s: isSpliced ? getTubeStyle(fib.destTube) : defaultStyle },
+                  { v: (isSpliced || fib.destFib) ? fib.destFib : '', s: getTubeStyle(fib.destFib) },
+                  { v: (isSpliced || fib.destTube) ? fib.destTube : '', s: getTubeStyle(fib.destTube) },
                   { v: isSpliced ? cableOut : '', s: defaultStyle },
                   { v: isSpliced ? capOut : '', s: defaultStyle },
                   { v: fib.affectation || "", s: defaultStyle }, // Affectation
@@ -1107,8 +1129,7 @@ function openDetail(id){
       html += `<div class="splice-tube-block" data-tube="${t}"><div class="splice-tube-header"><span>Tube ${t} (${couleursNoms[t-1] || 'Couleur ' + t})</span><label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label></div><table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
       for (let f = 0; f < 12; f++) { 
         const fib = tubeData.fibers[f]; 
-        const isTerminal = ['attente', 'actif', 'service', 'morte', 'reserve'].includes(fib.status);
-        const disabled = (isDroit || isTerminal) ? 'disabled' : '';
+        const disabledDest = isDroit ? 'disabled' : '';
         
         // Options pour les tubes de destination
         let tubOpts = '';
@@ -1134,8 +1155,8 @@ function openDetail(id){
             <option value="morte" ${fib.status === 'morte' ? 'selected' : ''}>Fibre morte</option>
           </select>
         </td>
-        <td><select class="fib-dest-tube" data-tube="${t}" data-fib="${f}" ${disabled} style="width:50px;">${tubOpts}</select></td>
-        <td><select class="fib-dest-fib" data-tube="${t}" data-fib="${f}" ${disabled} style="width:50px;">${fibOpts}</select></td>
+        <td><select class="fib-dest-tube" data-tube="${t}" data-fib="${f}" ${disabledDest} style="width:50px;">${tubOpts}</select></td>
+        <td><select class="fib-dest-fib" data-tube="${t}" data-fib="${f}" ${disabledDest} style="width:50px;">${fibOpts}</select></td>
         <td><input type="text" class="fib-affect" data-tube="${t}" data-fib="${f}" value="${escapeHTML(fib.affectation || '')}" placeholder="NRO" style="width:60px; font-size:10px;"></td>
         <td><input type="text" class="fib-site" data-tube="${t}" data-fib="${f}" value="${escapeHTML(fib.codeSite || '')}" placeholder="Code" style="width:70px; font-size:10px;"></td>
         </tr>`; 
@@ -1148,7 +1169,27 @@ function openDetail(id){
     
     grid.querySelectorAll('.fib-status').forEach(sel => { sel.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].status = e.target.value; await dbPut(c); renderSouduresConfig(); }; });
     
-    grid.querySelectorAll('.fib-dest-tube').forEach(sel => { sel.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].destTube = parseInt(e.target.value); await dbPut(c); }; });
+    // LOGIQUE D'INVERSION AUTOMATIQUE DES TUBES
+    grid.querySelectorAll('.fib-dest-tube').forEach(sel => { 
+        sel.onchange = async (e) => { 
+            const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); 
+            const newTd = parseInt(e.target.value);
+            const oldTd = c.splicingData[t].fibers[f].destTube;
+            
+            c.splicingData[t].fibers[f].destTube = newTd; 
+            
+            // Inversion : si le nouveau tube de destination n'est pas le même et existe
+            if (newTd !== t && c.splicingData[newTd]) {
+                c.splicingData[newTd].fibers[f].destTube = t; // Le tube destination pointe vers le tube source
+                // Optionnel : forcer le mode Droit du tube destination pour refléter la symétrie
+                c.splicingData[newTd].droit = true; 
+            }
+            
+            await dbPut(c); 
+            renderSouduresConfig(); 
+        }; 
+    });
+    
     grid.querySelectorAll('.fib-dest-fib').forEach(sel => { sel.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].destFib = parseInt(e.target.value); await dbPut(c); }; });
     
     grid.querySelectorAll('.fib-affect').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].affectation = e.target.value; await dbPut(c); }; });
@@ -1269,6 +1310,118 @@ function hashFCI(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 
 function couleurFCI(fci) { const palette = [[0.20,0.55,0.95],[0.25,0.75,0.40],[0.95,0.55,0.20],[0.65,0.35,0.90],[0.90,0.75,0.15],[0.20,0.85,0.85],[0.90,0.35,0.55],[0.45,0.85,0.30]]; return palette[hashFCI(String(fci)) % palette.length]; }
 function getVal(row, ...keys) { for (const k of keys) { if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k]; } return ''; }
 
+/* ---------- ROP MAPS ---------- */
+function genererROP() {
+    if (!chambres.length) { alert("Aucune chambre à afficher."); return; }
+    
+    const chambresGps = chambres.filter(c => {
+        const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
+        return !isNaN(lat) && !isNaN(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+    }).sort((a, b) => parseFloatSafe(a.raw['ORDRE'], 999) - parseFloatSafe(b.raw['ORDRE'], 999));
+
+    if (chambresGps.length < 2) { alert("Il faut au moins 2 chambres géolocalisées pour tracer une ROP."); return; }
+
+    document.getElementById('modalROP').style.display = 'flex';
+    
+    if (ropMap) { ropMap.remove(); ropMap = null; }
+    
+    ropMap = L.map('ropMap').setView([parseFloat(chambresGps[0].lat), parseFloat(chambresGps[0].lon)], 15);
+    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(ropMap);
+
+    const bounds = L.latLngBounds();
+
+    // Tracer les points
+    chambresGps.forEach(c => {
+        const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
+        bounds.extend([lat, lon]);
+        
+        const bpe = getRawValue(c, ['BPE', 'bpe'], '');
+        const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
+        
+        const marker = L.circleMarker([lat, lon], {
+            radius: 6,
+            fillColor: hasBpe ? '#2e7d32' : '#c62828',
+            color: '#fff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.8
+        }).addTo(ropMap);
+
+        marker.bindPopup(`
+            <div style="font-size:12px;">
+                <b>${escapeHTML(getDisplayName(c))}</b><br>
+                ${escapeHTML(getRawValue(c, ['COMMUNE'], ''))}<br>
+                <b>BPE :</b> ${escapeHTML(bpe || 'Aucune')}
+            </div>
+        `);
+    });
+
+    // Tracer les vecteurs (lignes)
+    for (let i = 1; i < chambresGps.length; i++) {
+        const prevC = chambresGps[i - 1];
+        const currC = chambresGps[i];
+        
+        // Récupérer les infos de soudure de la boîte précédente
+        let tubeUtilise = null;
+        let fibreUtilisee = null;
+        let statusStr = '';
+        let isAffected = false;
+        
+        if (prevC.splicingData) {
+            // On cherche une fibre qui va vers le tube 1 par défaut (souvent la fibre principale)
+            const tube1 = prevC.splicingData[1];
+            if (tube1 && tube1.fibers) {
+                // Chercher une fibre "service" ou "actif" en priorité
+                let fib = tube1.fibers.find(f => f.status === 'service' || f.status === 'actif');
+                // Sinon, prendre la première fibre soudée/passage
+                if (!fib) fib = tube1.fibers.find(f => f.status === 'soude' || f.status === 'passage');
+                // Sinon, la première
+                if (!fib) fib = tube1.fibers[0];
+
+                if (fib) {
+                    fibreUtilisee = tube1.fibers.indexOf(fib) + 1; // Numéro de fibre (1 à 12)
+                    tubeUtilise = 1; // Par défaut on prend le tube 1
+                    statusStr = fib.status;
+                    isAffected = ['soude', 'passage', 'actif', 'service', 'reserve'].includes(fib.status);
+                }
+            }
+        }
+
+        // Définir la couleur et l'épaisseur
+        let color = '#888888'; // Gris par défaut
+        let weight = 2;
+        
+        if (fibreUtilisee) {
+            color = couleursCSS[couleursNoms[fibreUtilisee - 1]] || '#888888';
+            weight = isAffected ? 5 : 2; // Plus large si affectée
+        }
+
+        const latlngs = [
+            [parseFloat(prevC.lat), parseFloat(prevC.lon)],
+            [parseFloat(currC.lat), parseFloat(currC.lon)]
+        ];
+
+        const polyline = L.polyline(latlngs, { color: color, weight: weight, opacity: 0.8 }).addTo(ropMap);
+
+        // Info bulle sur la ligne
+        polyline.bindPopup(`
+            <div style="font-size:12px;">
+                <b>Lien Optique</b><br>
+                De : ${escapeHTML(getDisplayName(prevC))}<br>
+                Vers : ${escapeHTML(getDisplayName(currC))}<br>
+                <b>Tube :</b> ${tubeUtilise || '—'}<br>
+                <b>Fibre :</b> ${fibreUtilisee || '—'}<br>
+                <b>Statut :</b> ${statusStr.toUpperCase()}
+            </div>
+        `);
+    }
+
+    ropMap.fitBounds(bounds, { padding: [30, 30] });
+}
+
 /* ---------- PDF ---------- */
 async function construireSynoptiquePDF() {
   if (!chambres.length) return null;
@@ -1301,7 +1454,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.2`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.3`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -2216,6 +2369,8 @@ document.getElementById('csvInput').onchange=async e=>{ const f=e.target.files[0
 document.getElementById('btnChronoReset').onclick = chronoReset;
 document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('exportExcelBtn').onclick=exportExcelOnly;
+document.getElementById('ropBtn').onclick=genererROP;
+document.getElementById('closeRopBtn').onclick=()=>{ document.getElementById('modalROP').style.display = 'none'; };
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
 document.getElementById('insertAfterSelect').onchange = updateReferenceInfo;
 
