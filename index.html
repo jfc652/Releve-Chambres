@@ -135,8 +135,8 @@ window.addEventListener('unhandledrejection', function(e) {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<!-- Librairie SheetJS pour l'export Excel -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- CHANGEMENT IMPORTANT : Utilisation de xlsx-js-style au lieu de xlsx pour supporter les couleurs -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
 <body>
 
@@ -262,7 +262,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.9 (Excel format Model)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.0 (Excel avec couleurs)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -767,9 +767,10 @@ function generateCSV(){
 }
 
 // ==========================================
-// GÉNÉRATION EXCEL (BPE) - MODÈLE OFFICIEL
+// GÉNÉRATION EXCEL (BPE) - MODÈLE OFFICIEL AVEC STYLES
 // ==========================================
 function generateExcelExport() {
+  // On utilise XLSX de la librairie xlsx-js-style
   if (typeof XLSX === 'undefined') return null;
   const wb = XLSX.utils.book_new();
 
@@ -799,23 +800,26 @@ function generateExcelExport() {
   ];
 
   const getTubeStyle = (num) => {
-      if (!num || isNaN(num)) return { alignment: { horizontal: "center" } };
+      if (!num || isNaN(num)) return { alignment: { horizontal: "center", vertical: "center" } };
       const idx = (num - 1) % 12;
       const c = tubeColors[idx];
       return { 
-          fill: { fgColor: { rgb: c.bg }, patternType: "solid" }, 
+          fill: { patternType: "solid", fgColor: { rgb: c.bg } }, 
           font: { color: { rgb: c.text }, bold: true }, 
-          alignment: { horizontal: "center" } 
+          alignment: { horizontal: "center", vertical: "center" },
+          border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} }
       };
   };
 
   const getStatusStyle = (status) => {
       const st = String(status).toUpperCase();
-      if (st.includes("EPISSURE") || st.includes("SOUDE")) return { fill: { fgColor: { rgb: "E8F5E9" } }, font: { color: { rgb: "2E7D32" }, bold: true }, alignment: { horizontal: "center" } };
-      if (st.includes("PASSAGE")) return { fill: { fgColor: { rgb: "E3F2FD" } }, font: { color: { rgb: "1565C0" } }, alignment: { horizontal: "center" } };
-      if (st.includes("ATTENTE")) return { fill: { fgColor: { rgb: "FFF3E0" } }, font: { color: { rgb: "E65100" } }, alignment: { horizontal: "center" } };
-      return { alignment: { horizontal: "center" } };
+      if (st.includes("EPISSURE") || st.includes("SOUDE")) return { fill: { patternType: "solid", fgColor: { rgb: "E8F5E9" } }, font: { color: { rgb: "2E7D32" }, bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } };
+      if (st.includes("PASSAGE")) return { fill: { patternType: "solid", fgColor: { rgb: "E3F2FD" } }, font: { color: { rgb: "1565C0" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } };
+      if (st.includes("ATTENTE")) return { fill: { patternType: "solid", fgColor: { rgb: "FFF3E0" } }, font: { color: { rgb: "E65100" } }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } };
+      return { alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } };
   };
+  
+  const defaultStyle = { alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } };
 
   validBoxes.forEach((c, index) => {
       const bpeName = getRawValue(c, ['BPE', 'bpe'], 'SANS_NOM');
@@ -853,20 +857,22 @@ function generateExcelExport() {
 
       // --- ENTÊTES DU TABLEAU ---
       const headers = [
-          { v: "Capacité", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Câble", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Tube", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Fibre", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Statut", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Fibre", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Tube", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Câble", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Capacité", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Affectation", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
-          { v: "Code Site", s: { font: { bold: true }, alignment: { horizontal: "center" } } }
+          { v: "Capacité", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Câble", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Tube", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Fibre", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Statut", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Fibre", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Tube", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Câble", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Capacité", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Affectation", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } },
+          { v: "Code Site", s: { font: { bold: true }, alignment: { horizontal: "center", vertical: "center" }, border: { top: {style:"thin"}, bottom: {style:"thin"}, left: {style:"thin"}, right: {style:"thin"} } } }
       ];
       ws_data.push(headers);
-      ws_data.push(Array(11).fill({ v: "" })); // Row 16 empty
+      
+      // Ligne vide
+      ws_data.push(Array(11).fill({ v: "" })); 
 
       const cap = parseInt(c.capacite, 10) || 48;
       const nbTubes = Math.ceil(cap / 12);
@@ -889,17 +895,17 @@ function generateExcelExport() {
               const isSpliced = (fib.status === 'soude' || fib.status === 'passage');
               
               const row = [
-                  { v: capIn, s: { alignment: { horizontal: "center" } } },
-                  { v: cableIn, s: { alignment: { horizontal: "center" } } },
+                  { v: capIn, s: defaultStyle },
+                  { v: cableIn, s: defaultStyle },
                   { v: t, s: getTubeStyle(t) },
                   { v: f + 1, s: getTubeStyle(f + 1) },
                   { v: statusStr, s: getStatusStyle(statusStr) },
-                  { v: isSpliced ? fib.destFib : '', s: isSpliced ? getTubeStyle(fib.destFib) : { alignment: { horizontal: "center" } } },
-                  { v: isSpliced ? fib.destTube : '', s: isSpliced ? getTubeStyle(fib.destTube) : { alignment: { horizontal: "center" } } },
-                  { v: isSpliced ? cableOut : '', s: { alignment: { horizontal: "center" } } },
-                  { v: isSpliced ? capOut : '', s: { alignment: { horizontal: "center" } } },
-                  { v: "", s: { alignment: { horizontal: "center" } } }, // Affectation
-                  { v: "", s: { alignment: { horizontal: "center" } } }  // Code Site
+                  { v: isSpliced ? fib.destFib : '', s: isSpliced ? getTubeStyle(fib.destFib) : defaultStyle },
+                  { v: isSpliced ? fib.destTube : '', s: isSpliced ? getTubeStyle(fib.destTube) : defaultStyle },
+                  { v: isSpliced ? cableOut : '', s: defaultStyle },
+                  { v: isSpliced ? capOut : '', s: defaultStyle },
+                  { v: "", s: defaultStyle }, // Affectation
+                  { v: "", s: defaultStyle }  // Code Site
               ];
               ws_data.push(row);
           }
@@ -927,7 +933,7 @@ function generateExcelExport() {
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
-  // Écriture avec support des styles
+  // Écriture avec support des styles (via xlsx-js-style)
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true });
 }
 
@@ -1304,7 +1310,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.9`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.0`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
