@@ -262,7 +262,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.8 (Couleurs Excel)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.9 (Excel format Model)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -767,28 +767,60 @@ function generateCSV(){
 }
 
 // ==========================================
-// GÉNÉRATION EXCEL (BPE) AVEC COULEURS FIBRES
+// GÉNÉRATION EXCEL (BPE) - MODÈLE OFFICIEL
 // ==========================================
-function rgbToHex(rgb) {
-    return rgb.map(x => x.toString(16).padStart(2, '0').toUpperCase()).join('');
-}
-
 function generateExcelExport() {
   if (typeof XLSX === 'undefined') return null;
   const wb = XLSX.utils.book_new();
+
+  // Filtrer et trier les boîtes
   const validBoxes = chambres.filter(c => {
       const bpe = getRawValue(c, ['BPE', 'bpe'], '');
       const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
       return hasBpe && c.hasBoite !== false;
-  });
+  }).sort((a, b) => parseFloatSafe(a.raw['ORDRE'], 999) - parseFloatSafe(b.raw['ORDRE'], 999));
 
   if (validBoxes.length === 0) return null;
 
-  validBoxes.forEach(c => {
+  // Couleurs standard FTTH pour les tubes et fibres
+  const tubeColors = [
+      { bg: "FF0000", text: "FFFFFF" }, // 1 Rouge
+      { bg: "0000FF", text: "FFFFFF" }, // 2 Bleu
+      { bg: "00AA00", text: "FFFFFF" }, // 3 Vert
+      { bg: "FFFF00", text: "000000" }, // 4 Jaune
+      { bg: "800080", text: "FFFFFF" }, // 5 Violet
+      { bg: "FFFFFF", text: "000000" }, // 6 Blanc
+      { bg: "FFA500", text: "000000" }, // 7 Orange
+      { bg: "A9A9A9", text: "000000" }, // 8 Gris
+      { bg: "8B4513", text: "FFFFFF" }, // 9 Marron
+      { bg: "000000", text: "FFFFFF" }, // 10 Noir
+      { bg: "40E0D0", text: "000000" }, // 11 Turquoise
+      { bg: "FFC0CB", text: "000000" }  // 12 Rose
+  ];
+
+  const getTubeStyle = (num) => {
+      if (!num || isNaN(num)) return { alignment: { horizontal: "center" } };
+      const idx = (num - 1) % 12;
+      const c = tubeColors[idx];
+      return { 
+          fill: { fgColor: { rgb: c.bg }, patternType: "solid" }, 
+          font: { color: { rgb: c.text }, bold: true }, 
+          alignment: { horizontal: "center" } 
+      };
+  };
+
+  const getStatusStyle = (status) => {
+      const st = String(status).toUpperCase();
+      if (st.includes("EPISSURE") || st.includes("SOUDE")) return { fill: { fgColor: { rgb: "E8F5E9" } }, font: { color: { rgb: "2E7D32" }, bold: true }, alignment: { horizontal: "center" } };
+      if (st.includes("PASSAGE")) return { fill: { fgColor: { rgb: "E3F2FD" } }, font: { color: { rgb: "1565C0" } }, alignment: { horizontal: "center" } };
+      if (st.includes("ATTENTE")) return { fill: { fgColor: { rgb: "FFF3E0" } }, font: { color: { rgb: "E65100" } }, alignment: { horizontal: "center" } };
+      return { alignment: { horizontal: "center" } };
+  };
+
+  validBoxes.forEach((c, index) => {
       const bpeName = getRawValue(c, ['BPE', 'bpe'], 'SANS_NOM');
       let baseSheetName = bpeName.substring(0, 28).replace(/[\\\/\?\*\[\]\:]/g, '_').trim();
       if (!baseSheetName) baseSheetName = "Boite";
-      
       let sheetName = baseSheetName;
       let counter = 1;
       while (wb.SheetNames.includes(sheetName)) {
@@ -796,58 +828,106 @@ function generateExcelExport() {
           counter++;
       }
 
-      const data = [
-          ["Chambre", getDisplayName(c)],
-          ["BPE", bpeName],
-          ["Capacité", c.capacite || 48],
-          ["Commune", getRawValue(c, ['COMMUNE'], '')],
-          [],
-          ["Cassette (Tube)", "Fibre", "Statut", "Tube Dest.", "Fibre Dest.", "Câble Sortant", "Destination"]
+      const ws_data = [];
+      
+      // --- EN-TÊTE ---
+      ws_data.push([{ v: "" }]); // Row 1
+      ws_data.push([
+          { v: bpeName, s: { font: { bold: true, size: 12 } } }, 
+          ...Array(7).fill({v: ""}), 
+          { v: "Version du :", s: { font: { bold: true } } }, 
+          { v: new Date().toLocaleDateString('fr-FR'), s: {} }
+      ]); // Row 2
+      
+      const adresse = getRawValue(c, ['ADRESSE', 'NUM_VOIE'], '');
+      const commune = getRawValue(c, ['COMMUNE'], '');
+      const adresseComplete = adresse ? `${adresse}, ${commune}` : commune;
+
+      ws_data.push([{ v: "Adresse Boite :", s: {} }, {v: ""}, {v: ""}, {v: ""}, { v: adresseComplete, s: {} }]); // Row 3
+      ws_data.push([{ v: "Chambre :", s: {} }, {v: ""}, {v: ""}, {v: ""}, { v: getDisplayName(c), s: {} }]); // Row 4
+      ws_data.push([{ v: "Type de Boite :", s: {} }, {v: ""}, {v: ""}, {v: ""}, { v: getRawValue(c, ['TYPE_BOITE'], 'OFDC'), s: {} }]); // Row 5
+      ws_data.push([{ v: "" }]); // Row 6
+      ws_data.push([{ v: "Commentaires :", s: {} }]); // Row 7
+      ws_data.push([{ v: c.notes || "Manchon Existant", s: {} }]); // Row 8
+      for (let i=9; i<=14; i++) ws_data.push([{ v: "" }]); // Rows 9-14
+
+      // --- ENTÊTES DU TABLEAU ---
+      const headers = [
+          { v: "Capacité", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Câble", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Tube", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Fibre", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Statut", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Fibre", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Tube", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Câble", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Capacité", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Affectation", s: { font: { bold: true }, alignment: { horizontal: "center" } } },
+          { v: "Code Site", s: { font: { bold: true }, alignment: { horizontal: "center" } } }
       ];
+      ws_data.push(headers);
+      ws_data.push(Array(11).fill({ v: "" })); // Row 16 empty
 
       const cap = parseInt(c.capacite, 10) || 48;
       const nbTubes = Math.ceil(cap / 12);
-      const nextBox = validBoxes.find(b => b.raw['ORDRE'] > c.raw['ORDRE']);
+      
+      // Récupération du câble de sortie (boîte suivante)
+      const nextBox = validBoxes[index + 1];
       const cableOut = nextBox ? getRawValue(nextBox, ['CABLE'], '') : '';
-      const destBox = nextBox ? getRawValue(nextBox, ['BPE'], '') : '';
+      const capOut = nextBox ? (nextBox.capacite || 48) + " FO" : '';
+      
+      const cableIn = getRawValue(c, ['CABLE'], '');
+      const capIn = cap + " FO";
 
+      // --- DONNÉES ---
       for (let t = 1; t <= nbTubes; t++) {
           const tubeData = c.splicingData && c.splicingData[t] ? c.splicingData[t] : { droit: true, fibers: [] };
           for (let f = 0; f < 12; f++) {
               const fib = tubeData.fibers[f] || { status: 'soude', destTube: t, destFib: f + 1 };
+              const statusStr = fib.status === 'soude' ? 'EPISSUREE' : fib.status === 'passage' ? 'EN PASSAGE' : fib.status === 'attente' ? 'EN ATTENTE' : fib.status === 'morte' ? 'FIBRE MORTE' : fib.status === 'actif' ? 'ACTIF' : fib.status === 'service' ? 'SERVICE INTERNET' : fib.status === 'reserve' ? 'EN RÉSERVE' : fib.status;
+              
               const isSpliced = (fib.status === 'soude' || fib.status === 'passage');
               
-              const fibColorName = couleursNoms[f];
-              const fibColorHex = rgbToHex(couleursHex[fibColorName]);
-              const fibTextColorHex = (f === 3 || f === 5 || f === 11) ? '000000' : 'FFFFFF'; // Jaune, Blanc, Rose en texte noir
-
-              // Création de la cellule avec style pour la fibre
-              const fibCell = {
-                  v: `F${f+1}`,
-                  t: 's',
-                  s: {
-                      fill: { fgColor: { rgb: fibColorHex }, patternType: 'solid' },
-                      font: { color: { rgb: fibTextColorHex }, bold: true }
-                  }
-              };
-
-              data.push([
-                  `T${t}`, 
-                  fibCell,
-                  fib.status, 
-                  isSpliced ? fib.destTube : '',
-                  isSpliced ? fib.destFib : '',
-                  isSpliced ? cableOut : '',
-                  isSpliced ? destBox : ''
-              ]);
+              const row = [
+                  { v: capIn, s: { alignment: { horizontal: "center" } } },
+                  { v: cableIn, s: { alignment: { horizontal: "center" } } },
+                  { v: t, s: getTubeStyle(t) },
+                  { v: f + 1, s: getTubeStyle(f + 1) },
+                  { v: statusStr, s: getStatusStyle(statusStr) },
+                  { v: isSpliced ? fib.destFib : '', s: isSpliced ? getTubeStyle(fib.destFib) : { alignment: { horizontal: "center" } } },
+                  { v: isSpliced ? fib.destTube : '', s: isSpliced ? getTubeStyle(fib.destTube) : { alignment: { horizontal: "center" } } },
+                  { v: isSpliced ? cableOut : '', s: { alignment: { horizontal: "center" } } },
+                  { v: isSpliced ? capOut : '', s: { alignment: { horizontal: "center" } } },
+                  { v: "", s: { alignment: { horizontal: "center" } } }, // Affectation
+                  { v: "", s: { alignment: { horizontal: "center" } } }  // Code Site
+              ];
+              ws_data.push(row);
           }
+          // Ligne vide entre les tubes pour aérer comme le modèle
+          ws_data.push(Array(11).fill({ v: "" }));
       }
 
-      const ws = XLSX.utils.aoa_to_sheet(data);
+      const ws = XLSX.utils.aoa_to_sheet(ws_data);
+      
+      // Ajustement de la largeur des colonnes
+      ws['!cols'] = [
+          { wch: 10 }, // Capacité
+          { wch: 25 }, // Câble
+          { wch: 8 },  // Tube
+          { wch: 8 },  // Fibre
+          { wch: 20 }, // Statut
+          { wch: 8 },  // Fibre
+          { wch: 8 },  // Tube
+          { wch: 25 }, // Câble
+          { wch: 10 }, // Capacité
+          { wch: 15 }, // Affectation
+          { wch: 20 }  // Code Site
+      ];
+
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
-  // Ajout de cellStyles:true pour appliquer les couleurs
+  // Écriture avec support des styles
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true });
 }
 
@@ -1224,7 +1304,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.8`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.9`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
