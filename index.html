@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.4 (Carte plein écran)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.5 (Corrections tracés & A4)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -343,6 +343,13 @@ let logoGauche = null, logoDroite = null;
 let _liveChamberInterval = null;
 let hasStartedReleve = false;
 let pendingLat = '', pendingLon = '';
+
+// ==========================================================
+// CORRECTION FORMAT PDF ET RESOLUTION
+// ==========================================================
+// Modifiez ici pour passer de "A4" à "A3" selon votre besoin
+const FORMAT_PDF = "A4"; 
+// ==========================================================
 
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
 const couleursHex = { 'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] };
@@ -1101,7 +1108,11 @@ async function construireSynoptiquePDF() {
   const nbChambres = donnees.length, nbBoites = donnees.filter(r => String(r['BPE']).trim() !== '').length;
   const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0), cableML = infraML * 1.10 + nbBoites;
   const stats = { nbChambres, nbBoites, infraML, cableML };
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3' });
+  
+  // Modification pour le format A4 ou A3
+  const formatPapier = FORMAT_PDF === "A4" ? "a4" : "a3";
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: formatPapier });
+  
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const flipY = y => H - y;
   const COL = { red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208], purple:[128,0,128], orange:[255,165,0], grey:[128,128,128], whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211] };
@@ -1115,7 +1126,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.4`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.5`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1170,13 +1181,18 @@ async function construireSynoptiquePDF() {
     for (let i = 0; i < donneesPage.length; i++) { if (cpt >= ptsParLigne) { dir *= -1; cpt = 0; cy -= espY; cx = dir === 1 ? startXp : WidthP - startXp; } positions.push({ x: cx, y: cy, row: donneesPage[i], globalI: debutGlobal + i }); cx += espX * dir; cpt++; }
     return positions;
   }
-  const pointsParLigne = 10, espacementY = 70, espacementX = (W - 100) / pointsParLigne, startX = 70, startY = H - 160;
+  
+  // Adaptation des points par ligne en fonction du format (A4 = moins de points que A3)
+  const pointsParLigne = FORMAT_PDF === "A4" ? 7 : 10; 
+  const espacementY = FORMAT_PDF === "A4" ? 60 : 70;
+  const espacementX = (W - 100) / pointsParLigne, startX = 70, startY = H - 160;
   const hauteurDispo = H - 160 - 170, nbLignesParPage = Math.max(1, Math.floor(hauteurDispo / espacementY));
   const pointsParPage = pointsParLigne * nbLignesParPage, nbPages = Math.max(1, Math.ceil(donnees.length / pointsParPage));
+  
   for (let numPage = 1; numPage <= nbPages; numPage++) {
     const debut = (numPage - 1) * pointsParPage, fin = Math.min(debut + pointsParPage, donnees.length);
     const positions = calculerPositions(donnees.slice(debut, fin), debut, startX, startY, W, espacementX, espacementY, pointsParLigne);
-    if (numPage > 1) doc.addPage('a3', 'landscape');
+    if (numPage > 1) doc.addPage(formatPapier, 'landscape');
     dessinerEntetePied(numPage, nbPages); dessinerLegendeStats(40, 170);
     if (optFCI) dessinerZonesFCI(positions);
     if (numPage > 1 && positions.length) { const prevL = positions[0].row.ETIQUETTE_2 || '0'; if (parseFloatSafe(prevL) > 0) dessinerRenvoiEntree(positions[0].x, positions[0].y, prevL, numPage - 1); }
@@ -1200,7 +1216,7 @@ async function construireSynoptiquePDF() {
 }
 
 /* ============================================================
-   CAPTURE CARTE - HAUTE PRÉCISION + RECADRAGE
+   CAPTURE CARTE - CORRIGÉE (Logique longueur + A4/A3)
    ============================================================ */
 async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250, zoomForce = null, dessinerLigne = false, chambreAmont = null) {
   return new Promise(async (resolve) => {
@@ -1310,9 +1326,15 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
       ctx.font = 'bold 9px Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      
       for (let i = 1; i < chambresTriees.length; i++) {
         const c = chambresTriees[i];
+        
+        // =========================================================
+        // CORRECTION LOGIQUE LONGUEUR : On lit l'étiquette de la chambre d'ARRIVÉE (c) et non de la chambre de DÉPART.
+        // =========================================================
         const etiq2 = getRawValue(c, ['ETIQUETTE_2', 'etiquette_2'], '');
+        
         if (etiq2 && !isNaN(parseFloat(etiq2))) {
           const p1 = proj(chambresTriees[i - 1]);
           const p2 = proj(c);
@@ -1396,7 +1418,7 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
       }
     });
 
-    // 4. RECADRAGE AVEC RATIO
+    // 4. RECADRAGE AVEC RATIO (Adapté au format A4 ou A3 défini)
     const tousLesPoints = toutesChambres.map(c => proj(c));
     let minPx = Infinity, maxPx = -Infinity, minPy = Infinity, maxPy = -Infinity;
     tousLesPoints.forEach(p => {
@@ -1412,7 +1434,7 @@ async function capturerCarteTuiles(chambresGps, widthPx = 2000, heightPx = 1250,
     let cropW = Math.min(canvas.width - cropX, (maxPx - minPx) + 2 * padding);
     let cropH = Math.min(canvas.height - cropY, (maxPy - minPy) + 2 * padding);
 
-    // On force le ratio
+    // On force le ratio selon le format demandé
     const pdfRatio = widthPx / heightPx;
     const currentRatio = cropW / cropH;
 
@@ -1451,25 +1473,30 @@ async function ajouterPageCarteMaps(doc, chambres) {
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
+  
+  // Calcul des dimensions de l'image en fonction du format
+  // Si A4, on augmente la résolution (pixels) pour garder une bonne qualité d'impression sur une plus petite surface.
+  const isA4 = FORMAT_PDF === "A4";
+  const imgW = isA4 ? 2400 : 3000; 
+  const imgH = isA4 ? Math.round(2400 / (pageW / pageH)) : Math.round(3000 / (pageW / pageH));
 
   // Zone réservée à la carte : elle occupe TOUT l'espace disponible
   const mapRectX = 40, mapRectY = 80;
   const mapRectW = pageW - 80, mapRectH = pageH - 160;
 
   // 1. PAGE GLOBALE
-  doc.addPage('a3', 'landscape');
+  doc.addPage(FORMAT_PDF === "A4" ? "a4" : "a3", 'landscape');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
+  doc.setFontSize(isA4 ? 14 : 18);
   doc.setTextColor(0, 0, 0);
   doc.text("CARTE GLOBALE DU RESEAU", pageW / 2, 40, { align: 'center' });
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  const mapDataUrl = await capturerCarteTuiles(chambresGps, 2000, 1250, null, true, null);
+  const mapDataUrl = await capturerCarteTuiles(chambresGps, imgW, imgH, null, true, null);
 
   if (mapDataUrl) {
-    // On remplit TOUT le cadre disponible (image étirée pour correspondre)
     doc.addImage(mapDataUrl, 'PNG', mapRectX, mapRectY, mapRectW, mapRectH);
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.5);
@@ -1486,7 +1513,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.textWithLink(`Ouvrir l'itinéraire complet dans Google Maps (${maxPoints} chambres)`, pageW / 2, pageH - 40, { align: 'center', url: gmapsUrl });
 
   // 2. PAGES DÉTAILLÉES (Tronçons)
-  const tronconTaille = 20;
+  const tronconTaille = isA4 ? 12 : 20; // Moins de chambres par page en A4 pour que ce soit lisible
   const chambresTriees = [...chambresGps].sort((a, b) => {
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
     const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
@@ -1499,9 +1526,9 @@ async function ajouterPageCarteMaps(doc, chambres) {
     const numPaquetTotal = Math.ceil(chambresTriees.length / tronconTaille);
     const chambreAmont = i > 0 ? chambresTriees[i - 1] : null;
 
-    doc.addPage('a3', 'landscape');
+    doc.addPage(FORMAT_PDF === "A4" ? "a4" : "a3", 'landscape');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(18);
+    doc.setFontSize(isA4 ? 14 : 18);
     doc.setTextColor(0, 0, 0);
     doc.text(`CARTE DÉTAILLÉE - TRONÇON ${numPaquet} / ${numPaquetTotal}`, pageW / 2, 40, { align: 'center' });
 
@@ -1509,10 +1536,9 @@ async function ajouterPageCarteMaps(doc, chambres) {
     doc.setFont('helvetica', 'normal');
     doc.text(`Chambres du ${paquet[0].raw['CODE_CH1'] || '?'} au ${paquet[paquet.length - 1].raw['CODE_CH1'] || '?'}`, pageW / 2, 60, { align: 'center' });
 
-    const zoomDataUrl = await capturerCarteTuiles(paquet, 2000, 1250, null, true, chambreAmont);
+    const zoomDataUrl = await capturerCarteTuiles(paquet, imgW, imgH, null, true, chambreAmont);
 
     if (zoomDataUrl) {
-      // On remplit TOUT le cadre disponible ici aussi
       doc.addImage(zoomDataUrl, 'PNG', mapRectX, mapRectY, mapRectW, mapRectH);
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.5);
