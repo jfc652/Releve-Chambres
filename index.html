@@ -111,6 +111,19 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   white-space: nowrap !important;
 }
 .leaflet-tooltip-custom::before { display: none !important; }
+
+/* Nouveau style pour les étiquettes de longueur sur les lignes ROP */
+.leaflet-tooltip-length {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1px solid #888 !important;
+  border-radius: 3px !important;
+  color: #333 !important;
+  font-weight: bold !important;
+  font-size: 9px !important;
+  padding: 1px 4px !important;
+  box-shadow: none !important;
+}
+.leaflet-tooltip-length::before { display: none !important; }
 </style>
 
 <script>
@@ -265,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.3 (ROP Maps & Logique Soudure)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.4 (ROP Améliorée & Tube Auto)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -282,7 +295,7 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <div id="ropMap" style="flex: 1; border-radius: 8px; border: 1px solid #ccc;"></div>
     <div style="margin-top: 10px; font-size: 12px; color: #666;">
-      <b>Légende :</b> Les lignes correspondent aux liens optiques. La couleur et l'épaisseur indiquent la fibre utilisée. (Rouge = F1, Bleu = F2, etc.)
+      <b>Légende :</b> Les lignes correspondent aux liens optiques. La couleur et l'épaisseur indiquent la fibre utilisée. (Rouge = F1, Bleu = F2, etc.). Les distances sont cumulées depuis le début du tracé.
     </div>
   </div>
 </div>
@@ -901,7 +914,7 @@ function generateExcelExport() {
               const fib = tubeData.fibers[f] || { status: 'soude', destTube: t, destFib: f + 1, affectation: '', codeSite: '' };
               const statusStr = fib.status === 'soude' ? 'EPISSUREE' : fib.status === 'passage' ? 'EN PASSAGE' : fib.status === 'attente' ? 'EN ATTENTE' : fib.status === 'morte' ? 'FIBRE MORTE' : fib.status === 'actif' ? 'ACTIF' : fib.status === 'service' ? 'SERVICE INTERNET' : fib.status === 'reserve' ? 'EN RÉSERVE' : fib.status;
               
-              const isSpliced = (fib.status === 'soude' || fib.status === 'passage');
+              const hasDestination = fib.status !== 'attente' && fib.status !== 'morte';
               
               const row = [
                   { v: capIn, s: defaultStyle },
@@ -909,10 +922,10 @@ function generateExcelExport() {
                   { v: t, s: getTubeStyle(t) },
                   { v: f + 1, s: getTubeStyle(f + 1) },
                   { v: statusStr, s: getStatusStyle(statusStr) },
-                  { v: (isSpliced || fib.destFib) ? fib.destFib : '', s: getTubeStyle(fib.destFib) },
-                  { v: (isSpliced || fib.destTube) ? fib.destTube : '', s: getTubeStyle(fib.destTube) },
-                  { v: isSpliced ? cableOut : '', s: defaultStyle },
-                  { v: isSpliced ? capOut : '', s: defaultStyle },
+                  { v: hasDestination ? fib.destFib : '', s: getTubeStyle(fib.destFib) },
+                  { v: hasDestination ? fib.destTube : '', s: getTubeStyle(fib.destTube) },
+                  { v: hasDestination ? cableOut : '', s: defaultStyle },
+                  { v: hasDestination ? capOut : '', s: defaultStyle },
                   { v: fib.affectation || "", s: defaultStyle }, // Affectation
                   { v: fib.codeSite || "", s: defaultStyle }  // Code Site
               ];
@@ -1043,6 +1056,11 @@ function openDetail(id){
   } else { navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de coordonnées GPS ni de lien Waze</div>`; }
   const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${escapeHTML(getDisplayName(other))}</option>`).join('');
   let csvCableVal = ''; for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
+  
+  const nextBox = chambres.find(x => parseFloatSafe(x.raw['ORDRE']) > parseFloatSafe(c.raw['ORDRE']));
+  const cableOut = nextBox ? getRawValue(nextBox, ['CABLE'], '') : '';
+  const capOut = nextBox ? (nextBox.capacite || 48) + " FO" : '';
+
   const passagesHtml = c.passages.map((p, index) => {
     const isFoa = modeTravail === 'foa';
     const cableVal = p.cable_name || (index === 0 ? csvCableVal : '');
@@ -1096,7 +1114,12 @@ function openDetail(id){
   <div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div>
   <div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div>
   <div class="card" id="cassettesCard" style="display: ${showCassettes ? 'block' : 'none'};"><div class="label-row"><label style="margin-top:0; font-size:16px;">🗃️ Photos des Cassettes (BPE)</label></div><div class="photo-row" id="cassettesGrid"></div></div>
-  ${showBoxSettings ? `<div class="card" id="souduresConfigCard"><div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div><p class="small">Sélectionnez les tubes de destination. (Faites glisser pour voir tout le tableau).</p><div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div></div>` : ''}
+  ${showBoxSettings ? `<div class="card" id="souduresConfigCard"><div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div>
+  <div style="font-size:12px; margin-bottom:8px; background:#e3f2fd; padding:6px; border-radius:4px;">
+    <b>Câble Entrant :</b> ${escapeHTML(csvCableVal || 'Non défini')} <br>
+    <b>Câble Sortant :</b> ${escapeHTML(cableOut || 'Non défini (fin de ligne)')}
+  </div>
+  <p class="small">Sélectionnez les tubes de destination. (Faites glisser pour voir tout le tableau).</p><div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div></div>` : ''}
   <button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider manuellement'}</button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
   document.getElementById('editInfoBtn').onclick = () => openEditChambre(id);
@@ -1131,12 +1154,10 @@ function openDetail(id){
         const fib = tubeData.fibers[f]; 
         const disabledDest = isDroit ? 'disabled' : '';
         
-        // Options pour les tubes de destination
         let tubOpts = '';
         for (let td = 1; td <= nbTubes; td++) {
             tubOpts += `<option value="${td}" ${fib.destTube == td ? 'selected' : ''}>${td}</option>`;
         }
-        // Options pour les fibres de destination
         let fibOpts = '';
         for (let fd = 1; fd <= 12; fd++) {
             fibOpts += `<option value="${fd}" ${fib.destFib == fd ? 'selected' : ''}>${fd}</option>`;
@@ -1178,11 +1199,17 @@ function openDetail(id){
             
             c.splicingData[t].fibers[f].destTube = newTd; 
             
-            // Inversion : si le nouveau tube de destination n'est pas le même et existe
+            // Inversion : le tube de destination pointe obligatoirement vers le tube source
             if (newTd !== t && c.splicingData[newTd]) {
-                c.splicingData[newTd].fibers[f].destTube = t; // Le tube destination pointe vers le tube source
-                // Optionnel : forcer le mode Droit du tube destination pour refléter la symétrie
                 c.splicingData[newTd].droit = true; 
+                c.splicingData[newTd].fibers[f].destTube = t;
+                c.splicingData[newTd].fibers[f].destFib = f + 1;
+            }
+            
+            // Nettoyage de l'ancienne destination si elle existait
+            if (oldTd !== newTd && oldTd !== t && c.splicingData[oldTd]) {
+                c.splicingData[oldTd].droit = true;
+                c.splicingData[oldTd].fibers[f].destTube = oldTd;
             }
             
             await dbPut(c); 
@@ -1332,8 +1359,9 @@ function genererROP() {
     }).addTo(ropMap);
 
     const bounds = L.latLngBounds();
+    let cumulativeLength = 0;
 
-    // Tracer les points
+    // Tracer les points avec Tooltip Permanent (Nom et Tubes/Fibres)
     chambresGps.forEach(c => {
         const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
         bounds.extend([lat, lon]);
@@ -1350,53 +1378,68 @@ function genererROP() {
             fillOpacity: 0.8
         }).addTo(ropMap);
 
-        marker.bindPopup(`
-            <div style="font-size:12px;">
+        // Résumé des soudures
+        let infoSoudures = [];
+        if (c.splicingData) {
+            Object.keys(c.splicingData).forEach(t => {
+                const tube = c.splicingData[t];
+                if (tube.droit) {
+                    const destT = tube.fibers[0]?.destTube || t;
+                    if (destT !== t) infoSoudures.push(`T${t}↔T${destT}`);
+                } else {
+                    infoSoudures.push(`T${t} (Custom)`);
+                }
+            });
+        }
+        const subText = infoSoudures.length > 0 ? `<br><span style="font-size:8px; color:#666;">${infoSoudures.join(' | ')}</span>` : '';
+        const tooltipContent = `
+            <div style="text-align:center;">
                 <b>${escapeHTML(getDisplayName(c))}</b><br>
-                ${escapeHTML(getRawValue(c, ['COMMUNE'], ''))}<br>
-                <b>BPE :</b> ${escapeHTML(bpe || 'Aucune')}
+                <span style="font-size:9px; color:#555;">${escapeHTML(bpe)}</span>
+                ${subText}
             </div>
-        `);
+        `;
+
+        marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -10] });
     });
 
-    // Tracer les vecteurs (lignes)
+    // Tracer les vecteurs (lignes) avec Tooltip Permanent (Longueur)
     for (let i = 1; i < chambresGps.length; i++) {
         const prevC = chambresGps[i - 1];
         const currC = chambresGps[i];
         
-        // Récupérer les infos de soudure de la boîte précédente
+        const lengthStr = getRawValue(prevC, ['ETIQUETTE_2'], '0');
+        const length = parseFloat(lengthStr) || 0;
+        cumulativeLength += length;
+
+        // Récupérer les infos de soudure
         let tubeUtilise = null;
         let fibreUtilisee = null;
         let statusStr = '';
         let isAffected = false;
         
         if (prevC.splicingData) {
-            // On cherche une fibre qui va vers le tube 1 par défaut (souvent la fibre principale)
             const tube1 = prevC.splicingData[1];
             if (tube1 && tube1.fibers) {
-                // Chercher une fibre "service" ou "actif" en priorité
                 let fib = tube1.fibers.find(f => f.status === 'service' || f.status === 'actif');
-                // Sinon, prendre la première fibre soudée/passage
                 if (!fib) fib = tube1.fibers.find(f => f.status === 'soude' || f.status === 'passage');
-                // Sinon, la première
                 if (!fib) fib = tube1.fibers[0];
 
                 if (fib) {
-                    fibreUtilisee = tube1.fibers.indexOf(fib) + 1; // Numéro de fibre (1 à 12)
-                    tubeUtilise = 1; // Par défaut on prend le tube 1
+                    fibreUtilisee = tube1.fibers.indexOf(fib) + 1;
+                    tubeUtilise = 1;
                     statusStr = fib.status;
                     isAffected = ['soude', 'passage', 'actif', 'service', 'reserve'].includes(fib.status);
                 }
             }
         }
 
-        // Définir la couleur et l'épaisseur
-        let color = '#888888'; // Gris par défaut
+        let color = '#888888';
         let weight = 2;
         
         if (fibreUtilisee) {
             color = couleursCSS[couleursNoms[fibreUtilisee - 1]] || '#888888';
-            weight = isAffected ? 5 : 2; // Plus large si affectée
+            weight = isAffected ? 5 : 2;
         }
 
         const latlngs = [
@@ -1406,20 +1449,11 @@ function genererROP() {
 
         const polyline = L.polyline(latlngs, { color: color, weight: weight, opacity: 0.8 }).addTo(ropMap);
 
-        // Info bulle sur la ligne
-        polyline.bindPopup(`
-            <div style="font-size:12px;">
-                <b>Lien Optique</b><br>
-                De : ${escapeHTML(getDisplayName(prevC))}<br>
-                Vers : ${escapeHTML(getDisplayName(currC))}<br>
-                <b>Tube :</b> ${tubeUtilise || '—'}<br>
-                <b>Fibre :</b> ${fibreUtilisee || '—'}<br>
-                <b>Statut :</b> ${statusStr.toUpperCase()}
-            </div>
-        `);
+        // Tooltip de longueur
+        polyline.bindTooltip(`${length} m (Cumul: ${cumulativeLength} m)`, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
     }
 
-    ropMap.fitBounds(bounds, { padding: [30, 30] });
+    ropMap.fitBounds(bounds, { padding: [40, 40] });
 }
 
 /* ---------- PDF ---------- */
@@ -1454,7 +1488,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.3`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.4`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
