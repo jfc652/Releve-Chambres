@@ -258,7 +258,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 16.2 (Zoom 1/1000)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 16.3 (Liaisons + Zoom intelligent)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1115,7 +1115,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 16.2`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 16.3`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1200,9 +1200,9 @@ async function construireSynoptiquePDF() {
 }
 
 /* ============================================================
-   CAPTURE CARTE - TUILES OPENSTREETMAP (ZOOM FORCÉ POSSIBLE)
+   CAPTURE CARTE - TUILES OPENSTREETMAP (LIGNE + ZOOM INTELLIGENT)
    ============================================================ */
-async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, zoomForce = null) {
+async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, zoomForce = null, dessinerLigne = false) {
   return new Promise(async (resolve) => {
     if (chambresGps.length === 0) { resolve(null); return; }
 
@@ -1217,18 +1217,17 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
 
     if (minLat === 90) { resolve(null); return; }
 
-    const latMargin = (maxLat - minLat) * 0.1 || 0.001;
-    const lonMargin = (maxLon - minLon) * 0.1 || 0.001;
+    const latMargin = (maxLat - minLat) * 0.15 || 0.001;
+    const lonMargin = (maxLon - minLon) * 0.15 || 0.001;
     minLat -= latMargin; maxLat += latMargin; minLon -= lonMargin; maxLon += lonMargin;
 
     const centerLat = (minLat + maxLat) / 2;
     const centerLon = (minLon + maxLon) / 2;
     
-    // Calcul du zoom
-    let zoom = 12;
-    if (zoomForce !== null) {
-      zoom = zoomForce;
-    } else {
+    // Calcul du zoom : si un zoom est demandé, on vérifie qu'il contient tout, sinon on recule
+    let zoom = zoomForce !== null ? zoomForce : 12;
+    
+    if (zoomForce === null) {
       const latDiff = maxLat - minLat;
       if (latDiff > 1) zoom = 9;
       else if (latDiff > 0.5) zoom = 10;
@@ -1237,6 +1236,31 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
       else if (latDiff > 0.02) zoom = 14;
       else if (latDiff > 0.01) zoom = 15;
       else zoom = 16;
+    } else {
+      const testZoom = zoomForce;
+      const n = Math.pow(2, testZoom);
+      const latToY = (lat) => (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n;
+      const lonToX = (lon) => (lon + 180) / 360 * n;
+      
+      const minX = lonToX(minLon) * 256;
+      const maxX = lonToX(maxLon) * 256;
+      const minY = latToY(maxLat) * 256; 
+      const maxY = latToY(minLat) * 256;
+      
+      const spanX = maxX - minX;
+      const spanY = maxY - minY;
+      
+      if (spanX > widthPx * 0.9 || spanY > heightPx * 0.9) {
+        let test = zoomForce;
+        while (test > 10) {
+          test--;
+          const nT = Math.pow(2, test);
+          const spanXT = (lonToX(maxLon) - lonToX(minLon)) * (nT / n) * 256;
+          const spanYT = (latToY(minLat) - latToY(maxLat)) * (nT / n) * 256;
+          if (spanXT <= widthPx * 0.9 && spanYT <= heightPx * 0.9) break;
+        }
+        zoom = test;
+      }
     }
 
     const tileSize = 256;
@@ -1275,17 +1299,45 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
 
     await Promise.all(tilePromises);
 
+    const n = Math.pow(2, zoom);
+    const proj = (c) => {
+      const tileX = (parseFloat(c.lon) + 180) / 360 * n;
+      const tileY = (1 - Math.log(Math.tan(parseFloat(c.lat) * Math.PI / 180) + 1 / Math.cos(parseFloat(c.lat) * Math.PI / 180)) / Math.PI) / 2 * n;
+      return {
+        x: (tileX - startTileX) * tileSize,
+        y: (tileY - startTileY) * tileSize
+      };
+    };
+
+    // Tracé de la ligne rouge en pointillé
+    const chambresTriees = [...chambresGps].sort((a, b) => {
+      const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
+      const ob = parseInt(b.raw['ORDRE'] || b.raw['ordre'] || '', 10);
+      return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
+    });
+
+    if (dessinerLigne && chambresTriees.length > 1) {
+      ctx.beginPath();
+      ctx.strokeStyle = '#c62828';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      
+      chambresTriees.forEach((c, i) => {
+        const p = proj(c);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Dessin des points et étiquettes
     chambresGps.forEach(c => {
-      const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
-      if (isNaN(lat) || isNaN(lon)) return;
-      const n = Math.pow(2, zoom);
-      const tileX = (lon + 180) / 360 * n;
-      const tileY = (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n;
-      const px = (tileX - startTileX) * tileSize;
-      const py = (tileY - startTileY) * tileSize;
+      if (isNaN(parseFloat(c.lat)) || isNaN(parseFloat(c.lon))) return;
+      const p = proj(c);
 
       ctx.beginPath();
-      ctx.arc(px, py, 5, 0, 2 * Math.PI);
+      ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
       ctx.fillStyle = '#c62828';
       ctx.fill();
       ctx.strokeStyle = '#ffffff';
@@ -1298,12 +1350,12 @@ async function capturerCarteTuiles(chambresGps, widthPx = 1200, heightPx = 800, 
       ctx.fillStyle = 'white';
       ctx.strokeStyle = '#c62828';
       ctx.lineWidth = 1;
-      ctx.fillRect(px - textWidth/2 - 2, py - 22, textWidth + 4, 14);
-      ctx.strokeRect(px - textWidth/2 - 2, py - 22, textWidth + 4, 14);
+      ctx.fillRect(p.x - textWidth/2 - 2, p.y - 22, textWidth + 4, 14);
+      ctx.strokeRect(p.x - textWidth/2 - 2, p.y - 22, textWidth + 4, 14);
       ctx.fillStyle = 'black';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(txt, px, py - 15);
+      ctx.fillText(txt, p.x, p.y - 15);
     });
 
     const finalCanvas = document.createElement('canvas');
@@ -1329,7 +1381,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  // 1. PAGE GLOBALE (zoom automatique pour tout voir)
+  // 1. PAGE GLOBALE (avec tracé)
   doc.addPage('a3', 'landscape');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
@@ -1339,7 +1391,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setFont('helvetica', 'normal');
   doc.text(`Nombre de chambres avec GPS : ${chambresGps.length}`, pageW / 2, 60, { align: 'center' });
 
-  const mapDataUrl = await capturerCarteTuiles(chambresGps, 1200, 800); // null = auto
+  const mapDataUrl = await capturerCarteTuiles(chambresGps, 1200, 800, null, true);
 
   const mapRectX = 80, mapRectY = 80;
   const mapRectW = pageW - 160, mapRectH = pageH - 180;
@@ -1367,7 +1419,7 @@ async function ajouterPageCarteMaps(doc, chambres) {
   doc.setTextColor(0, 0, 255);
   doc.textWithLink(`Ouvrir l'itinéraire complet dans Google Maps (${maxPoints} chambres)`, pageW / 2, pageH - 40, { align: 'center', url: gmapsUrl });
 
-  // 2. PAGES DÉTAILLÉES (Tronçons avec zoom FORCÉ à 18 pour l'échelle 1/500 - 1/1000)
+  // 2. PAGES DÉTAILLÉES (Tronçons avec tracé et zoom intelligent)
   const tronconTaille = 20;
   const chambresTriees = [...chambresGps].sort((a, b) => {
     const oa = parseInt(a.raw['ORDRE'] || a.raw['ordre'] || '', 10);
@@ -1390,10 +1442,9 @@ async function ajouterPageCarteMaps(doc, chambres) {
     doc.setFont('helvetica', 'normal');
     doc.text(`Chambres du ${paquet[0].raw['CODE_CH1'] || '?'} au ${paquet[paquet.length - 1].raw['CODE_CH1'] || '?'}`, pageW / 2, 60, { align: 'center' });
 
-    // ZOOM FORCÉ À 18 pour l'échelle 1/1000
-    // Essayez 17 pour 1/2000, ou 19 pour 1/500
+    // Zoom souhaité : 18 (1/1000). Le script reculera si besoin pour tout voir.
     const ZOOM_DETAILLE = 18;
-    const zoomDataUrl = await capturerCarteTuiles(paquet, 1200, 800, ZOOM_DETAILLE);
+    const zoomDataUrl = await capturerCarteTuiles(paquet, 1200, 800, ZOOM_DETAILLE, true);
 
     if (zoomDataUrl) {
       const imgRatio = 1200 / 800;
