@@ -135,7 +135,7 @@ window.addEventListener('unhandledrejection', function(e) {
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<!-- Ajout de la librairie SheetJS pour l'export Excel -->
+<!-- Librairie SheetJS pour l'export Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -262,7 +262,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.7 (Excel & Statuts Fibres)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 17.8 (Couleurs Excel)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -351,7 +351,11 @@ let pendingLat = '', pendingLon = '';
 const FORMAT_PDF = "A4"; 
 
 const couleursNoms = ['Rouge', 'Bleu', 'Vert', 'Jaune', 'Violet', 'Blanc', 'Orange', 'Gris', 'Marron', 'Noir', 'Turquoise', 'Rose'];
-const couleursHex = { 'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] };
+const couleursHex = { 
+  'Rouge': [255,0,0], 'Bleu': [0,0,255], 'Vert': [0,128,0], 'Jaune': [255,255,0], 
+  'Violet': [128,0,128], 'Blanc': [255,255,255], 'Orange': [255,165,0], 'Gris': [128,128,128], 
+  'Marron': [139,69,19], 'Noir': [0,0,0], 'Turquoise': [64,224,208], 'Rose': [255,192,203] 
+};
 
 function uuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -763,8 +767,12 @@ function generateCSV(){
 }
 
 // ==========================================
-// GÉNÉRATION EXCEL (BPE)
+// GÉNÉRATION EXCEL (BPE) AVEC COULEURS FIBRES
 // ==========================================
+function rgbToHex(rgb) {
+    return rgb.map(x => x.toString(16).padStart(2, '0').toUpperCase()).join('');
+}
+
 function generateExcelExport() {
   if (typeof XLSX === 'undefined') return null;
   const wb = XLSX.utils.book_new();
@@ -778,7 +786,6 @@ function generateExcelExport() {
 
   validBoxes.forEach(c => {
       const bpeName = getRawValue(c, ['BPE', 'bpe'], 'SANS_NOM');
-      // Nettoyage du nom de l'onglet (max 31 chars, pas de caractères spéciaux)
       let baseSheetName = bpeName.substring(0, 28).replace(/[\\\/\?\*\[\]\:]/g, '_').trim();
       if (!baseSheetName) baseSheetName = "Boite";
       
@@ -809,8 +816,25 @@ function generateExcelExport() {
           for (let f = 0; f < 12; f++) {
               const fib = tubeData.fibers[f] || { status: 'soude', destTube: t, destFib: f + 1 };
               const isSpliced = (fib.status === 'soude' || fib.status === 'passage');
+              
+              const fibColorName = couleursNoms[f];
+              const fibColorHex = rgbToHex(couleursHex[fibColorName]);
+              const fibTextColorHex = (f === 3 || f === 5 || f === 11) ? '000000' : 'FFFFFF'; // Jaune, Blanc, Rose en texte noir
+
+              // Création de la cellule avec style pour la fibre
+              const fibCell = {
+                  v: `F${f+1}`,
+                  t: 's',
+                  s: {
+                      fill: { fgColor: { rgb: fibColorHex }, patternType: 'solid' },
+                      font: { color: { rgb: fibTextColorHex }, bold: true }
+                  }
+              };
+
               data.push([
-                  `T${t}`, `F${f+1}`, fib.status, 
+                  `T${t}`, 
+                  fibCell,
+                  fib.status, 
                   isSpliced ? fib.destTube : '',
                   isSpliced ? fib.destFib : '',
                   isSpliced ? cableOut : '',
@@ -823,7 +847,8 @@ function generateExcelExport() {
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
   });
 
-  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  // Ajout de cellStyles:true pour appliquer les couleurs
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true });
 }
 
 async function compress(file,maxDim=1600,q=0.8){
@@ -1199,7 +1224,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.7`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 17.8`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
