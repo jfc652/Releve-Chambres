@@ -75,12 +75,13 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .logo-container img, .logo-container svg { max-width: 220px; max-height: 80px; object-fit: contain; }
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:200; }
 .modal-content { background:#fff; width:90%; max-width:420px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
-.splice-tube-block { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
+.splice-tube-block { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 10px; overflow-x: auto; }
 .splice-tube-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: bold; color: #0055A4; }
-.splice-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.splice-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 500px; }
 .splice-table th, .splice-table td { border: 1px solid #ccc; padding: 4px; text-align: center; }
-.splice-table select, .splice-table input { padding: 4px; font-size: 12px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+.splice-table select, .splice-table input { padding: 4px; font-size: 11px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
 .splice-table input:disabled { background: #e0e0e0; color: #888; }
+.splice-table th { font-size: 10px; background: #f0f0f0; }
 .file-input-wrapper { display: flex; gap: 8px; align-items: stretch; margin-top: 6px; }
 .file-input-label { flex: 1; display: flex; align-items: center; justify-content: center; background: #eef3f8; border: 1px dashed #0055A4; color: #0055A4; border-radius: 8px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; margin: 0; }
 .file-input-label:active { background: #d0e3f5; }
@@ -262,7 +263,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.0 (Excel avec couleurs)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.1 (Champs Affectation & Site)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -770,7 +771,6 @@ function generateCSV(){
 // GÉNÉRATION EXCEL (BPE) - MODÈLE OFFICIEL AVEC STYLES
 // ==========================================
 function generateExcelExport() {
-  // On utilise XLSX de la librairie xlsx-js-style
   if (typeof XLSX === 'undefined') return null;
   const wb = XLSX.utils.book_new();
 
@@ -889,7 +889,7 @@ function generateExcelExport() {
       for (let t = 1; t <= nbTubes; t++) {
           const tubeData = c.splicingData && c.splicingData[t] ? c.splicingData[t] : { droit: true, fibers: [] };
           for (let f = 0; f < 12; f++) {
-              const fib = tubeData.fibers[f] || { status: 'soude', destTube: t, destFib: f + 1 };
+              const fib = tubeData.fibers[f] || { status: 'soude', destTube: t, destFib: f + 1, affectation: '', codeSite: '' };
               const statusStr = fib.status === 'soude' ? 'EPISSUREE' : fib.status === 'passage' ? 'EN PASSAGE' : fib.status === 'attente' ? 'EN ATTENTE' : fib.status === 'morte' ? 'FIBRE MORTE' : fib.status === 'actif' ? 'ACTIF' : fib.status === 'service' ? 'SERVICE INTERNET' : fib.status === 'reserve' ? 'EN RÉSERVE' : fib.status;
               
               const isSpliced = (fib.status === 'soude' || fib.status === 'passage');
@@ -904,8 +904,8 @@ function generateExcelExport() {
                   { v: isSpliced ? fib.destTube : '', s: isSpliced ? getTubeStyle(fib.destTube) : defaultStyle },
                   { v: isSpliced ? cableOut : '', s: defaultStyle },
                   { v: isSpliced ? capOut : '', s: defaultStyle },
-                  { v: "", s: defaultStyle }, // Affectation
-                  { v: "", s: defaultStyle }  // Code Site
+                  { v: fib.affectation || "", s: defaultStyle }, // Affectation
+                  { v: fib.codeSite || "", s: defaultStyle }  // Code Site
               ];
               ws_data.push(row);
           }
@@ -1029,7 +1029,7 @@ function openDetail(id){
   if (!c.capacite) c.capacite = parseInt(getRawValue(c, ['CAPACITE', 'capacite'], '48'), 10) || 48;
   if (!c.splicingData) c.splicingData = {};
   const nbTubes = Math.ceil(c.capacite / 12);
-  for (let t = 1; t <= nbTubes; t++) { if (!c.splicingData[t]) c.splicingData[t] = { droit: true, fibers: Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1 })) }; }
+  for (let t = 1; t <= nbTubes; t++) { if (!c.splicingData[t]) c.splicingData[t] = { droit: true, fibers: Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1, affectation: '', codeSite: '' })) }; }
   const cont=document.getElementById('detailContainer');
   const displayName = getDisplayName(c);
   const numVoie = getRawValue(c, ['NUM_VOIE', 'adresse'], ''), codeCh2 = getRawValue(c, ['CODE_CH2'], ''), commune = getRawValue(c, ['COMMUNE'], ''), refChambr = getRawValue(c, ['REF_CHAMBR'], ''), proprietaire = getRawValue(c, ['PROPRIETAI', 'PROPRIETAIRE'], ''), fci = getRawValue(c, ['FCI'], ''), etiquette2 = getRawValue(c, ['ETIQUETTE_2'], '');
@@ -1101,7 +1101,7 @@ function openDetail(id){
   <div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div>
   <div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div>
   <div class="card" id="cassettesCard" style="display: ${showCassettes ? 'block' : 'none'};"><div class="label-row"><label style="margin-top:0; font-size:16px;">🗃️ Photos des Cassettes (BPE)</label></div><div class="photo-row" id="cassettesGrid"></div></div>
-  ${showBoxSettings ? `<div class="card" id="souduresConfigCard"><div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div><p class="small">Cochez "Droit" pour souder les 12 fibres du tube sur le même tube.</p><div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div></div>` : ''}
+  ${showBoxSettings ? `<div class="card" id="souduresConfigCard"><div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div><p class="small">Cochez "Droit" pour souder les 12 fibres du tube sur le même tube. (Faites glisser horizontalement si le tableau dépasse).</p><div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div></div>` : ''}
   <button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider manuellement'}</button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
   document.getElementById('editInfoBtn').onclick = () => openEditChambre(id);
@@ -1131,13 +1131,14 @@ function openDetail(id){
     const grid = document.getElementById('souduresConfigGrid'); if(!grid) return; let html = '';
     for (let t = 1; t <= nbTubes; t++) {
       const tubeData = c.splicingData[t]; const isDroit = tubeData.droit;
-      html += `<div class="splice-tube-block" data-tube="${t}"><div class="splice-tube-header"><span>Tube ${t} (${couleursNoms[t-1] || 'Couleur ' + t})</span><label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label></div><table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>Tube Dest.</th><th>Fibre Dest.</th></tr></thead><tbody>`;
+      html += `<div class="splice-tube-block" data-tube="${t}"><div class="splice-tube-header"><span>Tube ${t} (${couleursNoms[t-1] || 'Couleur ' + t})</span><label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label></div><table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
       for (let f = 0; f < 12; f++) { 
         const fib = tubeData.fibers[f]; 
         const isTerminal = ['attente', 'actif', 'service', 'morte', 'reserve'].includes(fib.status);
         const disabled = (isDroit || isTerminal) ? 'disabled' : '';
         
-        html += `<tr><td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td>
+        html += `<tr>
+        <td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td>
         <td>
           <select class="fib-status" data-tube="${t}" data-fib="${f}" ${isDroit ? 'disabled' : ''}>
             <option value="soude" ${fib.status === 'soude' ? 'selected' : ''}>Soudé</option>
@@ -1149,19 +1150,24 @@ function openDetail(id){
             <option value="morte" ${fib.status === 'morte' ? 'selected' : ''}>Fibre morte</option>
           </select>
         </td>
-        <td><input type="number" min="1" max="${nbTubes}" class="fib-dest-tube" data-tube="${t}" data-fib="${f}" value="${fib.destTube}" ${disabled}></td>
-        <td><input type="number" min="1" max="12" class="fib-dest-fib" data-tube="${t}" data-fib="${f}" value="${fib.destFib}" ${disabled}></td>
+        <td><input type="number" min="1" max="${nbTubes}" class="fib-dest-tube" data-tube="${t}" data-fib="${f}" value="${fib.destTube}" ${disabled} style="width:40px;"></td>
+        <td><input type="number" min="1" max="12" class="fib-dest-fib" data-tube="${t}" data-fib="${f}" value="${fib.destFib}" ${disabled} style="width:40px;"></td>
+        <td><input type="text" class="fib-affect" data-tube="${t}" data-fib="${f}" value="${escapeHTML(fib.affectation || '')}" placeholder="NRO/Interco" style="width:70px; font-size:10px;"></td>
+        <td><input type="text" class="fib-site" data-tube="${t}" data-fib="${f}" value="${escapeHTML(fib.codeSite || '')}" placeholder="Code site" style="width:80px; font-size:10px;"></td>
         </tr>`; 
       }
       html += `</tbody></table></div>`;
     }
     grid.innerHTML = html;
     
-    grid.querySelectorAll('.droit-toggle').forEach(chk => { chk.onchange = async (e) => { const t = parseInt(e.target.dataset.tube); c.splicingData[t].droit = e.target.checked; if (e.target.checked) c.splicingData[t].fibers = Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1 })); await dbPut(c); renderSouduresConfig(); }; });
+    grid.querySelectorAll('.droit-toggle').forEach(chk => { chk.onchange = async (e) => { const t = parseInt(e.target.dataset.tube); c.splicingData[t].droit = e.target.checked; if (e.target.checked) c.splicingData[t].fibers = Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1, affectation: '', codeSite: '' })); await dbPut(c); renderSouduresConfig(); }; });
     
     grid.querySelectorAll('.fib-status').forEach(sel => { sel.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].status = e.target.value; await dbPut(c); renderSouduresConfig(); }; });
     
     grid.querySelectorAll('.fib-dest-tube, .fib-dest-fib').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); const val = parseInt(e.target.value) || 1; if (inp.classList.contains('fib-dest-tube')) c.splicingData[t].fibers[f].destTube = val; else c.splicingData[t].fibers[f].destFib = val; await dbPut(c); }; });
+
+    grid.querySelectorAll('.fib-affect').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].affectation = e.target.value; await dbPut(c); }; });
+    grid.querySelectorAll('.fib-site').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].codeSite = e.target.value; await dbPut(c); }; });
   };
   if (showBoxSettings) renderSouduresConfig();
   
@@ -1310,7 +1316,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.0`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.1`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
