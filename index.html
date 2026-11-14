@@ -105,9 +105,9 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   border-radius: 6px !important;
   color: #000000 !important;
   font-weight: bold !important;
-  font-size: 13px !important; /* Agrandi */
+  font-size: 13px !important;
   font-family: Arial, sans-serif !important;
-  padding: 4px 8px !important; /* Agrandi */
+  padding: 4px 8px !important;
   box-shadow: 0 2px 5px rgba(0,0,0,0.4) !important;
   white-space: nowrap !important;
 }
@@ -119,8 +119,8 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   border-radius: 4px !important;
   color: #222 !important;
   font-weight: bold !important;
-  font-size: 11px !important; /* Agrandi */
-  padding: 2px 6px !important; /* Agrandi */
+  font-size: 11px !important;
+  padding: 2px 6px !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
 }
 .leaflet-tooltip-length::before { display: none !important; }
@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.9 (ROP agrandie)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.1 (Couleurs ROP)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1373,8 +1373,6 @@ function genererROP() {
                 const tube = c.splicingData[t];
                 tube.fibers.forEach((fib, idx) => {
                     if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.status === 'soude' && fib.affectation)) {
-                        // Si le câble n'est pas encore défini, on prend la couleur de cette fibre
-                        // Sinon on garde la première couleur trouvée (priorité à la plus proche du NRO)
                         if (!activeCables[cableName]) {
                             const color = couleursCSS[couleursNoms[idx]] || '#FF0000';
                             activeCables[cableName] = { color: color, weight: 5 };
@@ -1385,36 +1383,39 @@ function genererROP() {
         }
     });
 
-    // Tracer les points avec Tooltip Permanent (Nom et Tubes/Fibres)
+    // 2. Déterminer les marqueurs qui sont sur un tracé actif
+    const chambresActives = new Set();
+    for (let i = 1; i < chambresGps.length; i++) {
+        const prevC = chambresGps[i - 1];
+        const currC = chambresGps[i];
+        const cableTroncon = getRawValue(prevC, ['CABLE'], '') || getRawValue(currC, ['CABLE'], '');
+        if (cableTroncon && activeCables[cableTroncon]) {
+            chambresActives.add(prevC.id);
+            chambresActives.add(currC.id);
+        }
+    }
+
+    // Tracer les points
     chambresGps.forEach(c => {
         const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
         bounds.extend([lat, lon]);
         
         const bpe = getRawValue(c, ['BPE', 'bpe'], '');
+        const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
         
-        // NOUVELLE LOGIQUE DE COULEUR : Vert si fibre active, sinon Rouge
-        let hasActiveFiber = false;
-        if (c.splicingData) {
-            for (const t in c.splicingData) {
-                const tube = c.splicingData[t];
-                if (tube && tube.fibers) {
-                    for (const fib of tube.fibers) {
-                        if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.status === 'soude' && fib.affectation && fib.affectation.trim() !== '')) {
-                            hasActiveFiber = true;
-                            break;
-                        }
-                    }
-                }
-                if (hasActiveFiber) break;
-            }
+        // LOGIQUE DEMANDÉE : Vert si boîte, Noir si chambre traversée par fibre active, Gris sinon
+        let fillColor = '#cccccc'; // Gris clair par défaut
+        if (hasBpe) {
+            fillColor = '#2e7d32'; // VERT pour les boîtes
+        } else if (chambresActives.has(c.id)) {
+            fillColor = '#000000'; // NOIR pour les chambres sans boîte mais avec fibre active
         }
-        
-        // CERCLES AGRANDIS (radius 10 au lieu de 6)
+
         const marker = L.circleMarker([lat, lon], {
-            radius: 10,
-            fillColor: hasActiveFiber ? '#2e7d32' : '#c62828', // Vert si actif, Rouge sinon
+            radius: 9, // Taille agrandie
+            fillColor: fillColor,
             color: '#fff',
-            weight: 3, // Bordure plus épaisse
+            weight: 2,
             opacity: 1,
             fillOpacity: 0.9
         }).addTo(ropMap);
@@ -1422,11 +1423,11 @@ function genererROP() {
         const tooltipContent = `
             <div style="text-align:center;">
                 <b>${escapeHTML(getDisplayName(c))}</b><br>
-                <span style="font-size:10px; color:#555;">${escapeHTML(bpe)}</span>
+                <span style="font-size:9px; color:#555;">${escapeHTML(bpe)}</span>
             </div>
         `;
 
-        marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -12] });
+        marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -10] });
     });
 
     // Tracer les vecteurs (lignes) avec Tooltip Permanent (Longueur)
@@ -1438,13 +1439,11 @@ function genererROP() {
         const length = parseFloat(lengthStr) || 0;
         cumulativeLength += length;
 
-        // Le câble d'un tronçon est STRICTEMENT celui de la boîte amont (prevC).
         let cableTroncon = getRawValue(prevC, ['CABLE'], '') || getRawValue(currC, ['CABLE'], '');
         
         let color = '#888888'; // Gris par défaut
         let weight = 2;
         
-        // On ne colore que si CE câble spécifique est actif
         if (cableTroncon && activeCables[cableTroncon]) {
             color = activeCables[cableTroncon].color;
             weight = activeCables[cableTroncon].weight;
@@ -1457,7 +1456,6 @@ function genererROP() {
 
         const polyline = L.polyline(latlngs, { color: color, weight: weight, opacity: 0.8 }).addTo(ropMap);
 
-        // Tooltip de longueur et info câble
         const tooltipContent = `
             <div style="text-align:center;">
                 <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
@@ -1467,7 +1465,7 @@ function genererROP() {
         polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
     }
 
-    ropMap.fitBounds(bounds, { padding: [50, 50] }); // Un peu plus de padding pour les grands cercles
+    ropMap.fitBounds(bounds, { padding: [50, 50] });
 }
 
 /* ---------- PDF ---------- */
@@ -1502,7 +1500,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.9`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.1`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
