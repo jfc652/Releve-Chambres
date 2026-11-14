@@ -98,30 +98,30 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .toast-notif { position:fixed; top:80px; left:50%; transform:translateX(-50%); background:#2e7d32; color:#fff; padding:14px 22px; border-radius:10px; font-weight:600; z-index:9999; box-shadow:0 6px 20px rgba(0,0,0,0.35); font-size:15px; animation: toastIn .3s ease-out; max-width:90%; text-align:center; }
 @keyframes toastIn { from { opacity:0; transform:translate(-50%, -20px); } to { opacity:1; transform:translate(-50%, 0); } }
 
+/* TAILLES AUGMENTÉES POUR LA ROP */
 .leaflet-tooltip-custom {
   background: #ffffff !important;
-  border: 1px solid #c62828 !important;
-  border-radius: 4px !important;
+  border: 2px solid #c62828 !important;
+  border-radius: 6px !important;
   color: #000000 !important;
   font-weight: bold !important;
-  font-size: 10px !important;
+  font-size: 13px !important; /* Agrandi */
   font-family: Arial, sans-serif !important;
-  padding: 2px 6px !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important;
+  padding: 4px 8px !important; /* Agrandi */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.4) !important;
   white-space: nowrap !important;
 }
 .leaflet-tooltip-custom::before { display: none !important; }
 
-/* Nouveau style pour les étiquettes de longueur sur les lignes ROP */
 .leaflet-tooltip-length {
-  background: rgba(255, 255, 255, 0.85) !important;
-  border: 1px solid #888 !important;
-  border-radius: 3px !important;
-  color: #333 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border: 1px solid #555 !important;
+  border-radius: 4px !important;
+  color: #222 !important;
   font-weight: bold !important;
-  font-size: 9px !important;
-  padding: 1px 4px !important;
-  box-shadow: none !important;
+  font-size: 11px !important; /* Agrandi */
+  padding: 2px 6px !important; /* Agrandi */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
 }
 .leaflet-tooltip-length::before { display: none !important; }
 </style>
@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.8 (ROP câble strict)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.9 (ROP agrandie)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1409,24 +1409,24 @@ function genererROP() {
             }
         }
         
+        // CERCLES AGRANDIS (radius 10 au lieu de 6)
         const marker = L.circleMarker([lat, lon], {
-            radius: 6,
+            radius: 10,
             fillColor: hasActiveFiber ? '#2e7d32' : '#c62828', // Vert si actif, Rouge sinon
             color: '#fff',
-            weight: 2,
+            weight: 3, // Bordure plus épaisse
             opacity: 1,
-            fillOpacity: 0.8
+            fillOpacity: 0.9
         }).addTo(ropMap);
 
-        // Suppression des infos de soudure pour alléger
         const tooltipContent = `
             <div style="text-align:center;">
                 <b>${escapeHTML(getDisplayName(c))}</b><br>
-                <span style="font-size:9px; color:#555;">${escapeHTML(bpe)}</span>
+                <span style="font-size:10px; color:#555;">${escapeHTML(bpe)}</span>
             </div>
         `;
 
-        marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -10] });
+        marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -12] });
     });
 
     // Tracer les vecteurs (lignes) avec Tooltip Permanent (Longueur)
@@ -1439,7 +1439,6 @@ function genererROP() {
         cumulativeLength += length;
 
         // Le câble d'un tronçon est STRICTEMENT celui de la boîte amont (prevC).
-        // Si prevC n'a pas de câble, on prend celui de currC.
         let cableTroncon = getRawValue(prevC, ['CABLE'], '') || getRawValue(currC, ['CABLE'], '');
         
         let color = '#888888'; // Gris par défaut
@@ -1461,14 +1460,14 @@ function genererROP() {
         // Tooltip de longueur et info câble
         const tooltipContent = `
             <div style="text-align:center;">
-                <div style="font-size:10px;">${length} m (Cumul: ${cumulativeLength} m)</div>
-                ${cableTroncon ? `<div style="font-size:8px; color:#555;">${escapeHTML(cableTroncon)}</div>` : ''}
+                <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
+                ${cableTroncon ? `<div style="font-size:9px; color:#555;">${escapeHTML(cableTroncon)}</div>` : ''}
             </div>
         `;
         polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
     }
 
-    ropMap.fitBounds(bounds, { padding: [40, 40] });
+    ropMap.fitBounds(bounds, { padding: [50, 50] }); // Un peu plus de padding pour les grands cercles
 }
 
 /* ---------- PDF ---------- */
@@ -1503,7 +1502,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.8`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.9`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
