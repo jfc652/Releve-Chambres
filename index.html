@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.1 (Couleurs ROP)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.2 (Propagation Optique ROP)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1384,6 +1384,7 @@ function genererROP() {
     });
 
     // 2. Déterminer les marqueurs qui sont sur un tracé actif
+    // NOUVELLE LOGIQUE : Si la chambre A ou la chambre B est active, le tronçon est actif.
     const chambresActives = new Set();
     for (let i = 1; i < chambresGps.length; i++) {
         const prevC = chambresGps[i - 1];
@@ -1391,15 +1392,12 @@ function genererROP() {
         
         const cablePrev = getRawValue(prevC, ['CABLE'], '').trim();
         const cableCurr = getRawValue(currC, ['CABLE'], '').trim();
-        let cableTroncon = '';
         
-        // Si les câbles sont identiques ou si l'un des deux est vide
-        if (cablePrev === cableCurr) cableTroncon = cablePrev;
-        else if (!cablePrev) cableTroncon = cableCurr;
-        else if (!cableCurr) cableTroncon = cablePrev;
-        // Si les deux sont différents, cableTroncon reste vide (rupture)
+        let isActive = false;
+        if (cablePrev && activeCables[cablePrev]) isActive = true;
+        else if (cableCurr && activeCables[cableCurr]) isActive = true;
 
-        if (cableTroncon && activeCables[cableTroncon]) {
+        if (isActive) {
             chambresActives.add(prevC.id);
             chambresActives.add(currC.id);
         }
@@ -1413,21 +1411,16 @@ function genererROP() {
         const bpe = getRawValue(c, ['BPE', 'bpe'], '');
         const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
         
-        // LOGIQUE DEMANDÉE : Vert si boîte, Noir si chambre traversée par fibre active, Gris sinon
-        let fillColor = '#cccccc'; // Gris clair par défaut
+        // Vert si boîte, Noir si traversée par fibre active, Gris sinon
+        let fillColor = '#cccccc';
         if (hasBpe) {
-            fillColor = '#2e7d32'; // VERT pour les boîtes
+            fillColor = '#2e7d32';
         } else if (chambresActives.has(c.id)) {
-            fillColor = '#000000'; // NOIR pour les chambres sans boîte mais avec fibre active
+            fillColor = '#000000';
         }
 
         const marker = L.circleMarker([lat, lon], {
-            radius: 9, // Taille agrandie
-            fillColor: fillColor,
-            color: '#fff',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.9
+            radius: 9, fillColor: fillColor, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
         }).addTo(ropMap);
 
         const tooltipContent = `
@@ -1436,7 +1429,6 @@ function genererROP() {
                 <span style="font-size:9px; color:#555;">${escapeHTML(bpe)}</span>
             </div>
         `;
-
         marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -10] });
     });
 
@@ -1451,23 +1443,21 @@ function genererROP() {
 
         const cablePrev = getRawValue(prevC, ['CABLE'], '').trim();
         const cableCurr = getRawValue(currC, ['CABLE'], '').trim();
-        let cableTroncon = '';
-
-        // Si le câble change d'une chambre à l'autre, on ne prolonge pas le câble précédent
-        if (cablePrev === cableCurr) {
-            cableTroncon = cablePrev;
-        } else if (!cablePrev) {
-            cableTroncon = cableCurr;
-        } else if (!cableCurr) {
-            cableTroncon = cablePrev;
-        }
         
-        let color = '#888888'; // Gris par défaut (tronçon neutre)
+        let color = '#888888'; 
         let weight = 2;
-        
-        if (cableTroncon && activeCables[cableTroncon]) {
-            color = activeCables[cableTroncon].color;
-            weight = activeCables[cableTroncon].weight;
+        let cableTooltip = cablePrev || cableCurr; 
+
+        // Si l'un des deux câbles est actif, on colore la ligne (on priorise le câble actuel currC s'il est actif)
+        if (cablePrev && activeCables[cablePrev]) {
+            color = activeCables[cablePrev].color;
+            weight = activeCables[cablePrev].weight;
+            cableTooltip = cablePrev;
+        } 
+        if (cableCurr && activeCables[cableCurr]) {
+            color = activeCables[cableCurr].color;
+            weight = activeCables[cableCurr].weight;
+            cableTooltip = cableCurr;
         }
 
         const latlngs = [
@@ -1480,7 +1470,7 @@ function genererROP() {
         const tooltipContent = `
             <div style="text-align:center;">
                 <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
-                ${cableTroncon ? `<div style="font-size:9px; color:#555;">${escapeHTML(cableTroncon)}</div>` : ''}
+                ${cableTooltip ? `<div style="font-size:9px; color:#555;">${escapeHTML(cableTooltip)}</div>` : ''}
             </div>
         `;
         polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
@@ -1521,7 +1511,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.1`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.2`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
