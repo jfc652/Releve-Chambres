@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.3 (Propagation ROP par Boîte)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.4 (Propagation Optique Corrigée)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1435,21 +1435,18 @@ function genererROP() {
         const activePrev = cablePrev && activeCables[cablePrev];
         const activeCurr = cableCurr && activeCables[cableCurr];
 
-        const prevBpe = getRawValue(prevC, ['BPE', 'bpe'], '');
-        const isPrevBox = prevBpe && prevBpe.trim() !== '' && prevBpe.toLowerCase() !== 'none' && prevBpe.toLowerCase() !== 'nan';
-
         let color = '#888888'; 
         let weight = 2;
         let cableTooltip = cableCurr || cablePrev;
 
-        // LOGIQUE DE PROPAGATION ROP :
+        // LOGIQUE DE PROPAGATION ROP CORRIGÉE :
         // Si la chambre actuelle a une fibre active, on colore.
-        // Sinon, si la chambre précédente a une fibre active MAIS que ce n'est pas une boîte, on colore (propagation).
+        // Sinon, si la chambre précédente a une fibre active, on propage sa couleur (même si c'est une boîte).
         if (activeCurr) {
             color = activeCables[cableCurr].color;
             weight = activeCables[cableCurr].weight;
             cableTooltip = cableCurr;
-        } else if (activePrev && !isPrevBox) {
+        } else if (activePrev) {
             color = activeCables[cablePrev].color;
             weight = activeCables[cablePrev].weight;
             cableTooltip = cablePrev;
@@ -1506,7 +1503,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.3`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.4`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
