@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.2 (Propagation Optique ROP)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.3 (Propagation ROP par Boîte)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1362,7 +1362,7 @@ function genererROP() {
     let cumulativeLength = 0;
 
     // 1. Identifier tous les câbles qui possèdent une fibre active/réservée/affectée
-    const activeCables = {}; // { "NOM_CABLE": { color: "#FF0000", weight: 5 } }
+    const activeCables = {}; 
     
     chambresGps.forEach(c => {
         const cableName = getRawValue(c, ['CABLE'], '');
@@ -1384,24 +1384,13 @@ function genererROP() {
     });
 
     // 2. Déterminer les marqueurs qui sont sur un tracé actif
-    // NOUVELLE LOGIQUE : Si la chambre A ou la chambre B est active, le tronçon est actif.
     const chambresActives = new Set();
-    for (let i = 1; i < chambresGps.length; i++) {
-        const prevC = chambresGps[i - 1];
-        const currC = chambresGps[i];
-        
-        const cablePrev = getRawValue(prevC, ['CABLE'], '').trim();
-        const cableCurr = getRawValue(currC, ['CABLE'], '').trim();
-        
-        let isActive = false;
-        if (cablePrev && activeCables[cablePrev]) isActive = true;
-        else if (cableCurr && activeCables[cableCurr]) isActive = true;
-
-        if (isActive) {
-            chambresActives.add(prevC.id);
-            chambresActives.add(currC.id);
+    chambresGps.forEach(c => {
+        const cableName = getRawValue(c, ['CABLE'], '').trim();
+        if (cableName && activeCables[cableName]) {
+            chambresActives.add(c.id);
         }
-    }
+    });
 
     // Tracer les points
     chambresGps.forEach(c => {
@@ -1411,12 +1400,11 @@ function genererROP() {
         const bpe = getRawValue(c, ['BPE', 'bpe'], '');
         const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
         
-        // Vert si boîte, Noir si traversée par fibre active, Gris sinon
-        let fillColor = '#cccccc';
+        let fillColor = '#cccccc'; // Gris clair par défaut
         if (hasBpe) {
-            fillColor = '#2e7d32';
+            fillColor = '#2e7d32'; // VERT pour les boîtes
         } else if (chambresActives.has(c.id)) {
-            fillColor = '#000000';
+            fillColor = '#000000'; // NOIR pour les chambres sans boîte mais avec fibre active
         }
 
         const marker = L.circleMarker([lat, lon], {
@@ -1444,20 +1432,27 @@ function genererROP() {
         const cablePrev = getRawValue(prevC, ['CABLE'], '').trim();
         const cableCurr = getRawValue(currC, ['CABLE'], '').trim();
         
+        const activePrev = cablePrev && activeCables[cablePrev];
+        const activeCurr = cableCurr && activeCables[cableCurr];
+
+        const prevBpe = getRawValue(prevC, ['BPE', 'bpe'], '');
+        const isPrevBox = prevBpe && prevBpe.trim() !== '' && prevBpe.toLowerCase() !== 'none' && prevBpe.toLowerCase() !== 'nan';
+
         let color = '#888888'; 
         let weight = 2;
-        let cableTooltip = cablePrev || cableCurr; 
+        let cableTooltip = cableCurr || cablePrev;
 
-        // Si l'un des deux câbles est actif, on colore la ligne (on priorise le câble actuel currC s'il est actif)
-        if (cablePrev && activeCables[cablePrev]) {
-            color = activeCables[cablePrev].color;
-            weight = activeCables[cablePrev].weight;
-            cableTooltip = cablePrev;
-        } 
-        if (cableCurr && activeCables[cableCurr]) {
+        // LOGIQUE DE PROPAGATION ROP :
+        // Si la chambre actuelle a une fibre active, on colore.
+        // Sinon, si la chambre précédente a une fibre active MAIS que ce n'est pas une boîte, on colore (propagation).
+        if (activeCurr) {
             color = activeCables[cableCurr].color;
             weight = activeCables[cableCurr].weight;
             cableTooltip = cableCurr;
+        } else if (activePrev && !isPrevBox) {
+            color = activeCables[cablePrev].color;
+            weight = activeCables[cablePrev].weight;
+            cableTooltip = cablePrev;
         }
 
         const latlngs = [
@@ -1511,7 +1506,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.2`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.3`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
