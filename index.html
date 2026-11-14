@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.4 (Propagation Optique Corrigée)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 19.5 (Propagation Optique Corrigée)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -406,6 +406,16 @@ function uuid() {
 function getDisplayNameById(id) {
   const c = chambres.find(x => x.id === id);
   return c ? getDisplayName(c) : id;
+}
+
+function getCableName(c) {
+  if (!c) return '';
+  if (c.passages && c.passages.length > 0) {
+    for (const p of c.passages) {
+      if (p.cable_name && p.cable_name.trim() !== '') return p.cable_name.trim();
+    }
+  }
+  return getRawValue(c, ['CABLE', 'CÂBLE'], '').trim();
 }
 
 function chargerLogoAccueil() {
@@ -780,7 +790,7 @@ function generateCSV(){
       case 'capacite': return c.capacite || c.raw[H.capacite] || '';
       case 'masque': return p.masque_in || ''; case 'diametre': return p.diam_in || '';
       case 'masqueB': return p.masque_out || ''; case 'diametreB': return p.diam_out || '';
-      case 'cable': return p.cable_name || c.raw[H.cable] || '';
+      case 'cable': return getCableName(c);
       case 'etiquette2': return c.raw[H.etiquette2] || ''; case 'numVoie': return c.raw[H.numVoie] || '';
       case 'distChamb': return c.raw[H.distChamb] || ''; case 'fci': return c.raw[H.fci] || '';
       case 'bpeOrigine': return bpeOrigine; case 'obsBpe': return obsBpe;
@@ -901,10 +911,10 @@ function generateExcelExport() {
       const nbTubes = Math.ceil(cap / 12);
       
       const nextBox = validBoxes[index + 1];
-      const cableOut = nextBox ? getRawValue(nextBox, ['CABLE'], '') : '';
+      const cableOut = nextBox ? getCableName(nextBox) : '';
       const capOut = nextBox ? (nextBox.capacite || 48) + " FO" : '';
       
-      const cableIn = getRawValue(c, ['CABLE'], '');
+      const cableIn = getCableName(c);
       const capIn = cap + " FO";
 
       // --- DONNÉES ---
@@ -1055,10 +1065,10 @@ function openDetail(id){
     navBtns = `<a href="https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}" target="_blank" class="btn btn-maps">📍 Voir sur Google Maps</a>`;
   } else { navBtns = `<div class="small" style="text-align:center; padding:10px;">Pas de coordonnées GPS ni de lien Waze</div>`; }
   const optionsDestination = chambres.filter(other => other.id !== c.id).map(other => `<option value="${other.id}" ${c.bpeDestination === other.id ? 'selected' : ''}>${escapeHTML(getDisplayName(other))}</option>`).join('');
-  let csvCableVal = ''; for(const key in c.raw) { if(/^C[ÂA]BLE$/i.test(key)) { csvCableVal = c.raw[key]; break; } }
+  let csvCableVal = getCableName(c);
   
   const nextBox = chambres.find(x => parseFloatSafe(x.raw['ORDRE']) > parseFloatSafe(c.raw['ORDRE']));
-  const cableOut = nextBox ? getRawValue(nextBox, ['CABLE'], '') : '';
+  const cableOut = nextBox ? getCableName(nextBox) : '';
   const capOut = nextBox ? (nextBox.capacite || 48) + " FO" : '';
 
   const passagesHtml = c.passages.map((p, index) => {
@@ -1365,7 +1375,7 @@ function genererROP() {
     const activeCables = {}; 
     
     chambresGps.forEach(c => {
-        const cableName = getRawValue(c, ['CABLE'], '');
+        const cableName = getCableName(c);
         if (!cableName) return;
         
         if (c.splicingData) {
@@ -1386,7 +1396,7 @@ function genererROP() {
     // 2. Déterminer les marqueurs qui sont sur un tracé actif
     const chambresActives = new Set();
     chambresGps.forEach(c => {
-        const cableName = getRawValue(c, ['CABLE'], '').trim();
+        const cableName = getCableName(c);
         if (cableName && activeCables[cableName]) {
             chambresActives.add(c.id);
         }
@@ -1429,8 +1439,8 @@ function genererROP() {
         const length = parseFloat(lengthStr) || 0;
         cumulativeLength += length;
 
-        const cablePrev = getRawValue(prevC, ['CABLE'], '').trim();
-        const cableCurr = getRawValue(currC, ['CABLE'], '').trim();
+        const cablePrev = getCableName(prevC);
+        const cableCurr = getCableName(currC);
         
         const activePrev = cablePrev && activeCables[cablePrev];
         const activeCurr = cableCurr && activeCables[cableCurr];
@@ -1439,9 +1449,8 @@ function genererROP() {
         let weight = 2;
         let cableTooltip = cableCurr || cablePrev;
 
-        // LOGIQUE DE PROPAGATION ROP CORRIGÉE :
-        // Si la chambre actuelle a une fibre active, on colore.
-        // Sinon, si la chambre précédente a une fibre active, on propage sa couleur (même si c'est une boîte).
+        // LOGIQUE DE PROPAGATION : Si la chambre actuelle OU la chambre précédente a une fibre active
+        // On propage la couleur, même si le nom du câble change ou si c'est une boîte.
         if (activeCurr) {
             color = activeCables[cableCurr].color;
             weight = activeCables[cableCurr].weight;
@@ -1481,7 +1490,7 @@ async function construireSynoptiquePDF() {
   const optSoudures = document.getElementById('synoptiqueOptSoudures').checked;
   const optCarte = document.getElementById('synoptiqueOptCarte').checked;
   
-  const donnees = chambres.map(c => { const r = c.raw || {}; return { 'ORDRE':getVal(r,'ORDRE','ordre'), 'CODE_CH1':getVal(r,'CODE_CH1'), 'BPE':getVal(r,'BPE'), 'ETIQUETTE_2':getVal(r,'ETIQUETTE_2'), 'REF_CHAMBR':getVal(r,'REF_CHAMBR'), 'wkt_geom':getVal(r,'wkt_geom','WKT_GEOM'), 'CABLE':getVal(r,'CABLE'), 'MASQUE':getVal(r,'MASQUE'), 'DIAMETRE':getVal(r,'DIAMETRE'), 'MASQUE B':getVal(r,'MASQUE B','MASQUE_B'), 'DIAMETRE B':getVal(r,'DIAMETRE B','DIAMETRE_B'), 'FCI':getVal(r,'FCI'), 'COMMUNE':getVal(r,'COMMUNE'), 'CAPACITE':c.capacite||48 }; });
+  const donnees = chambres.map(c => { const r = c.raw || {}; return { 'ORDRE':getVal(r,'ORDRE','ordre'), 'CODE_CH1':getVal(r,'CODE_CH1'), 'BPE':getVal(r,'BPE'), 'ETIQUETTE_2':getVal(r,'ETIQUETTE_2'), 'REF_CHAMBR':getVal(r,'REF_CHAMBR'), 'wkt_geom':getVal(r,'wkt_geom','WKT_GEOM'), 'CABLE':getCableName(c), 'MASQUE':getVal(r,'MASQUE'), 'DIAMETRE':getVal(r,'DIAMETRE'), 'MASQUE B':getVal(r,'MASQUE B','MASQUE_B'), 'DIAMETRE B':getVal(r,'DIAMETRE B','DIAMETRE_B'), 'FCI':getVal(r,'FCI'), 'COMMUNE':getVal(r,'COMMUNE'), 'CAPACITE':c.capacite||48 }; });
   donnees.sort((a, b) => parseFloatSafe(a['ORDRE'], 999) - parseFloatSafe(b['ORDRE'], 999));
   const nbChambres = donnees.length, nbBoites = donnees.filter(r => String(r['BPE']).trim() !== '').length;
   const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0), cableML = infraML * 1.10 + nbBoites;
@@ -1503,7 +1512,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.4`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 19.5`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1976,10 +1985,14 @@ async function ajouterPagesSoudure(doc, chambres, logoG, logoD) {
   for (let i = 0; i < validBoxes.length; i++) {
     const c = validBoxes[i]; const r = c.raw || {}; const bpe = getVal(r, 'BPE') || '';
     const nomBoite = (bpe && bpe.trim() !== '') ? bpe : 'BOÎTE TRANSFÉRÉE / SANS NOM';
-    const nextBox = validBoxes[i + 1]; const cableIn = getVal(r, 'CABLE') || 'CÂBLE INCONNU';
+    const nextBox = validBoxes[i + 1]; 
+    const cableIn = getCableName(c) || 'CÂBLE INCONNU';
     let destination = '', cableOut = '', isEndOfLine = false;
     const allVals = Object.values(r).join(' ').toUpperCase(); const hasSite = /NRO|POP|NRA|TDR/.test(allVals);
-    if (nextBox) { destination = getVal(nextBox.raw, 'BPE') || getVal(nextBox.raw, 'CODE_CH1'); cableOut = getVal(nextBox.raw, 'CABLE') || 'CÂBLE INCONNU'; }
+    if (nextBox) { 
+        destination = getVal(nextBox.raw, 'BPE') || getVal(nextBox.raw, 'CODE_CH1'); 
+        cableOut = getCableName(nextBox) || 'CÂBLE INCONNU'; 
+    }
     else { if (hasSite) { destination = getVal(r, 'DESTINATION') || 'SITE'; cableOut = getVal(r, 'CABLE_OUT') || '—'; } else { isEndOfLine = true; destination = 'FIN DE PARCOURS'; cableOut = '—'; } }
     if (getVal(r, 'DESTINATION')) destination = getVal(r, 'DESTINATION');
     if (getVal(r, 'CABLE_OUT')) cableOut = getVal(r, 'CABLE_OUT');
