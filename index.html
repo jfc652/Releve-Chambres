@@ -1388,7 +1388,17 @@ function genererROP() {
     for (let i = 1; i < chambresGps.length; i++) {
         const prevC = chambresGps[i - 1];
         const currC = chambresGps[i];
-        const cableTroncon = getRawValue(prevC, ['CABLE'], '') || getRawValue(currC, ['CABLE'], '');
+        
+        const cablePrev = getRawValue(prevC, ['CABLE'], '').trim();
+        const cableCurr = getRawValue(currC, ['CABLE'], '').trim();
+        let cableTroncon = '';
+        
+        // Si les câbles sont identiques ou si l'un des deux est vide
+        if (cablePrev === cableCurr) cableTroncon = cablePrev;
+        else if (!cablePrev) cableTroncon = cableCurr;
+        else if (!cableCurr) cableTroncon = cablePrev;
+        // Si les deux sont différents, cableTroncon reste vide (rupture)
+
         if (cableTroncon && activeCables[cableTroncon]) {
             chambresActives.add(prevC.id);
             chambresActives.add(currC.id);
@@ -1439,9 +1449,20 @@ function genererROP() {
         const length = parseFloat(lengthStr) || 0;
         cumulativeLength += length;
 
-        let cableTroncon = getRawValue(prevC, ['CABLE'], '') || getRawValue(currC, ['CABLE'], '');
+        const cablePrev = getRawValue(prevC, ['CABLE'], '').trim();
+        const cableCurr = getRawValue(currC, ['CABLE'], '').trim();
+        let cableTroncon = '';
+
+        // Si le câble change d'une chambre à l'autre, on ne prolonge pas le câble précédent
+        if (cablePrev === cableCurr) {
+            cableTroncon = cablePrev;
+        } else if (!cablePrev) {
+            cableTroncon = cableCurr;
+        } else if (!cableCurr) {
+            cableTroncon = cablePrev;
+        }
         
-        let color = '#888888'; // Gris par défaut
+        let color = '#888888'; // Gris par défaut (tronçon neutre)
         let weight = 2;
         
         if (cableTroncon && activeCables[cableTroncon]) {
@@ -2609,7 +2630,7 @@ document.getElementById('startBtn').onclick = () => {
       showToast(`Ouverture de la première chambre : ${getDisplayName(premiere)}`, '#2e7d32', 2500);
       openDetail(premiere.id);
     } else {
-      alert("Toutes les chambres sont déjà terminées !");
+      showToast("Toutes les chambres sont déjà terminées !", '#c62828', 3000);
       showScreen('list');
     }
   } else {
