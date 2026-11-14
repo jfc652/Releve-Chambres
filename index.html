@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.7 (ROP allégée)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 18.8 (ROP câble strict)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1438,25 +1438,17 @@ function genererROP() {
         const length = parseFloat(lengthStr) || 0;
         cumulativeLength += length;
 
-        // Récupérer le câble qui relie ces deux chambres
-        const cable1 = getRawValue(prevC, ['CABLE'], '');
-        const cable2 = getRawValue(currC, ['CABLE'], '');
+        // Le câble d'un tronçon est STRICTEMENT celui de la boîte amont (prevC).
+        // Si prevC n'a pas de câble, on prend celui de currC.
+        let cableTroncon = getRawValue(prevC, ['CABLE'], '') || getRawValue(currC, ['CABLE'], '');
         
         let color = '#888888'; // Gris par défaut
         let weight = 2;
-        let cableNamePourTooltip = cable1 || cable2;
         
-        // Si l'un des deux câbles est actif, on applique sa couleur
-        if (activeCables[cable1]) {
-            color = activeCables[cable1].color;
-            weight = activeCables[cable1].weight;
-            cableNamePourTooltip = cable1;
-        } else if (activeCables[cable2]) {
-            color = activeCables[cable2].color;
-            weight = activeCables[cable2].weight;
-            cableNamePourTooltip = cable2;
-        } else if (cable1 || cable2) {
-            cableNamePourTooltip = cable1 || cable2;
+        // On ne colore que si CE câble spécifique est actif
+        if (cableTroncon && activeCables[cableTroncon]) {
+            color = activeCables[cableTroncon].color;
+            weight = activeCables[cableTroncon].weight;
         }
 
         const latlngs = [
@@ -1470,7 +1462,7 @@ function genererROP() {
         const tooltipContent = `
             <div style="text-align:center;">
                 <div style="font-size:10px;">${length} m (Cumul: ${cumulativeLength} m)</div>
-                ${cableNamePourTooltip ? `<div style="font-size:8px; color:#555;">${escapeHTML(cableNamePourTooltip)}</div>` : ''}
+                ${cableTroncon ? `<div style="font-size:8px; color:#555;">${escapeHTML(cableTroncon)}</div>` : ''}
             </div>
         `;
         polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
@@ -1511,7 +1503,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.7`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 18.8`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
