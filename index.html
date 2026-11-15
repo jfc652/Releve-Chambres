@@ -282,7 +282,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.8 (Carto & Détails ROP)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.9 (Logique Tube Sortie & Carto)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -424,12 +424,14 @@ function getDisplayNameById(id) {
   return c ? getDisplayName(c) : id;
 }
 
-// Fonction globale pour extraire les infos de fibre active d'une chambre
+// Fonction globale pour extraire les infos de fibre active d'une chambre et le tube de sortie
 function getActiveInfo(c) {
     if (!c || !c.splicingData) return null;
+    
     let foundColor = null;
-    let fibInfo = '';
     let rawColor = null;
+    let fibInfo = '';
+    let outTube = null;
     
     Object.keys(c.splicingData).forEach(t => {
         const tube = c.splicingData[t];
@@ -440,15 +442,18 @@ function getActiveInfo(c) {
             
             if (isActiveStatus || hasInfo) {
                 if (!foundColor) {
-                    foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
-                    rawColor = couleursNoms[idx];
+                    outTube = parseInt(fib.destTube) || parseInt(t);
+                    rawColor = couleursNoms[outTube - 1];
+                    foundColor = couleursCSS[rawColor] || '#FF0000';
+                    
                     let destLabel = (fib.destTube && fib.destTube != t && fib.status === 'soude') ? `→T${fib.destTube}` : '';
                     fibInfo = `T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
                 }
             }
         });
     });
-    return foundColor ? { color: foundColor, info: fibInfo, rawColor: rawColor } : null;
+    
+    return foundColor ? { color: foundColor, info: fibInfo, rawColor: rawColor, outTube: outTube } : null;
 }
 
 function chargerLogoAccueil() {
@@ -1600,8 +1605,9 @@ function genererROP() {
         const infoPrev = getActiveInfo(prevC);
         const infoCurr = getActiveInfo(currC);
 
+        // On utilise le tube de sortie (outTube) pour définir la couleur du tronçon
         if (infoPrev && prevC.cablePose !== false) {
-            currentPropagationColor = infoPrev.color;
+            currentPropagationColor = infoPrev.color; // La couleur du tube de sortie
         }
         if (!currentPropagationColor && infoCurr && currC.cablePose !== false && i === 1) {
             currentPropagationColor = infoCurr.color;
@@ -1669,7 +1675,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.8`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.9`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
