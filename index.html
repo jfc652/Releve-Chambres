@@ -282,7 +282,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.6 (Liste & Carto)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.7 (Carto & Masques)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1526,7 +1526,13 @@ function genererROP() {
         const bpe = getRawValue(c, ['BPE', 'bpe'], '');
         const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
         const activeInfo = getActiveInfo(c);
+        
+        // Récupération des masques depuis p (liaison) ou raw (CSV)
         const p = c.passages && c.passages[0] ? c.passages[0] : {};
+        const masqueIn = p.masque_in || getRawValue(c, ['MASQUE'], '');
+        const diamIn = p.diam_in || getRawValue(c, ['DIAMETRE'], '');
+        const masqueOut = p.masque_out || getRawValue(c, ['MASQUE B', 'MASQUE_B'], '');
+        const diamOut = p.diam_out || getRawValue(c, ['DIAMETRE B', 'DIAMETRE_B'], '');
         
         let fillColor = '#cccccc'; // Gris clair par défaut
         if (hasBpe && c.hasBoite !== false) {
@@ -1535,26 +1541,26 @@ function genererROP() {
             fillColor = '#000000';
         }
 
-        if (c.cablePose === false && !hasBpe) return; // Ne pas afficher si pas de câble et pas de boîte
+        if (c.cablePose === false && !hasBpe) return; 
 
         const marker = L.circleMarker([lat, lon], {
             radius: 9, fillColor: fillColor, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
         }).addTo(ropMap);
 
-        let masksIn = '';
-        if (p.masque_in) masksIn = `In: ${p.masque_in} ${p.diam_in ? 'Ø'+p.diam_in : ''}`;
-        let masksOut = '';
-        if (p.masque_out) masksOut = `Out: ${p.masque_out} ${p.diam_out ? 'Ø'+p.diam_out : ''}`;
+        let masksInStr = '';
+        if (masqueIn) masksInStr = `In: ${masqueIn} ${diamIn ? 'Ø'+diamIn : ''}`;
+        let masksOutStr = '';
+        if (masqueOut) masksOutStr = `Out: ${masqueOut} ${diamOut ? 'Ø'+diamOut : ''}`;
 
         const tooltipContent = `
             <div style="text-align:center; line-height:1.4;">
-                ${masksIn ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksIn}</div>` : ''}
+                ${masksInStr ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksInStr}</div>` : ''}
                 ${activeInfo ? `<div style="color:black; font-size:11px; font-weight:bold;">
                     <span style="display:inline-block; width:10px; height:10px; background-color:${activeInfo.color}; border-radius:50%; margin-right:4px; border: 1px solid #000; vertical-align: middle;"></span>
                     ${activeInfo.info}
                 </div>` : ''}
                 <div style="font-size:14px; margin:2px 0;">${escapeHTML(getDisplayName(c))}</div>
-                ${masksOut ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksOut}</div>` : ''}
+                ${masksOutStr ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksOutStr}</div>` : ''}
                 ${hasBpe && c.hasBoite !== false ? `<div style="color:#2e7d32; font-size:10px;">${escapeHTML(bpe)}</div>` : ''}
             </div>
         `;
@@ -1649,7 +1655,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.6`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.7`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
