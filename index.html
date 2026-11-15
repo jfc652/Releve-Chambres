@@ -21,6 +21,7 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-danger { background:#c62828; }
 .btn-excel { background:#1d6f42; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
 .btn-rop { background:#f57c00; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
+.btn-check { background:#8e24aa; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
 .btn-waze { background:#33ccff; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-bottom:8px;}
 .btn-maps { background:#4285F4; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%;}
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
@@ -223,9 +224,12 @@ window.addEventListener('unhandledrejection', function(e) {
     </div>
     <button id="addChambreBtn" class="btn btn-secondary" style="margin-top:16px; background:#e0e0e0; color:#333; border:1px solid #ccc;">➕ Ajouter une nouvelle chambre</button>
     <button id="startBtn" class="btn" style="margin-top:8px; background:#e65100;">🚀 Démarrer le relevé</button>
+    
+    <button id="checkRopBtn" class="btn btn-check">📋 Vérifier les données ROP</button>
+    <button id="ropBtn" class="btn btn-rop">📍 Générer ROP (Route Optique sur Maps)</button>
+    
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP complet)</button>
     <button id="exportExcelBtn" class="btn btn-excel">📊 Exporter Excel (Boîtes / Cassettes)</button>
-    <button id="ropBtn" class="btn btn-rop">📍 Générer ROP (Route Optique sur Maps)</button>
   </div>
 
   <div class="card" id="chronoCard" style="display:none;">
@@ -278,13 +282,25 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.2 (Logique ROP avancée)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.3 (Aperçu ROP & Corrections)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
 <section id="screen-detail" class="hidden"><div id="detailContainer"></div></section>
 
 </main>
+
+<!-- Modal Vérification ROP -->
+<div id="modalCheckRop" class="modal-overlay">
+  <div class="modal-content" style="max-width: 600px; width: 95%;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <h3 style="margin:0; color:#8e24aa;">📋 Données de la Route Optique</h3>
+      <button id="closeCheckRopBtn" style="background:none; border:none; font-size:24px; color:#c62828; cursor:pointer;">&times;</button>
+    </div>
+    <p class="small">Voici la liste des chambres qui afficheront une fibre active sur la carte, dans l'ordre.</p>
+    <div id="checkRopContent" style="font-size:13px; overflow-x:auto;"></div>
+  </div>
+</div>
 
 <!-- Modal ROP Maps -->
 <div id="modalROP" class="modal-overlay" style="z-index: 9999; display: none;">
@@ -406,6 +422,26 @@ function uuid() {
 function getDisplayNameById(id) {
   const c = chambres.find(x => x.id === id);
   return c ? getDisplayName(c) : id;
+}
+
+// Fonction globale pour extraire les infos de fibre active d'une chambre
+function getActiveInfo(c) {
+    if (!c || !c.splicingData) return null;
+    let foundColor = null;
+    let fibInfo = '';
+    Object.keys(c.splicingData).forEach(t => {
+        const tube = c.splicingData[t];
+        if (!tube || !tube.fibers) return;
+        tube.fibers.forEach((fib, idx) => {
+            if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
+                if (!foundColor) {
+                    foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
+                    fibInfo = `T${t} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
+                }
+            }
+        });
+    });
+    return foundColor ? { color: foundColor, info: fibInfo } : null;
 }
 
 function chargerLogoAccueil() {
@@ -1380,6 +1416,58 @@ function hashFCI(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 
 function couleurFCI(fci) { const palette = [[0.20,0.55,0.95],[0.25,0.75,0.40],[0.95,0.55,0.20],[0.65,0.35,0.90],[0.90,0.75,0.15],[0.20,0.85,0.85],[0.90,0.35,0.55],[0.45,0.85,0.30]]; return palette[hashFCI(String(fci)) % palette.length]; }
 function getVal(row, ...keys) { for (const k of keys) { if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k]; } return ''; }
 
+/* ---------- APERÇU ROP ---------- */
+function ouvrirCheckRop() {
+    const content = document.getElementById('checkRopContent');
+    if (!chambres.length) { content.innerHTML = '<p>Aucune donnée.</p>'; return; }
+    
+    const chambresTriees = [...chambres].sort((a, b) => parseFloatSafe(a.raw['ORDRE'], 999) - parseFloatSafe(b.raw['ORDRE'], 999));
+    
+    let html = `<table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+        <thead>
+            <tr style="background:#8e24aa; color:#fff;">
+                <th style="padding:6px; border:1px solid #ddd;">Ordre</th>
+                <th style="padding:6px; border:1px solid #ddd;">Chambre</th>
+                <th style="padding:6px; border:1px solid #ddd;">Info Fibre Active (Maps)</th>
+                <th style="padding:6px; border:1px solid #ddd;">Câble</th>
+                <th style="padding:6px; border:1px solid #ddd;">Boîte</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    chambresTriees.forEach(c => {
+        const info = getActiveInfo(c);
+        const cableName = (c.passages && c.passages[0] && c.passages[0].cable_name) ? c.passages[0].cable_name : (c.raw['CABLE'] || 'Non défini');
+        const bpe = getRawValue(c, ['BPE', 'bpe'], '');
+        const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
+        
+        if (!info && !hasBpe) return; // On n'affiche que ce qui apparaitra sur Maps
+
+        const isBox = hasBpe && c.hasBoite !== false;
+        const isActive = info && c.cablePose !== false;
+
+        let rowBg = '#fff';
+        if (isBox) rowBg = '#e8f5e9'; // Vert clair
+        else if (isActive) rowBg = '#eeeeee'; // Gris clair (noir sur map)
+
+        html += `<tr style="background:${rowBg};">
+            <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(c.raw['ORDRE'] || '')}</td>
+            <td style="padding:6px; border:1px solid #ddd; font-weight:bold;">${escapeHTML(getDisplayName(c))}</td>
+            <td style="padding:6px; border:1px solid #ddd; color:${info ? info.color : '#888'}; font-weight:bold;">
+                ${info ? info.info : '-'}
+            </td>
+            <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(cableName)}</td>
+            <td style="padding:6px; border:1px solid #ddd;">
+                ${isBox ? '📦 ' + escapeHTML(bpe) : (hasBpe ? '📦 (Non posée)' : '')}
+            </td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    content.innerHTML = html;
+    document.getElementById('modalCheckRop').style.display = 'flex';
+}
+
 /* ---------- ROP MAPS ---------- */
 function genererROP() {
     if (!chambres.length) { alert("Aucune chambre à afficher."); return; }
@@ -1404,26 +1492,6 @@ function genererROP() {
     const bounds = L.latLngBounds();
     let cumulativeLength = 0;
 
-    // Helper: Obtenir la couleur active d'une chambre (indépendamment du câble)
-    const getActiveInfo = (c) => {
-        if (!c || !c.splicingData) return null;
-        let foundColor = null;
-        let fibInfo = '';
-        Object.keys(c.splicingData).forEach(t => {
-            const tube = c.splicingData[t];
-            if (!tube || !tube.fibers) return;
-            tube.fibers.forEach((fib, idx) => {
-                if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
-                    if (!foundColor) {
-                        foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
-                        fibInfo = `T${t} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
-                    }
-                }
-            });
-        });
-        return foundColor ? { color: foundColor, info: fibInfo } : null;
-    };
-
     // Tracer les points
     chambresGps.forEach(c => {
         const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
@@ -1437,11 +1505,11 @@ function genererROP() {
         let fillColor = '#cccccc'; // Gris clair par défaut
         if (hasBpe && c.hasBoite !== false) {
             fillColor = '#2e7d32'; // VERT pour les boîtes
-        } else if (activeInfo && c.cablePose !== false) { // NOIR pour les chambres sans boîte mais avec fibre active et câble posé
+        } else if (activeInfo && c.cablePose !== false) { // NOIR pour les chambres sans boîte mais avec fibre active
             fillColor = '#000000';
         }
 
-        if (!c.cablePose && !hasBpe) return; 
+        if (c.cablePose === false && !hasBpe) return; // Ne pas afficher si pas de câble et pas de boîte
 
         const marker = L.circleMarker([lat, lon], {
             radius: 9, fillColor: fillColor, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
@@ -1452,7 +1520,6 @@ function genererROP() {
         let masksOut = '';
         if (p.masque_out) masksOut = `Out: ${p.masque_out} ${p.diam_out ? 'Ø'+p.diam_out : ''}`;
 
-        // ORDRE: Masques In -> Fibres -> Etiquette -> Masques Out -> BPE
         const tooltipContent = `
             <div style="text-align:center; line-height:1.4;">
                 ${masksIn ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksIn}</div>` : ''}
@@ -1553,7 +1620,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.2`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.3`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -2490,7 +2557,9 @@ document.getElementById('btnChronoReset').onclick = chronoReset;
 document.getElementById('exportBtn').onclick=exportAll;
 document.getElementById('exportExcelBtn').onclick=exportExcelOnly;
 document.getElementById('ropBtn').onclick=genererROP;
+document.getElementById('checkRopBtn').onclick=ouvrirCheckRop;
 document.getElementById('closeRopBtn').onclick=()=>{ document.getElementById('modalROP').style.display = 'none'; };
+document.getElementById('closeCheckRopBtn').onclick=()=>{ document.getElementById('modalCheckRop').style.display = 'none'; };
 document.getElementById('backBtn').onclick=()=>{ if(!document.getElementById('screen-list').classList.contains('hidden')){updateHomeStats();showScreen('home');} else{renderList();showScreen('list');} };
 document.getElementById('insertAfterSelect').onchange = updateReferenceInfo;
 
