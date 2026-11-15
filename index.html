@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.1 (Logique ROP avancée)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.2 (Logique ROP avancée)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1416,7 +1416,7 @@ function genererROP() {
                 if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
                     if (!foundColor) {
                         foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
-                        fibInfo = `F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
+                        fibInfo = `T${t} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
                     }
                 }
             });
@@ -1436,9 +1436,9 @@ function genererROP() {
         
         let fillColor = '#cccccc'; // Gris clair par défaut
         if (hasBpe && c.hasBoite !== false) {
-            fillColor = '#2e7d32'; // VERT pour les boîtes posées
-        } else if (activeInfo) {
-            fillColor = '#000000'; // NOIR pour les chambres sans boîte mais avec fibre active
+            fillColor = '#2e7d32'; // VERT pour les boîtes
+        } else if (activeInfo && c.cablePose !== false) { // NOIR pour les chambres sans boîte mais avec fibre active et câble posé
+            fillColor = '#000000';
         }
 
         if (!c.cablePose && !hasBpe) return; 
@@ -1447,16 +1447,18 @@ function genererROP() {
             radius: 9, fillColor: fillColor, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
         }).addTo(ropMap);
 
-        // Ordre: Masques -> Fibre -> Etiquette -> BPE
-        let masksTxt = '';
-        if (p.masque_in) masksTxt += `In: ${p.masque_in} ${p.diam_in ? 'Ø'+p.diam_in : ''} `;
-        if (p.masque_out) masksTxt += `Out: ${p.masque_out} ${p.diam_out ? 'Ø'+p.diam_out : ''}`;
+        let masksIn = '';
+        if (p.masque_in) masksIn = `In: ${p.masque_in} ${p.diam_in ? 'Ø'+p.diam_in : ''}`;
+        let masksOut = '';
+        if (p.masque_out) masksOut = `Out: ${p.masque_out} ${p.diam_out ? 'Ø'+p.diam_out : ''}`;
 
+        // ORDRE: Masques In -> Fibres -> Etiquette -> Masques Out -> BPE
         const tooltipContent = `
             <div style="text-align:center; line-height:1.4;">
-                ${masksTxt ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksTxt}</div>` : ''}
+                ${masksIn ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksIn}</div>` : ''}
                 ${activeInfo ? `<div style="color:${activeInfo.color}; font-size:11px; font-weight:bold;">${activeInfo.info}</div>` : ''}
                 <div style="font-size:14px; margin:2px 0;">${escapeHTML(getDisplayName(c))}</div>
+                ${masksOut ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksOut}</div>` : ''}
                 ${hasBpe && c.hasBoite !== false ? `<div style="color:#2e7d32; font-size:10px;">${escapeHTML(bpe)}</div>` : ''}
             </div>
         `;
@@ -1479,11 +1481,13 @@ function genererROP() {
         
         const hasBpePrev = getRawValue(prevC, ['BPE', 'bpe'], '').trim() !== '' && prevC.hasBoite !== false;
 
-        if (infoPrev) {
+        if (infoPrev && prevC.cablePose !== false) {
             currentPropagationColor = infoPrev.color;
+        } else {
+            currentPropagationColor = null;
         }
         
-        // Si la chambre de départ est une boîte posée et n'a pas de NOUVELLE fibre active, on coupe la propagation
+        // Arrêt de la propagation à la première boîte sans fibre active
         if (hasBpePrev && !infoCurr && prevC !== chambresGps[0]) {
             currentPropagationColor = null;
         }
@@ -1494,7 +1498,7 @@ function genererROP() {
         if (currentPropagationColor) {
             lineColor = currentPropagationColor;
             weight = 5;
-        } else if (infoCurr) { 
+        } else if (infoCurr && currC.cablePose !== false) { 
             lineColor = infoCurr.color;
             weight = 5;
         }
@@ -1549,7 +1553,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.1`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.2`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1625,7 +1629,7 @@ async function construireSynoptiquePDF() {
             if (!tube || !tube.fibers) return;
             tube.fibers.forEach((fib, idx) => {
                 if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
-                    fibsAct.push(`F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
+                    fibsAct.push(`T${t} F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
                 }
             });
         });
