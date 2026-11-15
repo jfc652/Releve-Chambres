@@ -282,7 +282,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.3 (Aperçu ROP & Corrections)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.4 (Aperçu ROP & Corrections)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -433,10 +433,14 @@ function getActiveInfo(c) {
         const tube = c.splicingData[t];
         if (!tube || !tube.fibers) return;
         tube.fibers.forEach((fib, idx) => {
-            if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
+            const isActiveStatus = ['actif', 'service', 'reserve'].includes(fib.status);
+            const hasInfo = (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '');
+            
+            if (isActiveStatus || hasInfo) {
                 if (!foundColor) {
                     foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
-                    fibInfo = `T${t} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
+                    let destLabel = (fib.destTube && fib.destTube != t && fib.status === 'soude') ? `→T${fib.destTube}` : '';
+                    fibInfo = `T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
                 }
             }
         });
@@ -1545,30 +1549,19 @@ function genererROP() {
 
         const infoPrev = getActiveInfo(prevC);
         const infoCurr = getActiveInfo(currC);
-        
-        const hasBpePrev = getRawValue(prevC, ['BPE', 'bpe'], '').trim() !== '' && prevC.hasBoite !== false;
 
+        // Mise à jour de la couleur de propagation
         if (infoPrev && prevC.cablePose !== false) {
             currentPropagationColor = infoPrev.color;
-        } else {
-            currentPropagationColor = null;
         }
         
-        // Arrêt de la propagation à la première boîte sans fibre active
-        if (hasBpePrev && !infoCurr && prevC !== chambresGps[0]) {
-            currentPropagationColor = null;
+        // Si on est au tout début et que seule la chambre suivante a une info
+        if (!currentPropagationColor && infoCurr && currC.cablePose !== false && i === 1) {
+            currentPropagationColor = infoCurr.color;
         }
 
-        let lineColor = '#888888'; 
-        let weight = 2;
-
-        if (currentPropagationColor) {
-            lineColor = currentPropagationColor;
-            weight = 5;
-        } else if (infoCurr && currC.cablePose !== false) { 
-            lineColor = infoCurr.color;
-            weight = 5;
-        }
+        let lineColor = currentPropagationColor || '#888888'; 
+        let weight = currentPropagationColor ? 5 : 2;
 
         const latlngs = [
             [parseFloat(prevC.lat), parseFloat(prevC.lon)],
@@ -1583,6 +1576,12 @@ function genererROP() {
             </div>
         `;
         polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
+
+        // Si la chambre actuelle est une boîte avec aucune fibre active, on arrête la propagation pour la suite
+        const hasBpeCurr = getRawValue(currC, ['BPE', 'bpe'], '').trim() !== '' && currC.hasBoite !== false;
+        if (hasBpeCurr && !infoCurr) {
+            currentPropagationColor = null;
+        }
     }
 
     ropMap.fitBounds(bounds, { padding: [50, 50] });
@@ -1620,7 +1619,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.3`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.4`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1695,8 +1694,12 @@ async function construireSynoptiquePDF() {
             const tube = row.splicingData[t];
             if (!tube || !tube.fibers) return;
             tube.fibers.forEach((fib, idx) => {
-                if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
-                    fibsAct.push(`T${t} F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
+                const isActiveStatus = ['actif', 'service', 'reserve'].includes(fib.status);
+                const hasInfo = (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '');
+                
+                if (isActiveStatus || hasInfo) {
+                    let destLabel = (fib.destTube && fib.destTube != t && fib.status === 'soude') ? `→T${fib.destTube}` : '';
+                    fibsAct.push(`T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
                 }
             });
         });
