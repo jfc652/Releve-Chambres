@@ -282,7 +282,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.7 (Carto & Masques)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.8 (Carto & Détails ROP)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1059,7 +1059,7 @@ function renderList(){
     }
 
     div.innerHTML=`<div style="min-width:0;flex:1;">
-        <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}</div>
+        <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Chambre ${escapeHTML(getDisplayName(c))}</div>
         <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div>
         ${badges}
     </div>
@@ -1477,7 +1477,7 @@ function ouvrirCheckRop() {
 
         html += `<tr style="background:${rowBg};">
             <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(c.raw['ORDRE'] || '')}</td>
-            <td style="padding:6px; border:1px solid #ddd; font-weight:bold;">${escapeHTML(getDisplayName(c))}</td>
+            <td style="padding:6px; border:1px solid #ddd; font-weight:bold;">Chambre ${escapeHTML(getDisplayName(c))}</td>
             <td style="padding:6px; border:1px solid #ddd; color:black; font-weight:bold;">
                 ${info ? `<span style="display:inline-block; width:12px; height:12px; background-color:${info.color}; border-radius:50%; margin-right:6px; border:1px solid #000; vertical-align:middle;"></span>` : ''}
                 ${info ? info.info : '-'}
@@ -1517,8 +1517,22 @@ function genererROP() {
 
     const bounds = L.latLngBounds();
     let cumulativeLength = 0;
+    const cumulDist = {}; // Stockage de la distance cumulée par ID de chambre
 
-    // Tracer les points
+    // Pré-calcul des distances cumulées
+    chambresGps.forEach((c, i) => {
+        if (i > 0) {
+            const prevC = chambresGps[i - 1];
+            const lengthStr = getRawValue(prevC, ['ETIQUETTE_2'], '0');
+            const length = parseFloat(lengthStr) || 0;
+            cumulativeLength += length;
+        }
+        cumulDist[c.id] = cumulativeLength;
+    });
+
+    cumulativeLength = 0; // Réinitialisation pour le tracé
+
+    // Tracer les points (chambres / boîtes)
     chambresGps.forEach(c => {
         const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
         bounds.extend([lat, lon]);
@@ -1527,17 +1541,16 @@ function genererROP() {
         const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
         const activeInfo = getActiveInfo(c);
         
-        // Récupération des masques depuis p (liaison) ou raw (CSV)
         const p = c.passages && c.passages[0] ? c.passages[0] : {};
         const masqueIn = p.masque_in || getRawValue(c, ['MASQUE'], '');
         const diamIn = p.diam_in || getRawValue(c, ['DIAMETRE'], '');
         const masqueOut = p.masque_out || getRawValue(c, ['MASQUE B', 'MASQUE_B'], '');
         const diamOut = p.diam_out || getRawValue(c, ['DIAMETRE B', 'DIAMETRE_B'], '');
         
-        let fillColor = '#cccccc'; // Gris clair par défaut
+        let fillColor = '#cccccc';
         if (hasBpe && c.hasBoite !== false) {
-            fillColor = '#2e7d32'; // VERT pour les boîtes
-        } else if (activeInfo && c.cablePose !== false) { // NOIR pour les chambres sans boîte mais avec fibre active
+            fillColor = '#2e7d32';
+        } else if (activeInfo && c.cablePose !== false) {
             fillColor = '#000000';
         }
 
@@ -1552,22 +1565,28 @@ function genererROP() {
         let masksOutStr = '';
         if (masqueOut) masksOutStr = `Out: ${masqueOut} ${diamOut ? 'Ø'+diamOut : ''}`;
 
+        // ORDRE DEMANDÉ : Fibre Active -> Chambre -> Masques -> BPE (avec distance cumulée)
         const tooltipContent = `
             <div style="text-align:center; line-height:1.4;">
-                ${masksInStr ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksInStr}</div>` : ''}
-                ${activeInfo ? `<div style="color:black; font-size:11px; font-weight:bold;">
+                ${activeInfo ? `<div style="color:black; font-size:11px; font-weight:bold; margin-bottom:2px;">
                     <span style="display:inline-block; width:10px; height:10px; background-color:${activeInfo.color}; border-radius:50%; margin-right:4px; border: 1px solid #000; vertical-align: middle;"></span>
                     ${activeInfo.info}
                 </div>` : ''}
-                <div style="font-size:14px; margin:2px 0;">${escapeHTML(getDisplayName(c))}</div>
+                <div style="font-size:14px; margin:2px 0; font-weight:bold;">Chambre ${escapeHTML(getDisplayName(c))}</div>
+                ${masksInStr ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksInStr}</div>` : ''}
                 ${masksOutStr ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksOutStr}</div>` : ''}
-                ${hasBpe && c.hasBoite !== false ? `<div style="color:#2e7d32; font-size:10px;">${escapeHTML(bpe)}</div>` : ''}
+                ${hasBpe && c.hasBoite !== false ? `
+                    <div style="margin-top:4px; padding-top:4px; border-top:1px dashed #ccc;">
+                        <div style="color:#2e7d32; font-size:11px; font-weight:bold;">📦 ${escapeHTML(bpe)}</div>
+                        <div style="color:#555; font-size:10px; font-weight:bold;">Cumul: ${Math.round(cumulDist[c.id])} m</div>
+                    </div>
+                ` : ''}
             </div>
         `;
         marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -10] });
     });
 
-    // Tracer les vecteurs (lignes) avec Tooltip Permanent (Longueur)
+    // Tracer les lignes (câbles) et distances
     let currentPropagationColor = null;
     
     for (let i = 1; i < chambresGps.length; i++) {
@@ -1581,12 +1600,9 @@ function genererROP() {
         const infoPrev = getActiveInfo(prevC);
         const infoCurr = getActiveInfo(currC);
 
-        // Mise à jour de la couleur de propagation
         if (infoPrev && prevC.cablePose !== false) {
             currentPropagationColor = infoPrev.color;
         }
-        
-        // Si on est au tout début et que seule la chambre suivante a une info
         if (!currentPropagationColor && infoCurr && currC.cablePose !== false && i === 1) {
             currentPropagationColor = infoCurr.color;
         }
@@ -1601,20 +1617,18 @@ function genererROP() {
 
         const polyline = L.polyline(latlngs, { color: lineColor, weight: weight, opacity: 0.8 }).addTo(ropMap);
 
-        // N'afficher le cumul QUE sur le segment qui arrive à une boîte (ou si c'est la dernière chambre)
         const hasBpeCurr = getRawValue(currC, ['BPE', 'bpe'], '').trim() !== '' && currC.hasBoite !== false;
         const isLast = (i === chambresGps.length - 1);
 
         if (hasBpeCurr || isLast) {
             const tooltipContent = `
                 <div style="text-align:center;">
-                    <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
+                    <div style="font-size:11px; font-weight:bold;">${length} m (Cumul: ${Math.round(cumulativeLength)} m)</div>
                 </div>
             `;
             polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
         }
 
-        // Si la chambre actuelle est une boîte avec aucune fibre active, on arrête la propagation pour la suite
         if (hasBpeCurr && !infoCurr) {
             currentPropagationColor = null;
         }
@@ -1655,7 +1669,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.7`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.8`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1717,7 +1731,7 @@ async function construireSynoptiquePDF() {
     const ch = row.CODE_CH1 || '', bpe = row.BPE || '', ref = row.REF_CHAMBR || '', wkt = row.wkt_geom || '', nomCable = row.CABLE || '';
     const mH = row.MASQUE || '', dH = row.DIAMETRE || '', mB = row['MASQUE B'] || '', dB = row['DIAMETRE B'] || ''; const [xg, yg] = extraireXY(wkt);
     if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ch) === '-1' || String(ref).toUpperCase() === 'POP')) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); setTextColor(COL.black); setFont('Helvetica-Bold', 7); drawText("NRO / POP", cx, cy + 8, 'center'); }
-    else { if (globalI === 0) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); } else { const c = couleurPoint(ref, bpe); setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5); drawCircle(cx, cy, 4, 'FD'); } setTextColor(COL.black); if (ref) { setFont('Helvetica-Oblique', 5); setTextColor(COL.grey); drawText(ref, cx, cy + 16, 'center'); setTextColor(COL.black); } setFont('Helvetica-Bold', 7); drawText(`CH ${ch}`, cx, cy + 8, 'center'); }
+    else { if (globalI === 0) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); } else { const c = couleurPoint(ref, bpe); setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5); drawCircle(cx, cy, 4, 'FD'); } setTextColor(COL.black); if (ref) { setFont('Helvetica-Oblique', 5); setTextColor(COL.grey); drawText(ref, cx, cy + 16, 'center'); setTextColor(COL.black); } setFont('Helvetica-Bold', 7); drawText(`Chambre ${ch}`, cx, cy + 8, 'center'); }
     if (optBPE && bpe) { setTextColor(COL.navy); setFont('Helvetica', 5); drawText(bpe, cx, cy - 8, 'center'); setTextColor(COL.black); }
     if (optGPS && xg !== null && yg !== null) { setTextColor(COL.darkviolet); setFont('Helvetica', 4); drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center'); setTextColor(COL.black); }
     if (optCables && nomCable) { const off = (optGPS && xg !== null) ? -19 : -14; setTextColor(COL.blue); setFont('Helvetica', 4); drawText(nomCable, cx, cy + off, 'center'); setTextColor(COL.black); }
@@ -1925,6 +1939,19 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
     });
 
+    // Pré-calcul des distances cumulées
+    let currentCumul = 0;
+    const cumulDist = {};
+    chambresTriees.forEach((c, i) => {
+        if (i > 0) {
+            const prevC = chambresTriees[i - 1];
+            const lengthStr = getRawValue(prevC, ['ETIQUETTE_2'], '0');
+            const length = parseFloat(lengthStr) || 0;
+            currentCumul += length;
+        }
+        cumulDist[c.id] = currentCumul;
+    });
+
     if (dessinerLigne && chambresTriees.length > 1) {
       ctx.strokeStyle = 'rgba(0, 188, 212, 0.8)';
       ctx.lineWidth = 2 * scale;
@@ -2000,7 +2027,7 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       ctx.lineWidth = 1.5 * scale;
       ctx.stroke();
 
-      const txt = getDisplayName(c);
+      const txt = "Chambre " + getDisplayName(c);
       ctx.font = 'bold ' + (8 * scale) + 'px Arial';
       const textWidth = ctx.measureText(txt).width;
       ctx.fillStyle = 'white';
@@ -2025,6 +2052,18 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
         ctx.fillStyle = '#1b5e20';
         ctx.textAlign = 'left';
         ctx.fillText(txtBpe, p.x + 8 * scale, p.y + 7 * scale);
+
+        // Affichage de la distance cumulée sous la BPE
+        const txtCumul = `Cumul: ${Math.round(cumulDist[c.id])} m`;
+        ctx.font = 'bold ' + (7 * scale) + 'px Arial';
+        const twCumul = ctx.measureText(txtCumul).width;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.fillRect(p.x + 6 * scale, p.y + 13 * scale, twCumul + 4 * scale, 9 * scale);
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 0.5 * scale;
+        ctx.strokeRect(p.x + 6 * scale, p.y + 13 * scale, twCumul + 4 * scale, 9 * scale);
+        ctx.fillStyle = '#333';
+        ctx.fillText(txtCumul, p.x + 8 * scale, p.y + 18 * scale);
       }
     });
 
