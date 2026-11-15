@@ -282,7 +282,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.4 (Aperçu ROP & Corrections)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.5 (Aperçu ROP & Corrections)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -429,6 +429,8 @@ function getActiveInfo(c) {
     if (!c || !c.splicingData) return null;
     let foundColor = null;
     let fibInfo = '';
+    let rawColor = null;
+    
     Object.keys(c.splicingData).forEach(t => {
         const tube = c.splicingData[t];
         if (!tube || !tube.fibers) return;
@@ -439,13 +441,14 @@ function getActiveInfo(c) {
             if (isActiveStatus || hasInfo) {
                 if (!foundColor) {
                     foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
+                    rawColor = couleursNoms[idx];
                     let destLabel = (fib.destTube && fib.destTube != t && fib.status === 'soude') ? `→T${fib.destTube}` : '';
                     fibInfo = `T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
                 }
             }
         });
     });
-    return foundColor ? { color: foundColor, info: fibInfo } : null;
+    return foundColor ? { color: foundColor, info: fibInfo, rawColor: rawColor } : null;
 }
 
 function chargerLogoAccueil() {
@@ -1457,7 +1460,8 @@ function ouvrirCheckRop() {
         html += `<tr style="background:${rowBg};">
             <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(c.raw['ORDRE'] || '')}</td>
             <td style="padding:6px; border:1px solid #ddd; font-weight:bold;">${escapeHTML(getDisplayName(c))}</td>
-            <td style="padding:6px; border:1px solid #ddd; color:${info ? info.color : '#888'}; font-weight:bold;">
+            <td style="padding:6px; border:1px solid #ddd; color:black; font-weight:bold;">
+                ${info ? `<span style="display:inline-block; width:12px; height:12px; background-color:${info.color}; border-radius:50%; margin-right:6px; border:1px solid #000; vertical-align:middle;"></span>` : ''}
                 ${info ? info.info : '-'}
             </td>
             <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(cableName)}</td>
@@ -1527,7 +1531,10 @@ function genererROP() {
         const tooltipContent = `
             <div style="text-align:center; line-height:1.4;">
                 ${masksIn ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksIn}</div>` : ''}
-                ${activeInfo ? `<div style="color:${activeInfo.color}; font-size:11px; font-weight:bold;">${activeInfo.info}</div>` : ''}
+                ${activeInfo ? `<div style="color:black; font-size:11px; font-weight:bold;">
+                    <span style="display:inline-block; width:10px; height:10px; background-color:${activeInfo.color}; border-radius:50%; margin-right:4px; border: 1px solid #000; vertical-align: middle;"></span>
+                    ${activeInfo.info}
+                </div>` : ''}
                 <div style="font-size:14px; margin:2px 0;">${escapeHTML(getDisplayName(c))}</div>
                 ${masksOut ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksOut}</div>` : ''}
                 ${hasBpe && c.hasBoite !== false ? `<div style="color:#2e7d32; font-size:10px;">${escapeHTML(bpe)}</div>` : ''}
@@ -1619,7 +1626,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.4`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.5`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1699,14 +1706,24 @@ async function construireSynoptiquePDF() {
                 
                 if (isActiveStatus || hasInfo) {
                     let destLabel = (fib.destTube && fib.destTube != t && fib.status === 'soude') ? `→T${fib.destTube}` : '';
-                    fibsAct.push(`T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
+                    let txt = `T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
+                    let hex = couleursHex[couleursNoms[idx]] || COL.red;
+                    fibsAct.push({ text: txt, color: hex });
                 }
             });
         });
         if (fibsAct.length > 0) {
-            setTextColor(COL.green); setFont('Helvetica-Bold', 4);
+            setTextColor(COL.black); setFont('Helvetica-Bold', 4);
             let actY = cy - 20;
-            fibsAct.forEach(fa => { drawText(fa, cx, actY, 'center'); actY -= 6; });
+            fibsAct.forEach(fa => {
+                setFillColor(fa.color);
+                setDrawColor(COL.black);
+                doc.setLineWidth(0.2);
+                drawRect(cx - 18, actY - 2, 2.5, 2.5, 'FD');
+                setTextColor(COL.black);
+                drawText(fa.text, cx - 14, actY, 'left');
+                actY -= 6;
+            });
         }
     }
   }
