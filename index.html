@@ -282,7 +282,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.5 (Aperçu ROP & Corrections)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.6 (Liste & Carto)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1045,7 +1045,25 @@ function renderList(){
     const geo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || '';
     let sub = [geo ? `📌 ${geo}` : '', commune, ref].filter(Boolean).join(' • ');
     if (c.timeSpent !== null && c.timeSpent !== undefined) sub += ` • ⏱️ ${formatTime(c.timeSpent * 1000)}`;
-    div.innerHTML=`<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}</div><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div><span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
+
+    // Infos BPE et Fibre
+    const bpe = getRawValue(c, ['BPE', 'bpe'], '').trim();
+    const hasBox = bpe !== '' && c.hasBoite !== false;
+    const info = getActiveInfo(c);
+    let badges = '';
+    if (hasBox || info) {
+        badges += `<div style="display:flex; gap:4px; margin-top:4px; flex-wrap:wrap; align-items:center;">`;
+        if (hasBox) badges += `<span style="font-size:10px; font-weight:bold; background:#e8f5e9; color:#2e7d32; padding:2px 6px; border-radius:4px; border:1px solid #a5d6a7;">📦 ${escapeHTML(bpe)}</span>`;
+        if (info) badges += `<span style="font-size:10px; font-weight:bold; background:#f5f5f5; color:black; padding:2px 6px; border-radius:4px; border:1px solid #ccc; display:flex; align-items:center;"><span style="display:inline-block; width:8px; height:8px; background:${info.color}; border-radius:50%; margin-right:4px; border:1px solid #000;"></span>${escapeHTML(info.info)}</span>`;
+        badges += `</div>`;
+    }
+
+    div.innerHTML=`<div style="min-width:0;flex:1;">
+        <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}</div>
+        <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div>
+        ${badges}
+    </div>
+    <span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
     div.onclick=()=>openDetail(c.id);
     cont.appendChild(div);
   }
@@ -1577,15 +1595,20 @@ function genererROP() {
 
         const polyline = L.polyline(latlngs, { color: lineColor, weight: weight, opacity: 0.8 }).addTo(ropMap);
 
-        const tooltipContent = `
-            <div style="text-align:center;">
-                <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
-            </div>
-        `;
-        polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
+        // N'afficher le cumul QUE sur le segment qui arrive à une boîte (ou si c'est la dernière chambre)
+        const hasBpeCurr = getRawValue(currC, ['BPE', 'bpe'], '').trim() !== '' && currC.hasBoite !== false;
+        const isLast = (i === chambresGps.length - 1);
+
+        if (hasBpeCurr || isLast) {
+            const tooltipContent = `
+                <div style="text-align:center;">
+                    <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
+                </div>
+            `;
+            polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
+        }
 
         // Si la chambre actuelle est une boîte avec aucune fibre active, on arrête la propagation pour la suite
-        const hasBpeCurr = getRawValue(currC, ['BPE', 'bpe'], '').trim() !== '' && currC.hasBoite !== false;
         if (hasBpeCurr && !infoCurr) {
             currentPropagationColor = null;
         }
@@ -1626,7 +1649,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.5`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.6`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
