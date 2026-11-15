@@ -278,7 +278,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.0 (Logique ROP simplifiée par Boîtes)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.1 (Logique ROP avancée)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -753,12 +753,12 @@ function generateCSV(){
   let allHeaders = [], geoInserted = false;
   sourceHeaders.forEach(h => { allHeaders.push(h); if (!sourceHasGeo && h.toUpperCase().trim() === 'ORDRE') { allHeaders.push('ORDRE_GEO'); geoInserted = true; } });
   if (!sourceHasGeo && !geoInserted) allHeaders.push('ORDRE_GEO');
-  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE','Temps_Chambre','Temps_Cumul',...currentCats.map(c => `Nb_${c.id}`), 'CAPACITE'];
+  const extraCols = ['BPE_Origine','Observation_BPE','Commentaire_Terrain','LATITUDE','LONGITUDE','Temps_Chambre','Temps_Cumul','Cable_Pose','Boite_Posee',...currentCats.map(c => `Nb_${c.id}`), 'CAPACITE'];
   const setUpper = new Set(allHeaders.map(h => h.toUpperCase().trim()));
   for (const col of extraCols) { if (!setUpper.has(col.toUpperCase())) { allHeaders.push(col); setUpper.add(col.toUpperCase()); } }
   const norm = s => s.toUpperCase().replace(/[_\s]/g,'');
   const findHeader = (aliases) => { for (const a of aliases) { const found = allHeaders.find(h => norm(h) === norm(a)); if (found) return found; } return null; };
-  const H = { ordre:findHeader(['ORDRE']), ordreGeo:findHeader(['ORDRE_GEO']), codeCh1:findHeader(['CODE_CH1']), codeCh2:findHeader(['CODE_CH2']), refChambr:findHeader(['REF_CHAMBR']), proprietaire:findHeader(['PROPRIETAI','PROPRIETAIRE']), commune:findHeader(['COMMUNE']), waze:findHeader(['WAZE']), wkt:findHeader(['wkt_geom']), bpe:findHeader(['BPE']), capacite:findHeader(['CAPACITE']), masque:findHeader(['MASQUE']), diametre:findHeader(['DIAMETRE']), masqueB:findHeader(['MASQUE B','MASQUE_B']), diametreB:findHeader(['DIAMETRE B','DIAMETRE_B']), cable:findHeader(['CABLE']), etiquette2:findHeader(['ETIQUETTE_2']), numVoie:findHeader(['NUM_VOIE']), distChamb:findHeader(['DIST_CHAMB']), fci:findHeader(['FCI']), bpeOrigine:findHeader(['BPE_Origine']), obsBpe:findHeader(['Observation_BPE']), commentaire:findHeader(['Commentaire_Terrain']), latitude:findHeader(['LATITUDE']), longitude:findHeader(['LONGITUDE']), tempsChambre:findHeader(['Temps_Chambre','TEMPS_CHAMBRE']), tempsCumul:findHeader(['Temps_Cumul','TEMPS_CUMUL']) };
+  const H = { ordre:findHeader(['ORDRE']), ordreGeo:findHeader(['ORDRE_GEO']), codeCh1:findHeader(['CODE_CH1']), codeCh2:findHeader(['CODE_CH2']), refChambr:findHeader(['REF_CHAMBR']), proprietaire:findHeader(['PROPRIETAI','PROPRIETAIRE']), commune:findHeader(['COMMUNE']), waze:findHeader(['WAZE']), wkt:findHeader(['wkt_geom']), bpe:findHeader(['BPE']), capacite:findHeader(['CAPACITE']), masque:findHeader(['MASQUE']), diametre:findHeader(['DIAMETRE']), masqueB:findHeader(['MASQUE B','MASQUE_B']), diametreB:findHeader(['DIAMETRE B','DIAMETRE_B']), cable:findHeader(['CABLE']), etiquette2:findHeader(['ETIQUETTE_2']), numVoie:findHeader(['NUM_VOIE']), distChamb:findHeader(['DIST_CHAMB']), fci:findHeader(['FCI']), bpeOrigine:findHeader(['BPE_Origine']), obsBpe:findHeader(['Observation_BPE']), commentaire:findHeader(['Commentaire_Terrain']), latitude:findHeader(['LATITUDE']), longitude:findHeader(['LONGITUDE']), tempsChambre:findHeader(['Temps_Chambre','TEMPS_CHAMBRE']), tempsCumul:findHeader(['Temps_Cumul','TEMPS_CUMUL']), cablePose:findHeader(['Cable_Pose']), boitePosee:findHeader(['Boite_Posee']) };
   const d=';';
   const lines=[allHeaders.map(h=>esc(h,d)).join(d)];
   const bpeRecues = {};
@@ -787,6 +787,8 @@ function generateCSV(){
       case 'commentaire': return c.notes || ''; case 'latitude': return c.lat || ''; case 'longitude': return c.lon || '';
       case 'tempsChambre': return (c.timeSpent !== null && c.timeSpent !== undefined) ? formatTime(c.timeSpent * 1000) : '';
       case 'tempsCumul': return (c.chronoCumul !== null && c.chronoCumul !== undefined) ? formatTime(c.chronoCumul * 1000) : '';
+      case 'cablePose': return c.cablePose !== false ? 'Oui' : 'Non';
+      case 'boitePosee': return c.hasBoite !== false ? 'Oui' : 'Non';
       default: return '';
     }};
     const row = allHeaders.map(h => {
@@ -1031,6 +1033,7 @@ function openDetail(id){
   if(!c.bpeDestination) c.bpeDestination = '';
   if(c.boiteNonPosee === undefined) c.boiteNonPosee = false;
   if(!c.notes) c.notes = '';
+  if(c.cablePose === undefined) c.cablePose = true;
   if (!c.done && (c._timeStart === null || c._timeStart === undefined) && chrono.running) { c._timeStart = getActiveTime(); dbPut(c).catch(()=>{}); }
 
   if (c.forceShowSoudure === undefined) c.forceShowSoudure = false;
@@ -1096,6 +1099,9 @@ function openDetail(id){
       <div class="info-item" style="grid-column: span 2; background:#fff3e0;"><b>BPE Prévue :</b> ${escapeHTML(bpeOrigine || 'Non renseignée')}</div>
       ${gpsDisplay}
     </div>
+    <div style="margin-top:12px; display:flex; gap:10px;">
+      <div class="toggle-container" style="flex:1;"><input type="checkbox" id="cableToggle" ${c.cablePose !== false ? 'checked' : ''}><label for="cableToggle">Câble posé / tiré</label></div>
+    </div>
     ${showBoxSettings ? `<div style="margin-top:12px; background:#e8eaf6; padding:10px; border-radius:8px; border:1px solid #c5cae9;"><label for="capaciteSelect" style="margin-top:0; color:#283593;">🔌 Capacité du câble (FO)</label><select id="capaciteSelect" style="margin-top:5px; border-color:#9fa8da;">${[12, 24, 36, 48, 72, 96, 144, 288].map(cap => `<option value="${cap}" ${c.capacite == cap ? 'selected' : ''}>${cap} FO (${Math.ceil(cap/12)} cassettes)</option>`).join('')}</select></div>` : ''}
     <div style="margin-top:12px; text-align:center;">${navBtns}</div>
   </div>
@@ -1149,7 +1155,24 @@ function openDetail(id){
     const grid = document.getElementById('souduresConfigGrid'); if(!grid) return; let html = '';
     for (let t = 1; t <= nbTubes; t++) {
       const tubeData = c.splicingData[t]; const isDroit = tubeData.droit;
-      html += `<div class="splice-tube-block" data-tube="${t}"><div class="splice-tube-header"><span>Tube ${t} (${couleursNoms[t-1] || 'Couleur ' + t})</span><label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label></div><table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
+      
+      let tubeOptsBulk = `<option value="">Appliquer à tout le tube...</option>`;
+      for (let td = 1; td <= nbTubes; td++) {
+          tubeOptsBulk += `<option value="${td}">Tube ${td}</option>`;
+      }
+
+      html += `<div class="splice-tube-block" data-tube="${t}">
+        <div class="splice-tube-header">
+            <span>Tube ${t} (${couleursNoms[t-1] || 'Couleur ' + t})</span>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <select id="bulk-tube-${t}" style="font-size:11px; padding:2px; width:auto; border-color:#0055A4; color:#0055A4; font-weight:bold; cursor:pointer;">
+                    ${tubeOptsBulk}
+                </select>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label>
+            </div>
+        </div>
+        <table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
+        
       for (let f = 0; f < 12; f++) { 
         const fib = tubeData.fibers[f]; 
         const disabledDest = isDroit ? 'disabled' : '';
@@ -1188,9 +1211,30 @@ function openDetail(id){
     
     grid.querySelectorAll('.droit-toggle').forEach(chk => { chk.onchange = async (e) => { const t = parseInt(e.target.dataset.tube); c.splicingData[t].droit = e.target.checked; if (e.target.checked) c.splicingData[t].fibers = Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1, affectation: '', codeSite: '' })); await dbPut(c); renderSouduresConfig(); }; });
     
+    grid.querySelectorAll('select[id^="bulk-tube-"]').forEach(sel => {
+        sel.onchange = async (e) => {
+            const sourceTube = parseInt(e.target.id.replace('bulk-tube-', ''));
+            const targetTube = parseInt(e.target.value);
+            if (!targetTube || sourceTube === targetTube) return;
+            
+            for (let f = 0; f < 12; f++) {
+                c.splicingData[sourceTube].fibers[f].destTube = targetTube;
+                c.splicingData[sourceTube].fibers[f].status = 'soude'; 
+            }
+            c.splicingData[sourceTube].droit = false;
+            
+            if (c.splicingData[targetTube]) {
+                c.splicingData[targetTube].droit = true;
+                c.splicingData[targetTube].fibers = Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: sourceTube, destFib: i + 1, affectation: '', codeSite: '' }));
+            }
+            
+            await dbPut(c);
+            renderSouduresConfig();
+        };
+    });
+    
     grid.querySelectorAll('.fib-status').forEach(sel => { sel.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].status = e.target.value; await dbPut(c); renderSouduresConfig(); }; });
     
-    // LOGIQUE D'INVERSION AUTOMATIQUE DES TUBES
     grid.querySelectorAll('.fib-dest-tube').forEach(sel => { 
         sel.onchange = async (e) => { 
             const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); 
@@ -1199,14 +1243,12 @@ function openDetail(id){
             
             c.splicingData[t].fibers[f].destTube = newTd; 
             
-            // Inversion : le tube de destination pointe obligatoirement vers le tube source
             if (newTd !== t && c.splicingData[newTd]) {
                 c.splicingData[newTd].droit = true; 
                 c.splicingData[newTd].fibers[f].destTube = t;
                 c.splicingData[newTd].fibers[f].destFib = f + 1;
             }
             
-            // Nettoyage de l'ancienne destination si elle existait
             if (oldTd !== newTd && oldTd !== t && c.splicingData[oldTd]) {
                 c.splicingData[oldTd].droit = true;
                 c.splicingData[oldTd].fibers[f].destTube = oldTd;
@@ -1227,6 +1269,7 @@ function openDetail(id){
   const toggleSoudureBtn = document.getElementById('toggleSoudureBtn');
   if (toggleSoudureBtn) toggleSoudureBtn.onclick = async () => { c.forceShowSoudure = !c.forceShowSoudure; await dbPut(c); openDetail(id); };
   document.getElementById('capaciteSelect')?.addEventListener('change', async (e) => { c.capacite = parseInt(e.target.value, 10); await dbPut(c); openDetail(id); });
+  document.getElementById('cableToggle')?.addEventListener('change', async (e) => { c.cablePose = e.target.checked; await dbPut(c); });
   
   cont.querySelectorAll('input[data-pass], select[data-pass]').forEach(inp=>{ 
     inp.oninput = (e) => { 
@@ -1362,21 +1405,23 @@ function genererROP() {
     let cumulativeLength = 0;
 
     // Helper: Obtenir la couleur active d'une chambre (indépendamment du câble)
-    const getActiveColor = (c) => {
+    const getActiveInfo = (c) => {
         if (!c || !c.splicingData) return null;
         let foundColor = null;
+        let fibInfo = '';
         Object.keys(c.splicingData).forEach(t => {
             const tube = c.splicingData[t];
             if (!tube || !tube.fibers) return;
             tube.fibers.forEach((fib, idx) => {
-                if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.status === 'soude' && fib.affectation)) {
+                if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
                     if (!foundColor) {
                         foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
+                        fibInfo = `F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
                     }
                 }
             });
         });
-        return foundColor;
+        return foundColor ? { color: foundColor, info: fibInfo } : null;
     };
 
     // Tracer les points
@@ -1386,23 +1431,33 @@ function genererROP() {
         
         const bpe = getRawValue(c, ['BPE', 'bpe'], '');
         const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
-        const activeColor = getActiveColor(c);
+        const activeInfo = getActiveInfo(c);
+        const p = c.passages && c.passages[0] ? c.passages[0] : {};
         
         let fillColor = '#cccccc'; // Gris clair par défaut
-        if (hasBpe) {
-            fillColor = '#2e7d32'; // VERT pour les boîtes
-        } else if (activeColor) {
+        if (hasBpe && c.hasBoite !== false) {
+            fillColor = '#2e7d32'; // VERT pour les boîtes posées
+        } else if (activeInfo) {
             fillColor = '#000000'; // NOIR pour les chambres sans boîte mais avec fibre active
         }
+
+        if (!c.cablePose && !hasBpe) return; 
 
         const marker = L.circleMarker([lat, lon], {
             radius: 9, fillColor: fillColor, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
         }).addTo(ropMap);
 
+        // Ordre: Masques -> Fibre -> Etiquette -> BPE
+        let masksTxt = '';
+        if (p.masque_in) masksTxt += `In: ${p.masque_in} ${p.diam_in ? 'Ø'+p.diam_in : ''} `;
+        if (p.masque_out) masksTxt += `Out: ${p.masque_out} ${p.diam_out ? 'Ø'+p.diam_out : ''}`;
+
         const tooltipContent = `
-            <div style="text-align:center;">
-                <b>${escapeHTML(getDisplayName(c))}</b><br>
-                <span style="font-size:9px; color:#555;">${escapeHTML(bpe)}</span>
+            <div style="text-align:center; line-height:1.4;">
+                ${masksTxt ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksTxt}</div>` : ''}
+                ${activeInfo ? `<div style="color:${activeInfo.color}; font-size:11px; font-weight:bold;">${activeInfo.info}</div>` : ''}
+                <div style="font-size:14px; margin:2px 0;">${escapeHTML(getDisplayName(c))}</div>
+                ${hasBpe && c.hasBoite !== false ? `<div style="color:#2e7d32; font-size:10px;">${escapeHTML(bpe)}</div>` : ''}
             </div>
         `;
         marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -10] });
@@ -1419,21 +1474,28 @@ function genererROP() {
         const length = parseFloat(lengthStr) || 0;
         cumulativeLength += length;
 
-        const colorPrev = getActiveColor(prevC);
-        const colorCurr = getActiveColor(currC);
+        const infoPrev = getActiveInfo(prevC);
+        const infoCurr = getActiveInfo(currC);
+        
+        const hasBpePrev = getRawValue(prevC, ['BPE', 'bpe'], '').trim() !== '' && prevC.hasBoite !== false;
 
-        // Si la chambre de départ a une fibre active, elle prend le relais
-        if (colorPrev) currentPropagationColor = colorPrev;
+        if (infoPrev) {
+            currentPropagationColor = infoPrev.color;
+        }
+        
+        // Si la chambre de départ est une boîte posée et n'a pas de NOUVELLE fibre active, on coupe la propagation
+        if (hasBpePrev && !infoCurr && prevC !== chambresGps[0]) {
+            currentPropagationColor = null;
+        }
 
         let lineColor = '#888888'; 
         let weight = 2;
 
-        // Si on a une couleur de propagation (venant de la chambre précédente ou actuelle)
         if (currentPropagationColor) {
             lineColor = currentPropagationColor;
             weight = 5;
-        } else if (colorCurr) { // Si la chambre d'arrivée a une couleur, on la prend (pour le départ)
-            lineColor = colorCurr;
+        } else if (infoCurr) { 
+            lineColor = infoCurr.color;
             weight = 5;
         }
 
@@ -1465,7 +1527,7 @@ async function construireSynoptiquePDF() {
   const optSoudures = document.getElementById('synoptiqueOptSoudures').checked;
   const optCarte = document.getElementById('synoptiqueOptCarte').checked;
   
-  const donnees = chambres.map(c => { const r = c.raw || {}; return { 'ORDRE':getVal(r,'ORDRE','ordre'), 'CODE_CH1':getVal(r,'CODE_CH1'), 'BPE':getVal(r,'BPE'), 'ETIQUETTE_2':getVal(r,'ETIQUETTE_2'), 'REF_CHAMBR':getVal(r,'REF_CHAMBR'), 'wkt_geom':getVal(r,'wkt_geom','WKT_GEOM'), 'CABLE':getVal(r,'CABLE'), 'MASQUE':getVal(r,'MASQUE'), 'DIAMETRE':getVal(r,'DIAMETRE'), 'MASQUE B':getVal(r,'MASQUE B','MASQUE_B'), 'DIAMETRE B':getVal(r,'DIAMETRE B','DIAMETRE_B'), 'FCI':getVal(r,'FCI'), 'COMMUNE':getVal(r,'COMMUNE'), 'CAPACITE':c.capacite||48 }; });
+  const donnees = chambres.map(c => { const r = c.raw || {}; return { 'ORDRE':getVal(r,'ORDRE','ordre'), 'CODE_CH1':getVal(r,'CODE_CH1'), 'BPE':getVal(r,'BPE'), 'ETIQUETTE_2':getVal(r,'ETIQUETTE_2'), 'REF_CHAMBR':getVal(r,'REF_CHAMBR'), 'wkt_geom':getVal(r,'wkt_geom','WKT_GEOM'), 'CABLE':getVal(r,'CABLE'), 'MASQUE':getVal(r,'MASQUE'), 'DIAMETRE':getVal(r,'DIAMETRE'), 'MASQUE B':getVal(r,'MASQUE B','MASQUE_B'), 'DIAMETRE B':getVal(r,'DIAMETRE B','DIAMETRE_B'), 'FCI':getVal(r,'FCI'), 'COMMUNE':getVal(r,'COMMUNE'), 'CAPACITE':c.capacite||48, 'splicingData': c.splicingData, 'passages': c.passages, 'id': c.id }; });
   donnees.sort((a, b) => parseFloatSafe(a['ORDRE'], 999) - parseFloatSafe(b['ORDRE'], 999));
   const nbChambres = donnees.length, nbBoites = donnees.filter(r => String(r['BPE']).trim() !== '').length;
   const infraML = donnees.reduce((s, r) => s + parseFloatSafe(r['ETIQUETTE_2']), 0), cableML = infraML * 1.10 + nbBoites;
@@ -1476,7 +1538,7 @@ async function construireSynoptiquePDF() {
   
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const flipY = y => H - y;
-  const COL = { red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208], purple:[128,0,128], orange:[255,165,0], grey:[128,128,128], whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211] };
+  const COL = { red:[255,0,0], black:[0,0,0], blue:[0,0,255], turquoise:[64,224,208], purple:[128,0,128], orange:[255,165,0], grey:[128,128,128], whitesmoke:[245,245,245], darkred:[139,0,0], navy:[0,0,128], darkviolet:[148,0,211], green:[46,125,50] };
   const setDrawColor = (rgb) => doc.setDrawColor(rgb[0], rgb[1], rgb[2]); const setFillColor = (rgb) => doc.setFillColor(rgb[0], rgb[1], rgb[2]); const setTextColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
   const drawRect = (x, yB, w, h, st) => doc.rect(x, flipY(yB + h), w, h, st); const drawLine = (x1, y1, x2, y2) => doc.line(x1, flipY(y1), x2, flipY(y2)); const drawCircle = (cx, cy, r, st) => doc.circle(cx, flipY(cy), r, st);
   const drawText = (txt, x, y, al) => { const o = al === 'center' ? { align: 'center' } : al === 'right' ? { align: 'right' } : undefined; doc.text(String(txt), x, flipY(y), o); };
@@ -1487,7 +1549,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.0`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.1`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1544,6 +1606,7 @@ async function construireSynoptiquePDF() {
   }
 
   function couleurPoint(ref, bpe) { const r = String(ref).toUpperCase(), b = String(bpe).toUpperCase(); if (b.includes('PBC') || r.includes('PBC')) return COL.turquoise; if (r.includes('PEC')) return COL.red; if (r.includes('PDB')) return COL.blue; if (b) return COL.purple; return COL.black; }
+  
   function dessinerPoint(cx, cy, row, globalI) {
     const ch = row.CODE_CH1 || '', bpe = row.BPE || '', ref = row.REF_CHAMBR || '', wkt = row.wkt_geom || '', nomCable = row.CABLE || '';
     const mH = row.MASQUE || '', dH = row.DIAMETRE || '', mB = row['MASQUE B'] || '', dB = row['DIAMETRE B'] || ''; const [xg, yg] = extraireXY(wkt);
@@ -1553,7 +1616,27 @@ async function construireSynoptiquePDF() {
     if (optGPS && xg !== null && yg !== null) { setTextColor(COL.darkviolet); setFont('Helvetica', 4); drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center'); setTextColor(COL.black); }
     if (optCables && nomCable) { const off = (optGPS && xg !== null) ? -19 : -14; setTextColor(COL.blue); setFont('Helvetica', 4); drawText(nomCable, cx, cy + off, 'center'); setTextColor(COL.black); }
     if (optMasques) { setTextColor(COL.red); setFont('Helvetica-Bold', 5); if (mH) drawText(dH ? `${mH} Ø${dH}` : mH, cx - 8, cy + 2, 'right'); if (mB) drawText(dB ? `${mB} Ø${dB}` : mB, cx + 8, cy + 2); setTextColor(COL.black); }
+    
+    // AFFICHAGE DES FIBRES ACTIVES
+    if (row.splicingData) {
+        let fibsAct = [];
+        Object.keys(row.splicingData).forEach(t => {
+            const tube = row.splicingData[t];
+            if (!tube || !tube.fibers) return;
+            tube.fibers.forEach((fib, idx) => {
+                if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
+                    fibsAct.push(`F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
+                }
+            });
+        });
+        if (fibsAct.length > 0) {
+            setTextColor(COL.green); setFont('Helvetica-Bold', 4);
+            let actY = cy - 20;
+            fibsAct.forEach(fa => { drawText(fa, cx, actY, 'center'); actY -= 6; });
+        }
+    }
   }
+
   function calculerPositions(donneesPage, debutGlobal, startXp, startYp, WidthP, espX, espY, ptsParLigne) {
     const positions = []; let cx = startXp, cy = startYp, dir = 1, cpt = 0;
     for (let i = 0; i < donneesPage.length; i++) { if (cpt >= ptsParLigne) { dir *= -1; cpt = 0; cy -= espY; cx = dir === 1 ? startXp : WidthP - startXp; } positions.push({ x: cx, y: cy, row: donneesPage[i], globalI: debutGlobal + i }); cx += espX * dir; cpt++; }
@@ -2258,7 +2341,7 @@ async function importCSV(file){
 
       if (!mapChambres.has(id)) mapChambres.set(id, { 
         id, raw, done: false, hasBoite: hasBpe, bpeDestination: '', boiteNonPosee: false, notes: '', 
-        lat: latVal, lon: lonVal,
+        lat: latVal, lon: lonVal, cablePose: true,
         forceShowSoudure: false, capacite: parseInt(getRawValue({raw}, ['CAPACITE'], '48'), 10) || 48, _timeStart: null, timeSpent: null, chronoCumul: null,
         photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((a, c) => { a[c.id] = []; return a; }, {}), ...PHOTO_CATS_FOA.reduce((a, c) => { a[c.id] = []; return a; }, {}) },
         passages: [{ id: uuid(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] 
@@ -2458,7 +2541,7 @@ document.getElementById('confirmAddBtn').onclick = async () => {
   const mg = chambres.reduce((m, c) => { const v = parseOrdreGeo(c.raw['ORDRE_GEO'] || c.raw['ordre_geo']); return Math.max(m, v === 999999 ? 0 : v); }, 0);
   const nG = 'A' + (mg + 1), nO = String(mg + 1);
   const compId = [c2, ref, nO].filter(Boolean).join('|') || nId;
-  const nC = { id: compId, raw: { 'CODE_CH1': nId, 'WAZE': wz, 'PROPRIETAI': prop, 'CODE_CH2': c2, 'COMMUNE': com, 'REF_CHAMBR': ref, 'NUM_VOIE': nv, 'ORDRE': nO, 'ORDRE_GEO': nG }, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: cmt, lat: pendingLat, lon: pendingLon, forceShowSoudure: false, capacite: 48, _timeStart: null, timeSpent: null, chronoCumul: null,
+  const nC = { id: compId, raw: { 'CODE_CH1': nId, 'WAZE': wz, 'PROPRIETAI': prop, 'CODE_CH2': c2, 'COMMUNE': com, 'REF_CHAMBR': ref, 'NUM_VOIE': nv, 'ORDRE': nO, 'ORDRE_GEO': nG }, done: false, hasBoite: true, bpeDestination: '', boiteNonPosee: false, notes: cmt, lat: pendingLat, lon: pendingLon, forceShowSoudure: false, capacite: 48, _timeStart: null, timeSpent: null, chronoCumul: null, cablePose: true,
     photos: { ...PHOTO_CATS_AIGUILLAGE.reduce((a, c) => { a[c.id] = []; return a; }, {}), ...PHOTO_CATS_FOA.reduce((a, c) => { a[c.id] = []; return a; }, {}) },
     passages: [{ id: uuid(), masque_in: '', diam_in: '', masque_out: '', diam_out: '', cable_name: '' }] };
   chambres.splice(idx + 1, 0, nC); 
