@@ -22,6 +22,7 @@ main { padding:16px; max-width:800px; margin:0 auto; padding-bottom:100px; }
 .btn-excel { background:#1d6f42; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
 .btn-rop { background:#f57c00; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
 .btn-check { background:#8e24aa; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
+.btn-export-maps { background:#1976d2; color:#fff; padding:14px; font-size:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-top:8px;}
 .btn-waze { background:#33ccff; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%; margin-bottom:8px;}
 .btn-maps { background:#4285F4; color:#fff; padding:12px 16px; font-size:15px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; font-weight:bold; width:100%;}
 input, select, textarea { width:100%; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:8px; background:#fff; font-family:inherit; }
@@ -228,6 +229,8 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="checkRopBtn" class="btn btn-check">📋 Vérifier les données ROP</button>
     <button id="ropBtn" class="btn btn-rop">📍 Générer ROP (Route Optique sur Maps)</button>
     
+    <button id="exportMapsPdfBtn" class="btn btn-export-maps">🗺️ Exporter Cartes Maps (PDF A4/A3)</button>
+    
     <button id="exportBtn" class="btn btn-success" style="margin-top:8px; background:#25D366; color:white;">📱 Exporter et Partager (ZIP complet)</button>
     <button id="exportExcelBtn" class="btn btn-excel">📊 Exporter Excel (Boîtes / Cassettes)</button>
   </div>
@@ -282,7 +285,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.8 (Carto & Détails ROP)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.9 (Export Cartes PDF)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1669,7 +1672,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.8`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.9`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -2363,6 +2366,45 @@ async function genererSynoptiquePDF() {
   catch (e) { console.error(e); alert("Erreur génération :\n" + e.message); }
   finally { showOverlay(false); }
 }
+
+async function genererPDFCartesSeules() {
+    if (!chambres.length) { alert("Aucune donnée à exporter."); return; }
+    
+    // Demander le format
+    const isA3 = confirm("Format A3 ?\n\nCliquez sur OK pour A3 (recommandé pour les cartes)\nCliquez sur Annuler pour A4");
+    const formatChoisi = isA3 ? "a3" : "a4";
+    const formatGlobal = isA3 ? "A3" : "A4";
+    
+    showOverlay(true);
+    try {
+        const { jsPDF } = window.jspdf || {}; if (!jsPDF) { throw new Error("jsPDF non disponible."); }
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: formatChoisi });
+        
+        // Ajouter uniquement les pages de carte Maps
+        await ajouterPageCarteMaps(doc, chambres);
+        
+        const nomProjet = document.getElementById('synoptiqueNomProjet').value.trim() || 'PROJET';
+        const fname = `Cartes_Maps_${nomProjet.replace(/[^A-Za-z0-9_-]/g, '_')}_${formatGlobal}.pdf`;
+        const blob = doc.output('blob');
+        
+        try {
+            if (navigator.canShare && navigator.canShare({ files: [new File([blob], fname, { type: 'application/pdf' })] })) {
+                await navigator.share({ files: [new File([blob], fname, { type: 'application/pdf' })], title: fname });
+            } else { throw new Error('no share'); }
+        } catch (e) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+        alert(`✅ Cartes générées en format ${formatGlobal} !`);
+    } catch(e) {
+        console.error(e);
+        alert("Erreur génération cartes :\n" + e.message);
+    } finally {
+        showOverlay(false);
+    }
+}
+
 function bindSynoptiqueUI() {
   const iG = document.getElementById('synoptiqueLogoGauche');
   if (iG) iG.onchange = (e) => { const f = e.target.files[0]; if (!f) return; if (f.size > 300000) { alert("Image trop lourde (max 300 Ko). Compressez-la."); e.target.value=''; return; } const r = new FileReader(); r.onload = (ev) => { const fmt = f.type.includes('png') ? 'PNG' : 'JPEG'; logoGauche = { dataUrl: ev.target.result, format: fmt }; saveLogoStorage(); updateLogoStatus(); e.target.value = ''; }; r.readAsDataURL(f); };
@@ -2371,6 +2413,7 @@ function bindSynoptiqueUI() {
   document.getElementById('synoptiqueClearLogoGauche').onclick = () => { if (!confirm('Effacer le logo gauche ?')) return; logoGauche = null; saveLogoStorage(); updateLogoStatus(); };
   document.getElementById('synoptiqueClearLogoDroite').onclick = () => { if (!confirm('Effacer le logo droite ?')) return; logoDroite = null; saveLogoStorage(); updateLogoStatus(); };
   document.getElementById('genererSynoptiqueBtn').onclick = genererSynoptiquePDF;
+  document.getElementById('exportMapsPdfBtn').onclick = genererPDFCartesSeules;
   loadLogoStorage();
 }
 
