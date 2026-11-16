@@ -79,14 +79,11 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .modal-content { background:#fff; width:90%; max-width:420px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
 .splice-tube-block { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 10px; overflow-x: auto; }
 .splice-tube-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: bold; color: #0055A4; }
-.splice-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 700px; }
+.splice-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 650px; }
 .splice-table th, .splice-table td { border: 1px solid #ccc; padding: 4px; text-align: center; }
 .splice-table select, .splice-table input { padding: 4px; font-size: 11px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
 .splice-table input:disabled { background: #e0e0e0; color: #888; }
 .splice-table th { font-size: 10px; background: #f0f0f0; }
-.bulk-actions { display:flex; gap:10px; margin-top:10px; background:#e3f2fd; padding:10px; border-radius:8px; border:1px solid #90caf9; align-items:center; flex-wrap:wrap; }
-.bulk-actions select, .bulk-actions input { width:auto; flex:1; font-size:12px; padding:6px; }
-.bulk-actions button { width:auto; padding:6px 12px; font-size:12px; font-weight:bold; margin:0; }
 .file-input-wrapper { display: flex; gap: 8px; align-items: stretch; margin-top: 6px; }
 .file-input-label { flex: 1; display: flex; align-items: center; justify-content: center; background: #eef3f8; border: 1px dashed #0055A4; color: #0055A4; border-radius: 8px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; margin: 0; }
 .file-input-label:active { background: #d0e3f5; }
@@ -128,6 +125,11 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
   box-shadow: 0 1px 3px rgba(0,0,0,0.2) !important;
 }
 .leaflet-tooltip-length::before { display: none !important; }
+
+/* Limite daily */
+.limit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; flex-direction: column; color: white; text-align: center; padding: 20px; }
+.limit-overlay h1 { font-size: 24px; color: #ff5252; margin-bottom: 20px; }
+.limit-overlay p { font-size: 16px; margin-bottom: 20px; max-width: 400px; line-height: 1.5; }
 </style>
 
 <script>
@@ -147,6 +149,67 @@ window.addEventListener('unhandledrejection', function(e) {
   const errMsg = reason && reason.message ? reason.message : String(reason);
   console.error("⚠️ ERREUR ASYNC: " + errMsg, reason);
 });
+
+// --- GESTION LIMITE 8H/JOUR ---
+const MAX_DAILY_MS = 8 * 60 * 60 * 1000; // 8h
+let dailyTimer = { date: null, ms: 0, interval: null };
+
+function checkDailyLimit() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('daily_limit') || '{}');
+        const today = new Date().toISOString().slice(0, 10);
+        if (saved.date === today) {
+            dailyTimer.ms = saved.ms || 0;
+        } else {
+            dailyTimer.ms = 0;
+        }
+        dailyTimer.date = today;
+        localStorage.setItem('daily_limit', JSON.stringify({ date: dailyTimer.date, ms: dailyTimer.ms }));
+        
+        if (dailyTimer.ms >= MAX_DAILY_MS) {
+            blockApp();
+        } else {
+            if (dailyTimer.interval) clearInterval(dailyTimer.interval);
+            dailyTimer.interval = setInterval(() => {
+                if (document.hidden) return; // Pause si onglet inactif
+                dailyTimer.ms += 1000;
+                localStorage.setItem('daily_limit', JSON.stringify({ date: dailyTimer.date, ms: dailyTimer.ms }));
+                if (dailyTimer.ms >= MAX_DAILY_MS) {
+                    blockApp();
+                }
+            }, 1000);
+        }
+    } catch(e) { console.error("Erreur daily limit", e); }
+}
+
+function blockApp() {
+    if (dailyTimer.interval) clearInterval(dailyTimer.interval);
+    if (document.getElementById('limitOverlay')) return;
+    const div = document.createElement('div');
+    div.id = 'limitOverlay';
+    div.className = 'limit-overlay';
+    div.innerHTML = `
+        <h1>⛔ Limite de temps atteinte</h1>
+        <p>Vous avez atteint la limite de 8 heures d'utilisation pour aujourd'hui. L'application est bloquée jusqu'à demain.</p>
+        <p style="color:#aaa; font-size:12px; margin-top:20px;">Contactez votre administrateur pour réinitialiser.</p>
+        <button onclick="resetDailyLimitAdmin()" style="margin-top:20px; padding:10px 20px; background:#555; color:white; border:none; border-radius:8px; cursor:pointer;">🔑 Code administrateur</button>
+    `;
+    document.body.appendChild(div);
+}
+
+window.resetDailyLimitAdmin = function() {
+    const pwd = prompt("Entrez le mot de passe administrateur :");
+    if (pwd === 'admin2024') { 
+        dailyTimer.ms = 0;
+        localStorage.setItem('daily_limit', JSON.stringify({ date: dailyTimer.date, ms: 0 }));
+        const ov = document.getElementById('limitOverlay');
+        if (ov) ov.remove();
+        location.reload();
+    } else if (pwd !== null) {
+        alert("Mot de passe incorrect.");
+    }
+};
+
 </script>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -157,7 +220,7 @@ window.addEventListener('unhandledrejection', function(e) {
 <!-- Librairie pour l'export Excel avec styles -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
-<body>
+<body onload="checkDailyLimit()">
 
 <header>
   <button id="backBtn" class="hidden">←</button>
@@ -187,11 +250,11 @@ window.addEventListener('unhandledrejection', function(e) {
     <div class="mode-selector">
       <button class="mode-btn" id="modeAiguillage" data-mode="aiguillage">
         <h3>🔧 ÉTUDES</h3>
-        <p>Masques, alvéoles, vue d'ensemble. Pas de mires ni de boîtes.</p>
+        <p>Masques, alvéoles, vue d'ensemble. Pas de boîtes ni de fibrage.</p>
       </button>
       <button class="mode-btn" id="modeFoa" data-mode="foa">
         <h3>📋 TIRAGE & Racco & FOA</h3>
-        <p>Mires, câbles, boîtes. Masques pré-remplis (modifiables si besoin).</p>
+        <p>Mires, câbles, boîtes. Fibrage complet et configurations.</p>
       </button>
     </div>
   </div>
@@ -285,7 +348,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.4 (Sélection multiple & Chrono 8h)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.4 (Mode Études, Multi-Fibres, Limite 8h)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -439,55 +502,12 @@ function getActiveInfo(c) {
             if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
                 if (!foundColor) {
                     foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
-                    let destInfo = '';
-                    if (fib.destTube && fib.destTube != t) destInfo = ` → T${fib.destTube}`;
-                    fibInfo = `T${t}${destInfo} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
+                    fibInfo = `T${t} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
                 }
             }
         });
     });
     return foundColor ? { color: foundColor, info: fibInfo } : null;
-}
-
-// Gestion du chronomètre journalier (8h max)
-function getTodayDateString() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-
-function checkDailyLimit() {
-    try {
-        const today = getTodayDateString();
-        const savedDate = localStorage.getItem('chrono_date');
-        let dailyAccumulated = parseInt(localStorage.getItem('chrono_daily_acc') || '0', 10);
-        
-        if (savedDate !== today) {
-            localStorage.setItem('chrono_date', today);
-            localStorage.setItem('chrono_daily_acc', '0');
-            dailyAccumulated = 0;
-        }
-
-        const currentSessionTime = getActiveTime();
-        const totalDailyTime = dailyAccumulated + currentSessionTime;
-        const MAX_DAILY = 8 * 60 * 60 * 1000; // 8 heures en ms
-
-        if (totalDailyTime >= MAX_DAILY) {
-            alert("⚠️ Limite journalière de 8h00 atteinte !\n\nLe chronomètre va se mettre en pause. Vous ne pourrez plus ouvrir de nouvelles chambres aujourd'hui.");
-            if (chrono.running) {
-                chrono.accumulated = getActiveTime();
-                chrono.running = false;
-                chrono.pausedAt = Date.now();
-                saveChrono();
-                localStorage.setItem('chrono_daily_acc', totalDailyTime);
-                if (chronoInterval) clearInterval(chronoInterval);
-                updateChronoUI();
-            }
-            return false;
-        }
-        return true;
-    } catch(e) {
-        return true;
-    }
 }
 
 function chargerLogoAccueil() {
@@ -571,10 +591,7 @@ function updateChronoUI() {
 }
 function startChronoInterval() {
   if (chronoInterval) clearInterval(chronoInterval);
-  chronoInterval = setInterval(() => {
-      if (!checkDailyLimit()) return;
-      updateChronoUI();
-  }, 1000);
+  chronoInterval = setInterval(updateChronoUI, 1000);
   updateChronoUI();
 }
 function chronoStart() {
@@ -606,7 +623,7 @@ function estPhotoAutorisee(c, catId) {
   if (catId.startsWith('CAS_')) {
     const bpeOrigine = getRawValue(c, ['BPE', 'bpe'], '');
     const hasBpe = bpeOrigine && bpeOrigine.trim() !== '' && bpeOrigine.toLowerCase() !== 'none' && bpeOrigine.toLowerCase() !== 'nan';
-    return (hasBpe || c.forceShowSoudure) && c.hasBoite !== false;
+    return modeTravail === 'foa' && (hasBpe || c.forceShowSoudure) && c.hasBoite !== false;
   }
 
   if (['MA','MB','MC','MD'].includes(catId)) {
@@ -1085,9 +1102,19 @@ function renderList(){
     const div=document.createElement('div'); div.className='list-item';
     const commune = getRawValue(c, ['COMMUNE'], ''), ref = getRawValue(c, ['REF_CHAMBR'], '');
     const geo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || '';
+    const bpe = getRawValue(c, ['BPE', 'bpe'], '');
+    const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan' && c.hasBoite !== false;
+    
     let sub = [geo ? `📌 ${geo}` : '', commune, ref].filter(Boolean).join(' • ');
     if (c.timeSpent !== null && c.timeSpent !== undefined) sub += ` • ⏱️ ${formatTime(c.timeSpent * 1000)}`;
-    div.innerHTML=`<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}</div><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div><span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
+    
+    let bpeHtml = hasBpe ? `<span style="background:#2e7d32; color:white; padding:2px 6px; border-radius:4px; font-size:10px; margin-left:6px; font-weight:bold;">📦 ${escapeHTML(bpe)}</span>` : '';
+
+    div.innerHTML=`<div style="min-width:0;flex:1;">
+        <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}${bpeHtml}</div>
+        <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div>
+      </div>
+      <span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
     div.onclick=()=>openDetail(c.id);
     cont.appendChild(div);
   }
@@ -1157,10 +1184,52 @@ function openDetail(id){
     return `<div class="passage-card ${isFoa ? 'foa' : ''}" data-passage-id="${p.id}">${c.passages.length > 1 && !isFoa ? `<button class="delete-passage" data-del-passage="${p.id}">×</button>` : ''}<h4>Liaison ${index + 1}</h4><div class="label-row"><label>Nom du Câble</label><span class="help-icon" onclick="document.getElementById('help-cable-${p.id}').classList.toggle('show')">?</span></div><div id="help-cable-${p.id}" class="help-text">Identifiant unique du câble.</div><input type="text" placeholder="ex: Câble 1" value="${escapeHTML(cableVal)}" data-pass="${p.id}" data-field="cable_name" style="margin-bottom:10px;"><div class="label-row"><label>Masque Entrée</label><span class="help-icon" onclick="document.getElementById('help-masq-${p.id}').classList.toggle('show')">?</span></div><div id="help-masq-${p.id}" class="help-text">Lettre du masque et N° d'alvéole (ex: A4).</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueInVal)}" data-pass="${p.id}" data-field="masque_in" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_in"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamInVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div><div class="label-row"><label>Masque Sortie</label><span class="help-icon" onclick="document.getElementById('help-masqout-${p.id}').classList.toggle('show')">?</span></div><div id="help-masqout-${p.id}" class="help-text">Masque et alvéole de sortie.</div><div class="row-inputs"><input type="text" placeholder="Masque+Alv" value="${escapeHTML(masqueOutVal)}" data-pass="${p.id}" data-field="masque_out" style="text-transform:uppercase;"><select data-pass="${p.id}" data-field="diam_out"><option value="">Diamètre</option>${DIAMETRES.map(d => `<option value="${d}" ${diamOutVal == d ? 'selected' : ''}>${d}</option>`).join('')}</select></div></div>`;
   }).join('');
   const gpsDisplay = (c.lat && c.lon) ? `<span class="info-item clickable" style="grid-column: span 2; background:#e8f5e9;" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${c.lat},${c.lon}','_blank')">📍 ${escapeHTML(c.lat)}, ${escapeHTML(c.lon)}</span>` : `<span class="info-item" style="grid-column: span 2; background:#ffebee;">📍 Non renseigné</span>`;
-  const showBoxSettings = hasBpe || c.forceShowSoudure; const showCassettes = hasBpe || c.forceShowSoudure;
+  const isEtudes = modeTravail === 'aiguillage';
+  const showBoxSettings = !isEtudes && (hasBpe || c.forceShowSoudure); 
+  const showCassettes = !isEtudes && (hasBpe || c.forceShowSoudure);
   let chronoInfoHtml = '';
   if (c.done && c.timeSpent !== null && c.timeSpent !== undefined) { chronoInfoHtml = `<div class="info-item" style="grid-column: span 2; background:#e8f5e9; border-left:4px solid #4caf50;"><b>⏱️ Temps chambre :</b> <span style="font-family:monospace;font-weight:bold;font-size:15px;color:#2e7d32;">${formatTime(c.timeSpent * 1000)}</span>${(c.chronoCumul !== null && c.chronoCumul !== undefined) ? ` <span style="color:#666;">•</span> <b>Cumul :</b> <span style="font-family:monospace;font-weight:bold;">${formatTime(c.chronoCumul * 1000)}</span>` : ''}</div>`; }
   else if (!c.done && c._timeStart !== null && c._timeStart !== undefined) { chronoInfoHtml = `<div class="info-item" style="grid-column: span 2; background:#e3f2fd; border-left:4px solid #1976d2;"><b>⏱️ Temps en cours :</b> <span id="liveChamberValue" style="font-family:monospace;font-weight:bold;font-size:15px;color:#0055A4;">${formatTime(getActiveTime() - c._timeStart)}</span></div>`; }
+  
+  let boxCardHtml = '';
+  if (!isEtudes) {
+      boxCardHtml = `
+      <div class="card">
+        <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
+        <div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div>
+        <div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">Boîte posée</label></div>
+        <button id="toggleSoudureBtn" class="btn btn-secondary" style="margin-top:10px; font-size:13px; padding:10px; background:${(hasBpe && c.hasBoite) || c.forceShowSoudure ? '#ffcdd2' : '#c8e6c9'}; color:#333;">${(hasBpe && c.hasBoite) || c.forceShowSoudure ? '❌ Masquer la configuration des soudures' : "🔗 Forcer l'affichage des soudures"}</button>
+        <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
+          <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label>
+          <select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select>
+          <div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div>
+        </div>
+      </div>`;
+  }
+
+  let souduresCardHtml = '';
+  if (showBoxSettings) {
+      souduresCardHtml = `
+      <div class="card" id="souduresConfigCard">
+        <div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div>
+        <div style="font-size:12px; margin-bottom:8px; background:#e3f2fd; padding:6px; border-radius:4px;">
+          <b>Câble Entrant :</b> ${escapeHTML(csvCableVal || 'Non défini')} <br>
+          <b>Câble Sortant :</b> ${escapeHTML(cableOut || 'Non défini (fin de ligne)')}
+        </div>
+        <div id="bulkActions" style="display:none; margin-bottom:10px; background:#fff3e0; padding:10px; border-radius:8px; border:1px solid #ffb74d;">
+            <div style="font-weight:bold; font-size:12px; margin-bottom:5px; color:#e65100;">Actions sur les fibres sélectionnées :</div>
+            <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                <select id="bulkStatus" style="width:auto; padding:4px; font-size:11px;"><option value="">-- Changer l'état --</option><option value="soude">Soudé</option><option value="passage">Passage</option><option value="attente">En attente</option><option value="actif">Actif</option><option value="service">Service</option><option value="reserve">Réserve</option><option value="morte">Morte</option></select>
+                <input type="text" id="bulkAffect" placeholder="Affectation (NRO)" style="width:120px; padding:4px; font-size:11px;">
+                <input type="text" id="bulkSite" placeholder="Code Site" style="width:80px; padding:4px; font-size:11px;">
+                <button id="applyBulkBtn" class="btn btn-secondary" style="width:auto; padding:4px 10px; font-size:11px; background:#0055A4; color:white;">Appliquer</button>
+            </div>
+        </div>
+        <p class="small">Cochez les fibres pour activer les actions groupées.</p>
+        <div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div>
+      </div>`;
+  }
+
   cont.innerHTML=`
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -1190,29 +1259,20 @@ function openDetail(id){
     ${showBoxSettings ? `<div style="margin-top:12px; background:#e8eaf6; padding:10px; border-radius:8px; border:1px solid #c5cae9;"><label for="capaciteSelect" style="margin-top:0; color:#283593;">🔌 Capacité du câble (FO)</label><select id="capaciteSelect" style="margin-top:5px; border-color:#9fa8da;">${[12, 24, 36, 48, 72, 96, 144, 288].map(cap => `<option value="${cap}" ${c.capacite == cap ? 'selected' : ''}>${cap} FO (${Math.ceil(cap/12)} cassettes)</option>`).join('')}</select></div>` : ''}
     <div style="margin-top:12px; text-align:center;">${navBtns}</div>
   </div>
+  
   <div class="card"><label style="margin-top:0; font-size:16px;">🔌 Liaisons (Câbles)</label><div id="passages-container">${passagesHtml}</div>${modeTravail === 'aiguillage' ? `<button id="addPassageBtn" class="btn btn-secondary" style="margin-top:12px; padding:10px; font-size:14px;">➕ Ajouter une liaison</button>` : ''}</div>
-  <div class="card">
-    <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
-    <div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div>
-    <div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div>
-    ${modeTravail !== 'aiguillage' ? `<button id="toggleSoudureBtn" class="btn btn-secondary" style="margin-top:10px; font-size:13px; padding:10px; background:${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '#ffcdd2' : '#c8e6c9'}; color:#333;">${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '❌ Masquer la configuration des soudures' : "🔗 Forcer l'affichage des soudures"}</button>` : ''}
-    <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
-      <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label>
-      <select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select>
-      <div class="toggle-container" style="background:#ffccbc; margin-top:10px;"><input type="checkbox" id="nonPoseeToggle" ${c.boiteNonPosee ? 'checked' : ''}><label for="nonPoseeToggle" style="color:#bf360c;">Boîte impossible à poser</label></div>
-    </div>
-  </div>
+  
+  ${boxCardHtml}
+  
   <div class="card"><div class="label-row"><label style="margin-top:0; font-size:16px;">📝 Commentaire Terrain</label></div><textarea id="notesInput" rows="3" placeholder="...">${escapeHTML(c.notes)}</textarea></div>
   <div class="card"><label style="margin-top:0; font-size:16px;">📷 Photos requises</label><div class="photo-row" id="photoGrid"></div></div>
   <div class="card" id="cassettesCard" style="display: ${showCassettes ? 'block' : 'none'};"><div class="label-row"><label style="margin-top:0; font-size:16px;">🗃️ Photos des Cassettes (BPE)</label></div><div class="photo-row" id="cassettesGrid"></div></div>
-  ${showBoxSettings ? `<div class="card" id="souduresConfigCard"><div class="label-row"><label style="margin-top:0; font-size:16px;">🔗 Configuration des soudures</label></div>
-  <div style="font-size:12px; margin-bottom:8px; background:#e3f2fd; padding:6px; border-radius:4px;">
-    <b>Câble Entrant :</b> ${escapeHTML(csvCableVal || 'Non défini')} <br>
-    <b>Câble Sortant :</b> ${escapeHTML(cableOut || 'Non défini (fin de ligne)')}
-  </div>
-  <p class="small">Sélectionnez les tubes de destination. (Faites glisser pour voir tout le tableau).</p><div id="souduresConfigGrid" style="display: flex; flex-direction: column; gap: 15px; margin-top:10px;"></div></div>` : ''}
+  
+  ${souduresCardHtml}
+  
   <button id="validateBtn" class="btn ${c.done?'btn-secondary':'btn-success'}" style="margin-bottom:8px;">${c.done?'↺ Rouvrir':'✓ Valider manuellement'}</button>
   <button id="nextBtn" class="btn" style="margin-bottom:8px;">Chambre suivante →</button>`;
+  
   document.getElementById('editInfoBtn').onclick = () => openEditChambre(id);
   const photoGrid = document.getElementById('photoGrid');
   const renderPhotoGrid = () => {
@@ -1228,6 +1288,7 @@ function openDetail(id){
   renderPhotoGrid();
   const cassettesGrid = document.getElementById('cassettesGrid');
   const renderCassettes = () => {
+    if(!showCassettes) return;
     const cap = parseInt(c.capacite, 10) || 48; const nbCass = Math.ceil(cap / 12); let html = '';
     for (let i = 1; i <= nbCass; i++) { const catId = `CAS_${i}`; if(!c.photos[catId]) c.photos[catId] = []; html += `<div class="photo-wrapper">${photoSlot({ id: catId, label: `CAS ${i}`, icon: '🗃️' }, c.photos[catId])}</div>`; }
     cassettesGrid.innerHTML = html;
@@ -1237,23 +1298,11 @@ function openDetail(id){
   if (showCassettes) renderCassettes();
   
   const renderSouduresConfig = () => {
+    if(!showBoxSettings) return;
     const grid = document.getElementById('souduresConfigGrid'); if(!grid) return; let html = '';
     
-    html += `<div class="bulk-actions">
-      <span style="font-weight:bold; font-size:12px; color:#0d47a1;">Appliquer aux fibres cochées :</span>
-      <select id="bulkStatusSelect" style="flex:1;">
-        <option value="">-- Statut --</option>
-        <option value="soude">Soudé</option>
-        <option value="passage">Passage</option>
-        <option value="attente">En attente</option>
-        <option value="actif">Actif</option>
-        <option value="service">Service Internet</option>
-        <option value="reserve">En réserve</option>
-        <option value="morte">Fibre morte</option>
-      </select>
-      <input type="text" id="bulkAffectationInput" placeholder="Affectation..." style="flex:1;">
-      <button id="applyBulkBtn" class="btn btn-success">Appliquer</button>
-    </div>`;
+    // Check if this is the last box
+    const isLastBox = chambres[chambres.length-1].id === c.id;
 
     for (let t = 1; t <= nbTubes; t++) {
       const tubeData = c.splicingData[t]; const isDroit = tubeData.droit;
@@ -1273,7 +1322,7 @@ function openDetail(id){
                 <label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label>
             </div>
         </div>
-        <table class="splice-table"><thead><tr><th style="width:30px;">Sélect.</th><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
+        <table class="splice-table"><thead><tr><th style="width:20px;"><input type="checkbox" class="select-all-tube" data-tube="${t}"></th><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
         
       for (let f = 0; f < 12; f++) { 
         const fib = tubeData.fibers[f]; 
@@ -1289,7 +1338,7 @@ function openDetail(id){
         }
 
         html += `<tr>
-        <td><input type="checkbox" class="fib-checkbox" data-tube="${t}" data-fib="${f}"></td>
+        <td><input type="checkbox" class="fib-check" data-tube="${t}" data-fib="${f}"></td>
         <td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td>
         <td>
           <select class="fib-status" data-tube="${t}" data-fib="${f}" ${isDroit ? 'disabled' : ''}>
@@ -1310,6 +1359,11 @@ function openDetail(id){
       }
       html += `</tbody></table></div>`;
     }
+    
+    if (isLastBox) {
+        html += `<button id="bulkAttenteBtn" class="btn btn-danger" style="margin-top:10px; font-size:12px; padding:8px;">⏳ Mettre en attente toutes les fibres de sortie (dernière boîte)</button>`;
+    }
+    
     grid.innerHTML = html;
     
     grid.querySelectorAll('.droit-toggle').forEach(chk => { chk.onchange = async (e) => { const t = parseInt(e.target.dataset.tube); c.splicingData[t].droit = e.target.checked; if (e.target.checked) c.splicingData[t].fibers = Array.from({ length: 12 }, (_, i) => ({ status: 'soude', destTube: t, destFib: i + 1, affectation: '', codeSite: '' })); await dbPut(c); renderSouduresConfig(); }; });
@@ -1366,27 +1420,60 @@ function openDetail(id){
     
     grid.querySelectorAll('.fib-affect').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].affectation = e.target.value; await dbPut(c); }; });
     grid.querySelectorAll('.fib-site').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].codeSite = e.target.value; await dbPut(c); }; });
+
+    // Multi-selection logic
+    const updateBulkVisibility = () => {
+        const anyChecked = grid.querySelectorAll('.fib-check:checked').length > 0;
+        const bulkDiv = document.getElementById('bulkActions');
+        if (bulkDiv) bulkDiv.style.display = anyChecked ? 'block' : 'none';
+    };
     
+    grid.querySelectorAll('.fib-check').forEach(chk => chk.onchange = updateBulkVisibility);
+    grid.querySelectorAll('.select-all-tube').forEach(chk => {
+        chk.onchange = (e) => {
+            const t = e.target.dataset.tube;
+            grid.querySelectorAll(`.fib-check[data-tube="${t}"]`).forEach(cb => cb.checked = e.target.checked);
+            updateBulkVisibility();
+        };
+    });
+
     document.getElementById('applyBulkBtn')?.addEventListener('click', async () => {
-        const newStatus = document.getElementById('bulkStatusSelect').value;
-        const newAffect = document.getElementById('bulkAffectationInput').value;
-        if (!newStatus && !newAffect) { alert("Veuillez choisir un statut ou une affectation."); return; }
+        const newStatus = document.getElementById('bulkStatus').value;
+        const newAffect = document.getElementById('bulkAffect').value.trim();
+        const newSite = document.getElementById('bulkSite').value.trim();
         
-        let count = 0;
-        grid.querySelectorAll('.fib-checkbox:checked').forEach(chk => {
-            const t = parseInt(chk.dataset.tube), f = parseInt(chk.dataset.fib);
-            if (newStatus) c.splicingData[t].fibers[f].status = newStatus;
-            if (newAffect) c.splicingData[t].fibers[f].affectation = newAffect;
-            count++;
-        });
-        
-        if (count === 0) { alert("Aucune fibre cochée."); return; }
-        
+        const selected = Array.from(grid.querySelectorAll('.fib-check:checked')).map(cb => ({
+            t: parseInt(cb.dataset.tube),
+            f: parseInt(cb.dataset.fib)
+        }));
+
+        if (selected.length === 0) return;
+
+        for (const sel of selected) {
+            if (newStatus) c.splicingData[sel.t].fibers[sel.f].status = newStatus;
+            if (newAffect !== '') c.splicingData[sel.t].fibers[sel.f].affectation = newAffect;
+            if (newSite !== '') c.splicingData[sel.t].fibers[sel.f].codeSite = newSite;
+        }
         await dbPut(c);
         renderSouduresConfig();
-        showToast(`✅ ${count} fibre(s) mise(s) à jour.`);
+        showToast(`${selected.length} fibre(s) mise(s) à jour.`);
+    });
+
+    document.getElementById('bulkAttenteBtn')?.addEventListener('click', async () => {
+        if (!confirm("Mettre TOUTES les fibres de sortie en 'En attente' ?")) return;
+        for (let t = 1; t <= nbTubes; t++) {
+            for (let f = 0; f < 12; f++) {
+                c.splicingData[t].fibers[f].status = 'attente';
+                c.splicingData[t].fibers[f].affectation = '';
+                c.splicingData[t].fibers[f].codeSite = '';
+            }
+        }
+        await dbPut(c);
+        renderSouduresConfig();
+        showToast("Fibres de sortie mises en attente.");
     });
   };
+  
   if (showBoxSettings) renderSouduresConfig();
   
   const toggleSoudureBtn = document.getElementById('toggleSoudureBtn');
@@ -1409,18 +1496,24 @@ function openDetail(id){
   
   document.getElementById('addPassageBtn')?.addEventListener('click', () => { c.passages.push({id: uuid(), masque_in:'', diam_in:'', masque_out:'', diam_out:'', cable_name:''}); dbPut(c).catch(console.warn); openDetail(id); });
   cont.querySelectorAll('[data-del-passage]').forEach(btn => { btn.onclick = (e) => { e.preventDefault(); if(confirm('Supprimer cette liaison ?')) { c.passages = c.passages.filter(x => x.id !== btn.dataset.delPassage); dbPut(c).catch(console.warn); openDetail(id); } }; });
-  document.getElementById('boiteToggle').onchange = (e) => {
-    c.hasBoite = e.target.checked;
-    document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block';
-    document.getElementById('cassettesCard').style.display = (c.hasBoite || c.forceShowSoudure) ? 'block' : 'none';
-    const s = document.getElementById('souduresConfigCard');
-    if (s) s.style.display = c.hasBoite ? 'block' : 'none';
-    dbPut(c).catch(console.warn);
-    if(c.hasBoite) renderCassettes();
-    renderPhotoGrid();
-  };
-  document.getElementById('bpeDestinationSelect').onchange = (e) => { c.bpeDestination = e.target.value; dbPut(c).catch(console.warn); };
-  document.getElementById('nonPoseeToggle').onchange = (e) => { c.boiteNonPosee = e.target.checked; dbPut(c).catch(console.warn); };
+  
+  const boiteToggle = document.getElementById('boiteToggle');
+  if(boiteToggle) {
+      boiteToggle.onchange = (e) => {
+        c.hasBoite = e.target.checked;
+        document.getElementById('transfertBoiteDiv').style.display = c.hasBoite ? 'none' : 'block';
+        document.getElementById('cassettesCard').style.display = (c.hasBoite || c.forceShowSoudure) ? 'block' : 'none';
+        const s = document.getElementById('souduresConfigCard');
+        if (s) s.style.display = c.hasBoite ? 'block' : 'none';
+        dbPut(c).catch(console.warn);
+        if(c.hasBoite) renderCassettes();
+        renderPhotoGrid();
+      };
+  }
+  const bpeDestinationSelect = document.getElementById('bpeDestinationSelect');
+  if(bpeDestinationSelect) bpeDestinationSelect.onchange = (e) => { c.bpeDestination = e.target.value; dbPut(c).catch(console.warn); };
+  const nonPoseeToggle = document.getElementById('nonPoseeToggle');
+  if(nonPoseeToggle) nonPoseeToggle.onchange = (e) => { c.boiteNonPosee = e.target.checked; dbPut(c).catch(console.warn); };
   document.getElementById('notesInput').oninput = (e) => { c.notes = e.target.value; dbPut(c).catch(console.warn); };
   document.getElementById('validateBtn').onclick = async () => {
     if (!c.done) {
@@ -1431,27 +1524,6 @@ function openDetail(id){
         c.chronoCumul = Math.round(getActiveTime() / 1000);
       }
       c._timeStart = null; c.done = true;
-
-      // Mise en attente automatique si dernière boîte du parcours
-      const idx = chambres.findIndex(x => x.id === c.id);
-      const isLast = (idx === chambres.length - 1);
-      const hasBpe = getRawValue(c, ['BPE', 'bpe'], '').trim() !== '';
-      
-      if (isLast && hasBpe && c.splicingData) {
-          Object.keys(c.splicingData).forEach(t => {
-              const tube = c.splicingData[t];
-              if (!tube || !tube.fibers) return;
-              tube.fibers.forEach(fib => {
-                  if (!fib.affectation || fib.affectation.trim() === '') {
-                      if (['actif', 'service', 'reserve'].includes(fib.status)) {
-                          fib.status = 'attente';
-                      }
-                  }
-              });
-          });
-          showToast("ℹ️ Fibres de sortie mises en attente (dernière boîte).", '#1976d2', 4000);
-      }
-
     } else {
       c.done = false; c._timeStart = null;
     }
@@ -1549,14 +1621,14 @@ function ouvrirCheckRop() {
         const bpe = getRawValue(c, ['BPE', 'bpe'], '');
         const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
         
-        if (!info && !hasBpe) return; // On n'affiche que ce qui apparaitra sur Maps
+        if (!info && !hasBpe) return;
 
         const isBox = hasBpe && c.hasBoite !== false;
         const isActive = info && c.cablePose !== false;
 
         let rowBg = '#fff';
-        if (isBox) rowBg = '#e8f5e9'; // Vert clair
-        else if (isActive) rowBg = '#eeeeee'; // Gris clair (noir sur map)
+        if (isBox) rowBg = '#e8f5e9';
+        else if (isActive) rowBg = '#eeeeee';
 
         html += `<tr style="background:${rowBg};">
             <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(c.raw['ORDRE'] || '')}</td>
@@ -1610,14 +1682,14 @@ function genererROP() {
         const activeInfo = getActiveInfo(c);
         const p = c.passages && c.passages[0] ? c.passages[0] : {};
         
-        let fillColor = '#cccccc'; // Gris clair par défaut
+        let fillColor = '#cccccc';
         if (hasBpe && c.hasBoite !== false) {
-            fillColor = '#2e7d32'; // VERT pour les boîtes
-        } else if (activeInfo && c.cablePose !== false) { // NOIR pour les chambres sans boîte mais avec fibre active
+            fillColor = '#2e7d32';
+        } else if (activeInfo && c.cablePose !== false) {
             fillColor = '#000000';
         }
 
-        if (c.cablePose === false && !hasBpe) return; // Ne pas afficher si pas de câble et pas de boîte
+        if (c.cablePose === false && !hasBpe) return;
 
         const marker = L.circleMarker([lat, lon], {
             radius: 9, fillColor: fillColor, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
@@ -1672,10 +1744,10 @@ function genererROP() {
 
         if (currentPropagationColor) {
             lineColor = currentPropagationColor;
-            weight = 5;
+            weight = 6; // Épaisseur augmentée pour faire ressortir le tracé
         } else if (infoCurr && currC.cablePose !== false) { 
             lineColor = infoCurr.color;
-            weight = 5;
+            weight = 6;
         }
 
         const latlngs = [
@@ -1685,9 +1757,33 @@ function genererROP() {
 
         const polyline = L.polyline(latlngs, { color: lineColor, weight: weight, opacity: 0.8 }).addTo(ropMap);
 
+        // Affichage Tube si Code site renseigné
+        let tubeInfo = '';
+        let tubeColor = null;
+        if (currC.splicingData) {
+            Object.keys(currC.splicingData).forEach(t => {
+                const tube = currC.splicingData[t];
+                if (!tube || !tube.fibers) return;
+                tube.fibers.forEach((fib, idx) => {
+                    if (fib.codeSite && fib.codeSite.trim() !== '') {
+                        if (!tubeColor) {
+                            tubeColor = couleursCSS[couleursNoms[idx]];
+                            tubeInfo = `T${t} (${couleursNoms[t-1]})`;
+                        }
+                    }
+                });
+            });
+        }
+
+        if (tubeColor) {
+            // Ligne pointillée en dessous pour symboliser le tube
+            L.polyline(latlngs, { color: tubeColor, weight: 10, opacity: 0.4, dashArray: '5, 10' }).addTo(ropMap);
+        }
+
         const tooltipContent = `
             <div style="text-align:center;">
                 <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
+                ${tubeInfo ? `<div style="color:${tubeColor}; font-size:10px; font-weight:bold;">${tubeInfo}</div>` : ''}
             </div>
         `;
         polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
@@ -1804,9 +1900,7 @@ async function construireSynoptiquePDF() {
             if (!tube || !tube.fibers) return;
             tube.fibers.forEach((fib, idx) => {
                 if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
-                    let destInfo = '';
-                    if (fib.destTube && fib.destTube != t) destInfo = `→T${fib.destTube}`;
-                    fibsAct.push(`T${t}${destInfo} F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
+                    fibsAct.push(`T${t} F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
                 }
             });
         });
@@ -2768,11 +2862,6 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
 
 async function lancerRechercheProche() {
   if (!chambres.length) { showScreen('list'); return; }
-  
-  if (!checkDailyLimit()) {
-      alert("Impossible d'ouvrir une nouvelle chambre : la limite journalière de 8h00 est atteinte.");
-      return;
-  }
   
   const withGps = chambres.filter(c => {
      if (c.done) return false;
