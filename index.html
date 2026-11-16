@@ -348,7 +348,7 @@ window.resetDailyLimitAdmin = function() {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.4 (Mode Études, Multi-Fibres, Limite 8h)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.5 (ROP Tube améliorée)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1744,7 +1744,7 @@ function genererROP() {
 
         if (currentPropagationColor) {
             lineColor = currentPropagationColor;
-            weight = 6; // Épaisseur augmentée pour faire ressortir le tracé
+            weight = 6; // Épaisseur augmentée
         } else if (infoCurr && currC.cablePose !== false) { 
             lineColor = infoCurr.color;
             weight = 6;
@@ -1757,7 +1757,7 @@ function genererROP() {
 
         const polyline = L.polyline(latlngs, { color: lineColor, weight: weight, opacity: 0.8 }).addTo(ropMap);
 
-        // Affichage Tube si Code site renseigné
+        // Gestion du tube (Ligne pointillée sous la ligne principale)
         let tubeInfo = '';
         let tubeColor = null;
         if (currC.splicingData) {
@@ -1776,8 +1776,8 @@ function genererROP() {
         }
 
         if (tubeColor) {
-            // Ligne pointillée en dessous pour symboliser le tube
-            L.polyline(latlngs, { color: tubeColor, weight: 10, opacity: 0.4, dashArray: '5, 10' }).addTo(ropMap);
+            // Ligne pointillée épaisse de la couleur du tube
+            L.polyline(latlngs, { color: tubeColor, weight: 12, opacity: 0.5, dashArray: '10, 10' }).addTo(ropMap).bringToBack();
         }
 
         const tooltipContent = `
@@ -1824,7 +1824,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.4`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.5`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
