@@ -348,7 +348,7 @@ window.resetDailyLimitAdmin = function() {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.5 (ROP Tube améliorée)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.5 (Correction Épaisseur & Couleur ROP)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -1744,10 +1744,10 @@ function genererROP() {
 
         if (currentPropagationColor) {
             lineColor = currentPropagationColor;
-            weight = 6; // Épaisseur augmentée
+            weight = 4; // Réduit de 6 à 4 pour plus de finesse
         } else if (infoCurr && currC.cablePose !== false) { 
             lineColor = infoCurr.color;
-            weight = 6;
+            weight = 4;
         }
 
         const latlngs = [
@@ -1755,14 +1755,15 @@ function genererROP() {
             [parseFloat(currC.lat), parseFloat(currC.lon)]
         ];
 
-        const polyline = L.polyline(latlngs, { color: lineColor, weight: weight, opacity: 0.8 }).addTo(ropMap);
-
-        // Gestion du tube (Ligne pointillée sous la ligne principale)
-        let tubeInfo = '';
+        // 1. Dessin du Tube (en dessous, pointillé, plus large)
         let tubeColor = null;
-        if (currC.splicingData) {
-            Object.keys(currC.splicingData).forEach(t => {
-                const tube = currC.splicingData[t];
+        let tubeInfo = '';
+        
+        // On cherche si la chambre courante ou précédente a un code site
+        const checkTube = (c) => {
+            if (!c.splicingData) return;
+            Object.keys(c.splicingData).forEach(t => {
+                const tube = c.splicingData[t];
                 if (!tube || !tube.fibers) return;
                 tube.fibers.forEach((fib, idx) => {
                     if (fib.codeSite && fib.codeSite.trim() !== '') {
@@ -1773,17 +1774,28 @@ function genererROP() {
                     }
                 });
             });
-        }
+        };
+        checkTube(prevC);
+        if (!tubeColor) checkTube(currC);
 
         if (tubeColor) {
-            // Ligne pointillée épaisse de la couleur du tube
-            L.polyline(latlngs, { color: tubeColor, weight: 12, opacity: 0.5, dashArray: '10, 10' }).addTo(ropMap).bringToBack();
+            L.polyline(latlngs, { 
+                color: tubeColor, 
+                weight: 10, 
+                opacity: 0.3, 
+                dashArray: '5, 10',
+                lineCap: 'butt'
+            }).addTo(ropMap);
         }
 
+        // 2. Dessin de la Fibre (par dessus, plein, plus fin)
+        const polyline = L.polyline(latlngs, { color: lineColor, weight: weight, opacity: 0.9 }).addTo(ropMap);
+
+        // Tooltip
         const tooltipContent = `
             <div style="text-align:center;">
                 <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
-                ${tubeInfo ? `<div style="color:${tubeColor}; font-size:10px; font-weight:bold;">${tubeInfo}</div>` : ''}
+                ${tubeInfo ? `<div style="color:${tubeColor}; font-size:10px; font-weight:bold;">Tube: ${tubeInfo}</div>` : ''}
             </div>
         `;
         polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
