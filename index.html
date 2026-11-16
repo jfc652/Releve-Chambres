@@ -79,11 +79,14 @@ label { display:block; font-weight:600; margin-bottom:6px; margin-top:12px; font
 .modal-content { background:#fff; width:90%; max-width:420px; border-radius:12px; padding:20px; max-height: 90vh; overflow-y: auto;}
 .splice-tube-block { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 10px; margin-bottom: 10px; overflow-x: auto; }
 .splice-tube-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: bold; color: #0055A4; }
-.splice-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 650px; }
+.splice-table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 700px; }
 .splice-table th, .splice-table td { border: 1px solid #ccc; padding: 4px; text-align: center; }
 .splice-table select, .splice-table input { padding: 4px; font-size: 11px; border-radius: 4px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
 .splice-table input:disabled { background: #e0e0e0; color: #888; }
 .splice-table th { font-size: 10px; background: #f0f0f0; }
+.bulk-actions { display:flex; gap:10px; margin-top:10px; background:#e3f2fd; padding:10px; border-radius:8px; border:1px solid #90caf9; align-items:center; flex-wrap:wrap; }
+.bulk-actions select, .bulk-actions input { width:auto; flex:1; font-size:12px; padding:6px; }
+.bulk-actions button { width:auto; padding:6px 12px; font-size:12px; font-weight:bold; margin:0; }
 .file-input-wrapper { display: flex; gap: 8px; align-items: stretch; margin-top: 6px; }
 .file-input-label { flex: 1; display: flex; align-items: center; justify-content: center; background: #eef3f8; border: 1px dashed #0055A4; color: #0055A4; border-radius: 8px; padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; margin: 0; }
 .file-input-label:active { background: #d0e3f5; }
@@ -282,7 +285,7 @@ window.addEventListener('unhandledrejection', function(e) {
     <button id="newProjectBtn" class="btn btn-danger" style="font-size:14px;">🆕 Nouveau projet (efface tout)</button>
   </div>
 
-  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.9 (Logique Tube Sortie & Carto)</div>
+  <div class="footer-credits">TOP SAT SERVICES - Réalisé par JFCART<br>Version 20.4 (Sélection multiple & Chrono 8h)</div>
 </section>
 
 <section id="screen-list" class="hidden"><div id="listContainer"></div></section>
@@ -424,36 +427,67 @@ function getDisplayNameById(id) {
   return c ? getDisplayName(c) : id;
 }
 
-// Fonction globale pour extraire les infos de fibre active d'une chambre et le tube de sortie
+// Fonction globale pour extraire les infos de fibre active d'une chambre
 function getActiveInfo(c) {
     if (!c || !c.splicingData) return null;
-    
     let foundColor = null;
-    let rawColor = null;
     let fibInfo = '';
-    let outTube = null;
-    
     Object.keys(c.splicingData).forEach(t => {
         const tube = c.splicingData[t];
         if (!tube || !tube.fibers) return;
         tube.fibers.forEach((fib, idx) => {
-            const isActiveStatus = ['actif', 'service', 'reserve'].includes(fib.status);
-            const hasInfo = (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '');
-            
-            if (isActiveStatus || hasInfo) {
+            if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
                 if (!foundColor) {
-                    outTube = parseInt(fib.destTube) || parseInt(t);
-                    rawColor = couleursNoms[outTube - 1];
-                    foundColor = couleursCSS[rawColor] || '#FF0000';
-                    
-                    let destLabel = (fib.destTube && fib.destTube != t && fib.status === 'soude') ? `→T${fib.destTube}` : '';
-                    fibInfo = `T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
+                    foundColor = couleursCSS[couleursNoms[idx]] || '#FF0000';
+                    let destInfo = '';
+                    if (fib.destTube && fib.destTube != t) destInfo = ` → T${fib.destTube}`;
+                    fibInfo = `T${t}${destInfo} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
                 }
             }
         });
     });
-    
-    return foundColor ? { color: foundColor, info: fibInfo, rawColor: rawColor, outTube: outTube } : null;
+    return foundColor ? { color: foundColor, info: fibInfo } : null;
+}
+
+// Gestion du chronomètre journalier (8h max)
+function getTodayDateString() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function checkDailyLimit() {
+    try {
+        const today = getTodayDateString();
+        const savedDate = localStorage.getItem('chrono_date');
+        let dailyAccumulated = parseInt(localStorage.getItem('chrono_daily_acc') || '0', 10);
+        
+        if (savedDate !== today) {
+            localStorage.setItem('chrono_date', today);
+            localStorage.setItem('chrono_daily_acc', '0');
+            dailyAccumulated = 0;
+        }
+
+        const currentSessionTime = getActiveTime();
+        const totalDailyTime = dailyAccumulated + currentSessionTime;
+        const MAX_DAILY = 8 * 60 * 60 * 1000; // 8 heures en ms
+
+        if (totalDailyTime >= MAX_DAILY) {
+            alert("⚠️ Limite journalière de 8h00 atteinte !\n\nLe chronomètre va se mettre en pause. Vous ne pourrez plus ouvrir de nouvelles chambres aujourd'hui.");
+            if (chrono.running) {
+                chrono.accumulated = getActiveTime();
+                chrono.running = false;
+                chrono.pausedAt = Date.now();
+                saveChrono();
+                localStorage.setItem('chrono_daily_acc', totalDailyTime);
+                if (chronoInterval) clearInterval(chronoInterval);
+                updateChronoUI();
+            }
+            return false;
+        }
+        return true;
+    } catch(e) {
+        return true;
+    }
 }
 
 function chargerLogoAccueil() {
@@ -537,7 +571,10 @@ function updateChronoUI() {
 }
 function startChronoInterval() {
   if (chronoInterval) clearInterval(chronoInterval);
-  chronoInterval = setInterval(updateChronoUI, 1000);
+  chronoInterval = setInterval(() => {
+      if (!checkDailyLimit()) return;
+      updateChronoUI();
+  }, 1000);
   updateChronoUI();
 }
 function chronoStart() {
@@ -1050,25 +1087,7 @@ function renderList(){
     const geo = c.raw['ORDRE_GEO'] || c.raw['ordre_geo'] || '';
     let sub = [geo ? `📌 ${geo}` : '', commune, ref].filter(Boolean).join(' • ');
     if (c.timeSpent !== null && c.timeSpent !== undefined) sub += ` • ⏱️ ${formatTime(c.timeSpent * 1000)}`;
-
-    // Infos BPE et Fibre
-    const bpe = getRawValue(c, ['BPE', 'bpe'], '').trim();
-    const hasBox = bpe !== '' && c.hasBoite !== false;
-    const info = getActiveInfo(c);
-    let badges = '';
-    if (hasBox || info) {
-        badges += `<div style="display:flex; gap:4px; margin-top:4px; flex-wrap:wrap; align-items:center;">`;
-        if (hasBox) badges += `<span style="font-size:10px; font-weight:bold; background:#e8f5e9; color:#2e7d32; padding:2px 6px; border-radius:4px; border:1px solid #a5d6a7;">📦 ${escapeHTML(bpe)}</span>`;
-        if (info) badges += `<span style="font-size:10px; font-weight:bold; background:#f5f5f5; color:black; padding:2px 6px; border-radius:4px; border:1px solid #ccc; display:flex; align-items:center;"><span style="display:inline-block; width:8px; height:8px; background:${info.color}; border-radius:50%; margin-right:4px; border:1px solid #000;"></span>${escapeHTML(info.info)}</span>`;
-        badges += `</div>`;
-    }
-
-    div.innerHTML=`<div style="min-width:0;flex:1;">
-        <div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Chambre ${escapeHTML(getDisplayName(c))}</div>
-        <div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div>
-        ${badges}
-    </div>
-    <span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
+    div.innerHTML=`<div style="min-width:0;flex:1;"><div style="font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(getDisplayName(c))}</div><div class="small" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(sub)||'À renseigner'}</div></div><span class="status-badge ${c.done?'status-done':'status-todo'}">${c.done?'✓ Fait':'À faire'}</span>`;
     div.onclick=()=>openDetail(c.id);
     cont.appendChild(div);
   }
@@ -1176,7 +1195,7 @@ function openDetail(id){
     <div class="label-row"><label style="margin-top:0; font-size:16px;">📦 État de la Boîte (BPE)</label><span class="help-icon" onclick="document.getElementById('help-boite').classList.toggle('show')">?</span></div>
     <div id="help-boite" class="help-text">Décochez si la boîte n'est pas posée.</div>
     <div class="toggle-container"><input type="checkbox" id="boiteToggle" ${c.hasBoite ? 'checked' : ''}><label for="boiteToggle">${modeTravail === 'aiguillage' ? 'Boîte étudiée' : 'Boîte posée'}</label></div>
-    <button id="toggleSoudureBtn" class="btn btn-secondary" style="margin-top:10px; font-size:13px; padding:10px; background:${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '#ffcdd2' : '#c8e6c9'}; color:#333;">${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '❌ Masquer la configuration des soudures' : "🔗 Forcer l'affichage des soudures"}</button>
+    ${modeTravail !== 'aiguillage' ? `<button id="toggleSoudureBtn" class="btn btn-secondary" style="margin-top:10px; font-size:13px; padding:10px; background:${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '#ffcdd2' : '#c8e6c9'}; color:#333;">${((hasBpe && c.hasBoite) || c.forceShowSoudure) ? '❌ Masquer la configuration des soudures' : "🔗 Forcer l'affichage des soudures"}</button>` : ''}
     <div id="transfertBoiteDiv" style="display: ${c.hasBoite ? 'none' : 'block'}; margin-top:12px; background:#ffe0b2; padding:10px; border-radius:8px;">
       <label style="color:#d84315; margin-top:0;">Boîte absente : Transférée vers quelle chambre ?</label>
       <select id="bpeDestinationSelect" style="margin-top:5px;"><option value="">-- Choisir --</option>${optionsDestination}</select>
@@ -1219,6 +1238,23 @@ function openDetail(id){
   
   const renderSouduresConfig = () => {
     const grid = document.getElementById('souduresConfigGrid'); if(!grid) return; let html = '';
+    
+    html += `<div class="bulk-actions">
+      <span style="font-weight:bold; font-size:12px; color:#0d47a1;">Appliquer aux fibres cochées :</span>
+      <select id="bulkStatusSelect" style="flex:1;">
+        <option value="">-- Statut --</option>
+        <option value="soude">Soudé</option>
+        <option value="passage">Passage</option>
+        <option value="attente">En attente</option>
+        <option value="actif">Actif</option>
+        <option value="service">Service Internet</option>
+        <option value="reserve">En réserve</option>
+        <option value="morte">Fibre morte</option>
+      </select>
+      <input type="text" id="bulkAffectationInput" placeholder="Affectation..." style="flex:1;">
+      <button id="applyBulkBtn" class="btn btn-success">Appliquer</button>
+    </div>`;
+
     for (let t = 1; t <= nbTubes; t++) {
       const tubeData = c.splicingData[t]; const isDroit = tubeData.droit;
       
@@ -1237,7 +1273,7 @@ function openDetail(id){
                 <label style="cursor:pointer; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="droit-toggle" data-tube="${t}" ${isDroit ? 'checked' : ''} style="width:auto; margin:0;"> Droit</label>
             </div>
         </div>
-        <table class="splice-table"><thead><tr><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
+        <table class="splice-table"><thead><tr><th style="width:30px;">Sélect.</th><th>Fibre</th><th>Statut</th><th>T. Dest.</th><th>F. Dest.</th><th>Affect.</th><th>Code Site</th></tr></thead><tbody>`;
         
       for (let f = 0; f < 12; f++) { 
         const fib = tubeData.fibers[f]; 
@@ -1253,6 +1289,7 @@ function openDetail(id){
         }
 
         html += `<tr>
+        <td><input type="checkbox" class="fib-checkbox" data-tube="${t}" data-fib="${f}"></td>
         <td style="background-color:rgb(${couleursHex[couleursNoms[f]].join(',')}); color:${f===3||f===5||f===11?'#000':'#fff'}; font-weight:bold;">F${f+1}</td>
         <td>
           <select class="fib-status" data-tube="${t}" data-fib="${f}" ${isDroit ? 'disabled' : ''}>
@@ -1329,6 +1366,26 @@ function openDetail(id){
     
     grid.querySelectorAll('.fib-affect').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].affectation = e.target.value; await dbPut(c); }; });
     grid.querySelectorAll('.fib-site').forEach(inp => { inp.onchange = async (e) => { const t = parseInt(e.target.dataset.tube), f = parseInt(e.target.dataset.fib); c.splicingData[t].fibers[f].codeSite = e.target.value; await dbPut(c); }; });
+    
+    document.getElementById('applyBulkBtn')?.addEventListener('click', async () => {
+        const newStatus = document.getElementById('bulkStatusSelect').value;
+        const newAffect = document.getElementById('bulkAffectationInput').value;
+        if (!newStatus && !newAffect) { alert("Veuillez choisir un statut ou une affectation."); return; }
+        
+        let count = 0;
+        grid.querySelectorAll('.fib-checkbox:checked').forEach(chk => {
+            const t = parseInt(chk.dataset.tube), f = parseInt(chk.dataset.fib);
+            if (newStatus) c.splicingData[t].fibers[f].status = newStatus;
+            if (newAffect) c.splicingData[t].fibers[f].affectation = newAffect;
+            count++;
+        });
+        
+        if (count === 0) { alert("Aucune fibre cochée."); return; }
+        
+        await dbPut(c);
+        renderSouduresConfig();
+        showToast(`✅ ${count} fibre(s) mise(s) à jour.`);
+    });
   };
   if (showBoxSettings) renderSouduresConfig();
   
@@ -1374,6 +1431,27 @@ function openDetail(id){
         c.chronoCumul = Math.round(getActiveTime() / 1000);
       }
       c._timeStart = null; c.done = true;
+
+      // Mise en attente automatique si dernière boîte du parcours
+      const idx = chambres.findIndex(x => x.id === c.id);
+      const isLast = (idx === chambres.length - 1);
+      const hasBpe = getRawValue(c, ['BPE', 'bpe'], '').trim() !== '';
+      
+      if (isLast && hasBpe && c.splicingData) {
+          Object.keys(c.splicingData).forEach(t => {
+              const tube = c.splicingData[t];
+              if (!tube || !tube.fibers) return;
+              tube.fibers.forEach(fib => {
+                  if (!fib.affectation || fib.affectation.trim() === '') {
+                      if (['actif', 'service', 'reserve'].includes(fib.status)) {
+                          fib.status = 'attente';
+                      }
+                  }
+              });
+          });
+          showToast("ℹ️ Fibres de sortie mises en attente (dernière boîte).", '#1976d2', 4000);
+      }
+
     } else {
       c.done = false; c._timeStart = null;
     }
@@ -1482,9 +1560,8 @@ function ouvrirCheckRop() {
 
         html += `<tr style="background:${rowBg};">
             <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(c.raw['ORDRE'] || '')}</td>
-            <td style="padding:6px; border:1px solid #ddd; font-weight:bold;">Chambre ${escapeHTML(getDisplayName(c))}</td>
-            <td style="padding:6px; border:1px solid #ddd; color:black; font-weight:bold;">
-                ${info ? `<span style="display:inline-block; width:12px; height:12px; background-color:${info.color}; border-radius:50%; margin-right:6px; border:1px solid #000; vertical-align:middle;"></span>` : ''}
+            <td style="padding:6px; border:1px solid #ddd; font-weight:bold;">${escapeHTML(getDisplayName(c))}</td>
+            <td style="padding:6px; border:1px solid #ddd; color:${info ? info.color : '#888'}; font-weight:bold;">
                 ${info ? info.info : '-'}
             </td>
             <td style="padding:6px; border:1px solid #ddd;">${escapeHTML(cableName)}</td>
@@ -1522,22 +1599,8 @@ function genererROP() {
 
     const bounds = L.latLngBounds();
     let cumulativeLength = 0;
-    const cumulDist = {}; // Stockage de la distance cumulée par ID de chambre
 
-    // Pré-calcul des distances cumulées
-    chambresGps.forEach((c, i) => {
-        if (i > 0) {
-            const prevC = chambresGps[i - 1];
-            const lengthStr = getRawValue(prevC, ['ETIQUETTE_2'], '0');
-            const length = parseFloat(lengthStr) || 0;
-            cumulativeLength += length;
-        }
-        cumulDist[c.id] = cumulativeLength;
-    });
-
-    cumulativeLength = 0; // Réinitialisation pour le tracé
-
-    // Tracer les points (chambres / boîtes)
+    // Tracer les points
     chambresGps.forEach(c => {
         const lat = parseFloat(c.lat), lon = parseFloat(c.lon);
         bounds.extend([lat, lon]);
@@ -1545,53 +1608,39 @@ function genererROP() {
         const bpe = getRawValue(c, ['BPE', 'bpe'], '');
         const hasBpe = bpe && bpe.trim() !== '' && bpe.toLowerCase() !== 'none' && bpe.toLowerCase() !== 'nan';
         const activeInfo = getActiveInfo(c);
-        
         const p = c.passages && c.passages[0] ? c.passages[0] : {};
-        const masqueIn = p.masque_in || getRawValue(c, ['MASQUE'], '');
-        const diamIn = p.diam_in || getRawValue(c, ['DIAMETRE'], '');
-        const masqueOut = p.masque_out || getRawValue(c, ['MASQUE B', 'MASQUE_B'], '');
-        const diamOut = p.diam_out || getRawValue(c, ['DIAMETRE B', 'DIAMETRE_B'], '');
         
-        let fillColor = '#cccccc';
+        let fillColor = '#cccccc'; // Gris clair par défaut
         if (hasBpe && c.hasBoite !== false) {
-            fillColor = '#2e7d32';
-        } else if (activeInfo && c.cablePose !== false) {
+            fillColor = '#2e7d32'; // VERT pour les boîtes
+        } else if (activeInfo && c.cablePose !== false) { // NOIR pour les chambres sans boîte mais avec fibre active
             fillColor = '#000000';
         }
 
-        if (c.cablePose === false && !hasBpe) return; 
+        if (c.cablePose === false && !hasBpe) return; // Ne pas afficher si pas de câble et pas de boîte
 
         const marker = L.circleMarker([lat, lon], {
             radius: 9, fillColor: fillColor, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
         }).addTo(ropMap);
 
-        let masksInStr = '';
-        if (masqueIn) masksInStr = `In: ${masqueIn} ${diamIn ? 'Ø'+diamIn : ''}`;
-        let masksOutStr = '';
-        if (masqueOut) masksOutStr = `Out: ${masqueOut} ${diamOut ? 'Ø'+diamOut : ''}`;
+        let masksIn = '';
+        if (p.masque_in) masksIn = `In: ${p.masque_in} ${p.diam_in ? 'Ø'+p.diam_in : ''}`;
+        let masksOut = '';
+        if (p.masque_out) masksOut = `Out: ${p.masque_out} ${p.diam_out ? 'Ø'+p.diam_out : ''}`;
 
-        // ORDRE DEMANDÉ : Fibre Active -> Chambre -> Masques -> BPE (avec distance cumulée)
         const tooltipContent = `
             <div style="text-align:center; line-height:1.4;">
-                ${activeInfo ? `<div style="color:black; font-size:11px; font-weight:bold; margin-bottom:2px;">
-                    <span style="display:inline-block; width:10px; height:10px; background-color:${activeInfo.color}; border-radius:50%; margin-right:4px; border: 1px solid #000; vertical-align: middle;"></span>
-                    ${activeInfo.info}
-                </div>` : ''}
-                <div style="font-size:14px; margin:2px 0; font-weight:bold;">Chambre ${escapeHTML(getDisplayName(c))}</div>
-                ${masksInStr ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksInStr}</div>` : ''}
-                ${masksOutStr ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksOutStr}</div>` : ''}
-                ${hasBpe && c.hasBoite !== false ? `
-                    <div style="margin-top:4px; padding-top:4px; border-top:1px dashed #ccc;">
-                        <div style="color:#2e7d32; font-size:11px; font-weight:bold;">📦 ${escapeHTML(bpe)}</div>
-                        <div style="color:#555; font-size:10px; font-weight:bold;">Cumul: ${Math.round(cumulDist[c.id])} m</div>
-                    </div>
-                ` : ''}
+                ${masksIn ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksIn}</div>` : ''}
+                ${activeInfo ? `<div style="color:${activeInfo.color}; font-size:11px; font-weight:bold;">${activeInfo.info}</div>` : ''}
+                <div style="font-size:14px; margin:2px 0;">${escapeHTML(getDisplayName(c))}</div>
+                ${masksOut ? `<div style="color:#c62828; font-size:10px; font-weight:bold;">${masksOut}</div>` : ''}
+                ${hasBpe && c.hasBoite !== false ? `<div style="color:#2e7d32; font-size:10px;">${escapeHTML(bpe)}</div>` : ''}
             </div>
         `;
         marker.bindTooltip(tooltipContent, { permanent: true, direction: 'top', className: 'leaflet-tooltip-custom', offset: [0, -10] });
     });
 
-    // Tracer les lignes (câbles) et distances
+    // Tracer les vecteurs (lignes) avec Tooltip Permanent (Longueur)
     let currentPropagationColor = null;
     
     for (let i = 1; i < chambresGps.length; i++) {
@@ -1604,17 +1653,30 @@ function genererROP() {
 
         const infoPrev = getActiveInfo(prevC);
         const infoCurr = getActiveInfo(currC);
+        
+        const hasBpePrev = getRawValue(prevC, ['BPE', 'bpe'], '').trim() !== '' && prevC.hasBoite !== false;
 
-        // On utilise le tube de sortie (outTube) pour définir la couleur du tronçon
         if (infoPrev && prevC.cablePose !== false) {
-            currentPropagationColor = infoPrev.color; // La couleur du tube de sortie
+            currentPropagationColor = infoPrev.color;
+        } else {
+            currentPropagationColor = null;
         }
-        if (!currentPropagationColor && infoCurr && currC.cablePose !== false && i === 1) {
-            currentPropagationColor = infoCurr.color;
+        
+        // Arrêt de la propagation à la première boîte sans fibre active
+        if (hasBpePrev && !infoCurr && prevC !== chambresGps[0]) {
+            currentPropagationColor = null;
         }
 
-        let lineColor = currentPropagationColor || '#888888'; 
-        let weight = currentPropagationColor ? 5 : 2;
+        let lineColor = '#888888'; 
+        let weight = 2;
+
+        if (currentPropagationColor) {
+            lineColor = currentPropagationColor;
+            weight = 5;
+        } else if (infoCurr && currC.cablePose !== false) { 
+            lineColor = infoCurr.color;
+            weight = 5;
+        }
 
         const latlngs = [
             [parseFloat(prevC.lat), parseFloat(prevC.lon)],
@@ -1623,21 +1685,12 @@ function genererROP() {
 
         const polyline = L.polyline(latlngs, { color: lineColor, weight: weight, opacity: 0.8 }).addTo(ropMap);
 
-        const hasBpeCurr = getRawValue(currC, ['BPE', 'bpe'], '').trim() !== '' && currC.hasBoite !== false;
-        const isLast = (i === chambresGps.length - 1);
-
-        if (hasBpeCurr || isLast) {
-            const tooltipContent = `
-                <div style="text-align:center;">
-                    <div style="font-size:11px; font-weight:bold;">${length} m (Cumul: ${Math.round(cumulativeLength)} m)</div>
-                </div>
-            `;
-            polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
-        }
-
-        if (hasBpeCurr && !infoCurr) {
-            currentPropagationColor = null;
-        }
+        const tooltipContent = `
+            <div style="text-align:center;">
+                <div style="font-size:11px;">${length} m (Cumul: ${cumulativeLength} m)</div>
+            </div>
+        `;
+        polyline.bindTooltip(tooltipContent, { permanent: true, direction: 'center', className: 'leaflet-tooltip-length' });
     }
 
     ropMap.fitBounds(bounds, { padding: [50, 50] });
@@ -1675,7 +1728,7 @@ async function construireSynoptiquePDF() {
     if (logoGauche && logoGauche.dataUrl) try { doc.addImage(logoGauche.dataUrl, logoGauche.format, 50, 45, 80, 50); } catch(e){}
     if (logoDroite && logoDroite.dataUrl) try { doc.addImage(logoDroite.dataUrl, logoDroite.format, W - 130, 45, 80, 50); } catch(e){}
     setTextColor(COL.black); setFont('Helvetica-Bold', 14); drawText(nomProjet.toUpperCase(), W / 2, H - 60, 'center');
-    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.9`, W / 2, H - 75, 'center');
+    setFont('Helvetica', 10); drawText(`Date : ${today} | Version : 20.4`, W / 2, H - 75, 'center');
     if (infoComp) { setFont('Helvetica-Oblique', 9); const tw = doc.getTextWidth(String(infoComp)); setDrawColor([128,128,128]); setFillColor([245,245,245]); drawRect(40, H - 120, tw + 10, 15, 'FD'); setTextColor(COL.darkred); drawText(infoComp, 45, H - 116); }
     setDrawColor(COL.black); setFillColor(COL.black); doc.setLineWidth(1); drawRect(40, 30, W - 80, 40, 'S');
     const col1 = 40 + (W - 80) * 0.20, col2 = 40 + (W - 80) * 0.40, col3 = 40 + (W - 80) * 0.60, col4 = 40 + (W - 80) * 0.80;
@@ -1737,7 +1790,7 @@ async function construireSynoptiquePDF() {
     const ch = row.CODE_CH1 || '', bpe = row.BPE || '', ref = row.REF_CHAMBR || '', wkt = row.wkt_geom || '', nomCable = row.CABLE || '';
     const mH = row.MASQUE || '', dH = row.DIAMETRE || '', mB = row['MASQUE B'] || '', dB = row['DIAMETRE B'] || ''; const [xg, yg] = extraireXY(wkt);
     if (globalI === 0 && (String(ch).toUpperCase() === 'POP' || String(ch) === '-1' || String(ref).toUpperCase() === 'POP')) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); setTextColor(COL.black); setFont('Helvetica-Bold', 7); drawText("NRO / POP", cx, cy + 8, 'center'); }
-    else { if (globalI === 0) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); } else { const c = couleurPoint(ref, bpe); setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5); drawCircle(cx, cy, 4, 'FD'); } setTextColor(COL.black); if (ref) { setFont('Helvetica-Oblique', 5); setTextColor(COL.grey); drawText(ref, cx, cy + 16, 'center'); setTextColor(COL.black); } setFont('Helvetica-Bold', 7); drawText(`Chambre ${ch}`, cx, cy + 8, 'center'); }
+    else { if (globalI === 0) { setFillColor(COL.red); setDrawColor(COL.black); doc.setLineWidth(0.5); drawRect(cx - 4, cy - 4, 8, 8, 'FD'); } else { const c = couleurPoint(ref, bpe); setFillColor(c); setDrawColor(COL.black); doc.setLineWidth(0.5); drawCircle(cx, cy, 4, 'FD'); } setTextColor(COL.black); if (ref) { setFont('Helvetica-Oblique', 5); setTextColor(COL.grey); drawText(ref, cx, cy + 16, 'center'); setTextColor(COL.black); } setFont('Helvetica-Bold', 7); drawText(`CH ${ch}`, cx, cy + 8, 'center'); }
     if (optBPE && bpe) { setTextColor(COL.navy); setFont('Helvetica', 5); drawText(bpe, cx, cy - 8, 'center'); setTextColor(COL.black); }
     if (optGPS && xg !== null && yg !== null) { setTextColor(COL.darkviolet); setFont('Helvetica', 4); drawText(`x:${xg.toFixed(3)} y:${yg.toFixed(3)}`, cx, cy - 14, 'center'); setTextColor(COL.black); }
     if (optCables && nomCable) { const off = (optGPS && xg !== null) ? -19 : -14; setTextColor(COL.blue); setFont('Helvetica', 4); drawText(nomCable, cx, cy + off, 'center'); setTextColor(COL.black); }
@@ -1750,29 +1803,17 @@ async function construireSynoptiquePDF() {
             const tube = row.splicingData[t];
             if (!tube || !tube.fibers) return;
             tube.fibers.forEach((fib, idx) => {
-                const isActiveStatus = ['actif', 'service', 'reserve'].includes(fib.status);
-                const hasInfo = (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '');
-                
-                if (isActiveStatus || hasInfo) {
-                    let destLabel = (fib.destTube && fib.destTube != t && fib.status === 'soude') ? `→T${fib.destTube}` : '';
-                    let txt = `T${t}${destLabel} F${idx+1} ${couleursNoms[idx]}` + (fib.codeSite ? ` (${fib.codeSite})` : '');
-                    let hex = couleursHex[couleursNoms[idx]] || COL.red;
-                    fibsAct.push({ text: txt, color: hex });
+                if (['actif', 'service', 'reserve'].includes(fib.status) || (fib.codeSite && fib.codeSite.trim() !== '') || (fib.affectation && fib.affectation.trim() !== '')) {
+                    let destInfo = '';
+                    if (fib.destTube && fib.destTube != t) destInfo = `→T${fib.destTube}`;
+                    fibsAct.push(`T${t}${destInfo} F${idx+1} ${couleursNoms[idx]}${fib.codeSite ? ' ('+fib.codeSite+')' : ''}`);
                 }
             });
         });
         if (fibsAct.length > 0) {
-            setTextColor(COL.black); setFont('Helvetica-Bold', 4);
+            setTextColor(COL.green); setFont('Helvetica-Bold', 4);
             let actY = cy - 20;
-            fibsAct.forEach(fa => {
-                setFillColor(fa.color);
-                setDrawColor(COL.black);
-                doc.setLineWidth(0.2);
-                drawRect(cx - 18, actY - 2, 2.5, 2.5, 'FD');
-                setTextColor(COL.black);
-                drawText(fa.text, cx - 14, actY, 'left');
-                actY -= 6;
-            });
+            fibsAct.forEach(fa => { drawText(fa, cx, actY, 'center'); actY -= 6; });
         }
     }
   }
@@ -1945,19 +1986,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       return (isNaN(oa) ? 999999 : oa) - (isNaN(ob) ? 999999 : ob);
     });
 
-    // Pré-calcul des distances cumulées
-    let currentCumul = 0;
-    const cumulDist = {};
-    chambresTriees.forEach((c, i) => {
-        if (i > 0) {
-            const prevC = chambresTriees[i - 1];
-            const lengthStr = getRawValue(prevC, ['ETIQUETTE_2'], '0');
-            const length = parseFloat(lengthStr) || 0;
-            currentCumul += length;
-        }
-        cumulDist[c.id] = currentCumul;
-    });
-
     if (dessinerLigne && chambresTriees.length > 1) {
       ctx.strokeStyle = 'rgba(0, 188, 212, 0.8)';
       ctx.lineWidth = 2 * scale;
@@ -2033,7 +2061,7 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
       ctx.lineWidth = 1.5 * scale;
       ctx.stroke();
 
-      const txt = "Chambre " + getDisplayName(c);
+      const txt = getDisplayName(c);
       ctx.font = 'bold ' + (8 * scale) + 'px Arial';
       const textWidth = ctx.measureText(txt).width;
       ctx.fillStyle = 'white';
@@ -2058,18 +2086,6 @@ async function capturerCarteTuiles(chambresGps, widthPx = 3000, heightPx = 2121,
         ctx.fillStyle = '#1b5e20';
         ctx.textAlign = 'left';
         ctx.fillText(txtBpe, p.x + 8 * scale, p.y + 7 * scale);
-
-        // Affichage de la distance cumulée sous la BPE
-        const txtCumul = `Cumul: ${Math.round(cumulDist[c.id])} m`;
-        ctx.font = 'bold ' + (7 * scale) + 'px Arial';
-        const twCumul = ctx.measureText(txtCumul).width;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        ctx.fillRect(p.x + 6 * scale, p.y + 13 * scale, twCumul + 4 * scale, 9 * scale);
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 0.5 * scale;
-        ctx.strokeRect(p.x + 6 * scale, p.y + 13 * scale, twCumul + 4 * scale, 9 * scale);
-        ctx.fillStyle = '#333';
-        ctx.fillText(txtCumul, p.x + 8 * scale, p.y + 18 * scale);
       }
     });
 
@@ -2752,6 +2768,11 @@ document.getElementById('editClearGpsBtn').onclick = () => { editPendingLat = ''
 
 async function lancerRechercheProche() {
   if (!chambres.length) { showScreen('list'); return; }
+  
+  if (!checkDailyLimit()) {
+      alert("Impossible d'ouvrir une nouvelle chambre : la limite journalière de 8h00 est atteinte.");
+      return;
+  }
   
   const withGps = chambres.filter(c => {
      if (c.done) return false;
